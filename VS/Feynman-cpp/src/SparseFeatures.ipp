@@ -75,8 +75,7 @@ namespace feynman {
 	public:
 		/*!
 		\brief Create a comparison sparse coder with random initialization.
-		Requires the ComputeSystem, ComputeProgram with the OgmaNeo kernels, and initialization information.
-		\param program is the ComputeProgram associated with the ComputeSystem and loaded with the main kernel code.
+		Requires initialization information.
 		\param visibleLayerDescs descriptors for each input layer.
 		\param hiddenSize hidden layer (SDR) size (2D).
 		\param inhibitionRadius inhibitory radius.
@@ -303,8 +302,8 @@ namespace feynman {
 		static void spStimulus(
 			const Image2D<float> &visibleStates,
 			const Image2D<float> &hiddenSummationTempBack,
-			Image2D<float> &hiddenSummationTempFront,
-			const Image3D<float> &weights, // write only
+			Image2D<float> &hiddenSummationTempFront, // write only
+			const Image3D<float> &weights,
 			const int2 visibleSize,
 			const float2 hiddenToVisible,
 			const int radius,
@@ -333,9 +332,9 @@ namespace feynman {
 
 #							pragma ivdep
 							for (int dy = -radius; dy <= radius; ++dy) { // loop peeling is inefficient 
-								if (ignoreMiddle && (dx == 0) && (dy == 0)) {
+								//if (ignoreMiddle && (dx == 0) && (dy == 0)) {
 									// do nothing;
-								} else {
+								//} else {
 									const int visiblePosition_y = visiblePositionCenter_y + dy;
 									if (inBounds0(visiblePosition_y, visibleSize.y)) {
 										const int offset_y = visiblePosition_y - fieldLowerBound_y;
@@ -346,9 +345,27 @@ namespace feynman {
 										subSum += visibleState * weight;
 										stateSum += visibleState;
 									}
-								}
+								//}
 							}
 						}
+					}
+
+					if (ignoreMiddle) { // substract the visible state that corresponds to dx=dy=0
+						const int dx = 0;
+						const int dy = 0;
+
+						const int visiblePosition_x = visiblePositionCenter_x + dx;
+						const int visiblePosition_y = visiblePositionCenter_y + dy;
+
+						const int offset_x = visiblePosition_x - fieldLowerBound_x;
+						const int offset_y = visiblePosition_y - fieldLowerBound_y;
+
+						const int wi = offset_y + (offset_x * ((radius * 2) + 1));
+						const float weight = read_3D(weights, x, y, wi);
+						const float visibleState = read_2D(visibleStates, visiblePosition_x, visiblePosition_y);
+
+						subSum -= visibleState * weight;
+						stateSum -= visibleState;
 					}
 
 					const float sum = read_2D(hiddenSummationTempBack, x, y);

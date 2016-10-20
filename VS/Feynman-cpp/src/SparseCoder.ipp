@@ -16,6 +16,8 @@ namespace feynman {
 	class SparseCoder {
 	public:
 
+		const static bool INFO = true;
+
 		//Visible layer descriptor
 		struct VisibleLayerDesc {
 
@@ -44,7 +46,7 @@ namespace feynman {
 		struct VisibleLayer {
 
 			//Possibly manipulated input
-			DoubleBuffer2D<float2> _derivedInput;
+			DoubleBuffer2D<float> _derivedInput;
 
 			//Temporary buffer for reconstruction error
 			Image2D<float> _reconError;
@@ -157,6 +159,8 @@ namespace feynman {
 			const float activeRatio,
 			std::mt19937 /*&rng*/)
 		{
+			if (INFO) printf("INFO: SparseCoder::activate\n");
+
 			// Derive inputs
 			for (size_t vli = 0; vli < _visibleLayers.size(); vli++) {
 				VisibleLayer &vl = _visibleLayers[vli];
@@ -611,19 +615,34 @@ namespace feynman {
 		static void scDeriveInputs(
 			const Image2D<float> &inputs,
 			const Image2D<float2> &outputsBack,
-			Image2D<float2> &outputsFront,
+			Image2D<float2> &outputsFront, //write only
 			const float lambda,
 			const int2 range)
 		{
-#			pragma ivdep
-			for (int x = 0; x < range.x; ++x) {
+			if (INFO) printf("INFO: SparseCoder::scDeriveInputs: lambda=%f\n", lambda);
+
+			if (true) {
+				const int nElements = range.x * range.y;
 #				pragma ivdep
-				for (int y = 0; y < range.y; ++y) {
-					const float input = read_2D(inputs, x, y);
-					const float outputPrev = read_2D(outputsBack, x, y).y;
+				for (int i = 0; i < nElements; ++i) {
+					const float input = inputs._data[i];
+					const float outputPrev = outputsBack._data[i].y;
 					const float outputNew = (lambda * outputPrev) + ((1.0f - lambda) * input);
 					//printf("SparseCoder:scDeriveInputs: pos(%i,%i): input=%f; outputPrev=%f; outputNew=%f\n", x, y, input, outputPrev, outputNew);
-					write_2D(outputsFront, x, y, float2{ input, outputNew });
+					outputsFront._data[i] = float2{ input, outputNew }; //TODO: this line yields horrible vextractps code
+				}
+			}
+			else {
+#				pragma ivdep
+				for (int x = 0; x < range.x; ++x) {
+#					pragma ivdep
+					for (int y = 0; y < range.y; ++y) {
+						const float input = read_2D(inputs, x, y);
+						const float outputPrev = read_2D(outputsBack, x, y).y;
+						const float outputNew = (lambda * outputPrev) + ((1.0f - lambda) * input);
+						//printf("SparseCoder:scDeriveInputs: pos(%i,%i): input=%f; outputPrev=%f; outputNew=%f\n", x, y, input, outputPrev, outputNew);
+						write_2D(outputsFront, x, y, float2{ input, outputNew });
+					}
 				}
 			}
 		}
