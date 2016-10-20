@@ -66,6 +66,9 @@
     <None Include="src\Video_Prediction.ipp">
       <Filter>Source Files</Filter>
     </None>
+    <None Include="src\PlotDebug.ipp">
+      <Filter>Header Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Main.cpp">

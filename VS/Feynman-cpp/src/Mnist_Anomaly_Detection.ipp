@@ -14,6 +14,8 @@
 #include <fstream>
 
 #include "Plot.ipp"
+#include "PlotDebug.ipp"
+
 #include "Helpers.ipp"
 #include "FeatureHierarchy.ipp"
 #include "Predictor.ipp"
@@ -23,35 +25,6 @@ using namespace feynman;
 
 namespace mnist {
 
-	void plotImage(
-		const Image2D<float> &image,
-		const float2 pos,
-		const float scale2,
-		sf::RenderWindow &window)
-	{
-		const int hInWidth = image._size.x;
-		const int hInHeight = image._size.y;
-
-		sf::Image sdrImg;
-		sdrImg.create(hInWidth, hInHeight);
-
-		for (int x = 0; x < hInWidth; ++x) {
-			for (int y = 0; y < hInHeight; ++y) {
-				const float pixelValue = image._data[x + (y * hInWidth)];
-				sf::Color c;
-				c.r = c.g = c.b = static_cast<sf::Uint8>(255 * std::min(1.0f, std::max(0.0f, pixelValue)));
-				sdrImg.setPixel(x, y, c);
-			}
-		}
-		sf::Texture sdrTex;
-		sdrTex.loadFromImage(sdrImg);
-
-		sf::Sprite sprite2;
-		sprite2.setTexture(sdrTex);
-		sprite2.setPosition(pos.x, pos.y + (window.getSize().y - scale2 * hInHeight));
-		sprite2.setScale(scale2, scale2);
-		window.draw(sprite2);
-	}
 
 	// Temporary MNIST image buffer
 	struct Image {
@@ -321,7 +294,7 @@ namespace mnist {
 				}
 			}
 
-			if (totalSamples == 3) quit = true;
+			//if (totalSamples == 1) quit = true;
 
 
 			window.clear();
@@ -494,13 +467,16 @@ namespace mnist {
 
 			prevAnomalous = sustainedAnomaly;
 
-			if (true)
-			{ // Rendering of gui stuff
-				sf::Sprite s;
-				s.setTexture(renderTexture.getTexture());
-				float scale = window.getSize().y / static_cast<float>(bottomHeight);
-				s.setScale(scale, scale);
-				window.draw(s);
+			// Rendering of gui stuff
+			if (true) {
+				// show the digits
+				if (true) {
+					sf::Sprite s;
+					s.setTexture(renderTexture.getTexture());
+					float scale = window.getSize().y / static_cast<float>(bottomHeight);
+					s.setScale(scale, scale);
+					window.draw(s);
+				}
 
 				// Show pool chain
 				if (true) {
@@ -576,15 +552,17 @@ namespace mnist {
 				if (true) {
 					if (true) {
 						//const Image2D<float> &newSDR_image = sparseCoder.getHiddenStates()[_back];
-						plotImage(newSDR_image, { 0.0f, 0.0f }, 2.0f, window);
-					}
-					if (true) {
-						//const Image2D<float> &predSDR_image = predictor.getPrediction();
-						plotImage(predSDR_image, { 80.0f, 0.0f }, 2.0f, window);
+						plots::plotImage(newSDR_image, { 0.0f, 0.0f }, 2.0f, window);
 					}
 					if (false) {
-						const Image2D<float> &image2 = predictor.getPrediction();
-						plotImage(image2, { 160.0f, 0.0f }, 2.0f, window);
+						//const Image2D<float> &predSDR_image = predictor.getPrediction();
+						plots::plotImage(predSDR_image, 8.0f, false, "SDR Prediction");
+					}
+					if (true) {
+						Image2D<float> image2 = Image2D<float>(scInputImage._size);
+						std::vector<Image2D<float>> reconstructions = { image2 };
+						sparseCoder.reconstruct(predSDR_image, reconstructions);
+						plots::plotImage(reconstructions.front(), 8.0f, false, "Visual Prediction");
 					}
 				}
 

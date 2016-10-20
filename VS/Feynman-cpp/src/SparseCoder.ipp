@@ -16,6 +16,8 @@ namespace feynman {
 	class SparseCoder {
 	public:
 
+		const static bool INFO = true;
+
 		//Visible layer descriptor
 		struct VisibleLayerDesc {
 
@@ -44,7 +46,7 @@ namespace feynman {
 		struct VisibleLayer {
 
 			//Possibly manipulated input
-			DoubleBuffer2D<float2> _derivedInput;
+			DoubleBuffer2D<float> _derivedInput;
 
 			//Temporary buffer for reconstruction error
 			Image2D<float> _reconError;
@@ -130,7 +132,7 @@ namespace feynman {
 					randomUniform3D(vl._weights[_back], weightsSize, initWeightRange, rng);
 				}
 
-				vl._derivedInput = createDoubleBuffer2D<float2>(vld._size);
+				vl._derivedInput = createDoubleBuffer2D<float>(vld._size);
 				clear(vl._derivedInput[_back]);
 				vl._reconError = Image2D<float>(vld._size);
 			}
@@ -153,21 +155,29 @@ namespace feynman {
 		*/
 		void activate(
 			const std::vector<Image2D<float>> &visibleStates,
-			const float inputTraceDecay,
+			const float /*inputTraceDecay*/, // unused
 			const float activeRatio,
-			std::mt19937 /*&rng*/)
+			std::mt19937 /*&rng*/)	// unused
 		{
+			//if (INFO) printf("INFO: SparseCoder::activate: nVisibleLayer=%llu\n", _visibleLayers.size());
+
 			// Derive inputs
 			for (size_t vli = 0; vli < _visibleLayers.size(); vli++) {
 				VisibleLayer &vl = _visibleLayers[vli];
 				VisibleLayerDesc &vld = _visibleLayerDescs[vli];
 
+				//if (INFO) printf("INFO: SparseCoder::activate: scDeriveInputs-level %llu\n", vli);
+				//plots::plotImage(visibleStates[vli], 16.0f, false, "SparseCoder:visibleStates:");
+
+				// copy all visible states (unaltered) to derivedInputs
 				scDeriveInputs(
-					visibleStates[vli],
-					vl._derivedInput[_back],
-					vl._derivedInput[_front],
-					inputTraceDecay,
+					visibleStates[vli],			// in
+					//vl._derivedInput[_back],	// unused
+					vl._derivedInput[_front],	// out
+					//inputTraceDecay,
 					vld._size);
+
+				//plots::plotImage(vl._derivedInput[_front], 16.0f, false, "SparseCoder:derivedInput:");
 			}
 
 			// Start by clearing stimulus summation buffer to biases
@@ -178,36 +188,41 @@ namespace feynman {
 				VisibleLayer &vl = _visibleLayers[vli];
 				VisibleLayerDesc &vld = _visibleLayerDescs[vli];
 
+				//if (INFO) printf("INFO: SparseCoder::activate: scStimulus-level %llu\n", vli);
+				//plots::plotImage(_hiddenStimulusSummationTemp[_back], 16.0f, "SparseCoder:_hiddenStimulusSummationTemp: in");
+
 				scStimulus(
-					vl._derivedInput[_front],
-					_hiddenStimulusSummationTemp[_back],
-					_hiddenStimulusSummationTemp[_front],
-					vl._weights[_back],
+					vl._derivedInput[_front],				// in
+					_hiddenStimulusSummationTemp[_back],	// in
+					_hiddenStimulusSummationTemp[_front],	// out
+					vl._weights[_back],						// in
 					vld._size,
 					vl._hiddenToVisible,
 					vld._radius,
 					vld._ignoreMiddle,
 					_hiddenSize);
 
+				//plots::plotImage(_hiddenStimulusSummationTemp[_front], 8.0f, true, "SparseCoder:_hiddenStimulusSummationTemp: out");
+
 				// Swap buffers
 				std::swap(_hiddenStimulusSummationTemp[_front], _hiddenStimulusSummationTemp[_back]);
 			}
+			//plots::plotImage(_hiddenStimulusSummationTemp[_back], 8.0f, true, "SparseCoder:_hiddenStimulusSummationTemp:");
 
 			// Solve hidden
 			scSolveHidden(
-				_hiddenStimulusSummationTemp[_back],
-				_hiddenStates[_front],
+				_hiddenStimulusSummationTemp[_back],	// in
+				_hiddenStates[_front],					// out
 				_hiddenSize,
 				_inhibitionRadius,
 				activeRatio,
 				_hiddenSize);
+			//plots::plotImage(_hiddenStates[_front], 8.0f, true, "SparseCoder:_hiddenStates:");
 		}
 
 		//End a simulation step
 		void stepEnd() {
-
 			std::swap(_hiddenStates[_front], _hiddenStates[_back]);
-
 			// Swap buffers
 			for (size_t vli = 0; vli < _visibleLayers.size(); vli++) {
 				VisibleLayer &vl = _visibleLayers[vli];
@@ -230,10 +245,10 @@ namespace feynman {
 				VisibleLayerDesc &vld = _visibleLayerDescs[vli];
 
 				scReverse(
-					_hiddenStates[_front],
-					vl._derivedInput[_front],
-					vl._reconError,
-					vl._weights[_back],
+					_hiddenStates[_front],		// in
+					vl._derivedInput[_front],	// in
+					vl._reconError,				// out
+					vl._weights[_back],			// in
 					vld._size,
 					//_hiddenSize,
 					vl._visibleToHidden,
@@ -241,6 +256,8 @@ namespace feynman {
 					vld._radius,
 					vl._reverseRadii,
 					vld._size);
+
+				//plots::plotImage(vl._reconError, 16.0f, "reconError");
 			}
 
 			// Learn weights
@@ -249,15 +266,15 @@ namespace feynman {
 				VisibleLayerDesc &vld = _visibleLayerDescs[vli];
 
 				scLearnWeights(
-					_hiddenStates[_front],
-					//_hiddenStates[_back], //unused
-					vl._reconError,
-					vl._weights[_back],
-					vl._weights[_front],
+					_hiddenStates[_front],		// in
+					//_hiddenStates[_back],		// unused
+					vl._reconError,				// in
+					vl._weights[_back],			// in
+					vl._weights[_front],		// out
 					vld._size,
 					vl._hiddenToVisible,
 					vld._radius,
-					//activeRatio, //unused
+					//activeRatio,				// unused
 					vld._weightAlpha,
 					_hiddenSize);
 
@@ -266,12 +283,14 @@ namespace feynman {
 
 			// Bias update
 			scLearnThresholds(
-				_hiddenStates[_front],
-				_hiddenThresholds[_back],
-				_hiddenThresholds[_front],
+				_hiddenStates[_front],			// in
+				_hiddenThresholds[_back],		// in
+				_hiddenThresholds[_front],		// out
 				thresholdAlpha,
 				activeRatio,
 				_hiddenSize);
+
+			//plots::plotImage(_hiddenThresholds[_front], 16.0f, "_hiddenThresholds", true);
 
 			std::swap(_hiddenThresholds[_front], _hiddenThresholds[_back]);
 		}
@@ -281,6 +300,10 @@ namespace feynman {
 			const Image2D<float> &hiddenStates,
 			std::vector<Image2D<float>> &reconstructions)
 		{
+			if (reconstructions.size() != _visibleLayers.size()) {
+				printf("WARNING: incorrect number of reconstructions");
+				return;
+			}
 			for (size_t vli = 0; vli < _visibleLayers.size(); vli++) {
 				VisibleLayer &vl = _visibleLayers[vli];
 				VisibleLayerDesc &vld = _visibleLayerDescs[vli];
@@ -346,9 +369,9 @@ namespace feynman {
 		Writes hiddenSummationTempFront
 		*/
 		static void scStimulus(
-			const Image2D<float2> &visibleStates,
+			const Image2D<float> &visibleStates, // was float2
 			const Image2D<float> &hiddenSummationTempBack,
-			Image2D<float> &hiddenSummationTempFront, //write only
+			Image2D<float> &hiddenSummationTempFront, // write only
 			const Image3D<float> &weights,
 			const int2 visibleSize,
 			const float2 hiddenToVisible,
@@ -366,7 +389,6 @@ namespace feynman {
 					const int visiblePositionCenter_y = static_cast<int>(y * hiddenToVisible.y + 0.5f);
 					const int fieldLowerBound_y = visiblePositionCenter_y - radius;
 
-					const float sum = read_2D(hiddenSummationTempBack, x, y);
 					float subSum = 0.0f;
 					int count = 0;
 
@@ -379,7 +401,7 @@ namespace feynman {
 
 #							pragma ivdep
 							for (int dy = -radius; dy <= radius; dy++) {
-								if (ignoreMiddle && dx == 0 && dy == 0)
+								if (ignoreMiddle && (dx == 0) && (dy == 0))
 									continue;
 
 								const int visiblePosition_y = visiblePositionCenter_y + dy;
@@ -389,13 +411,15 @@ namespace feynman {
 
 									const int wi = offset_y + (offset_x * ((radius * 2) + 1));
 									const float weight = read_3D(weights, x, y, wi);
-									const float visibleState = read_2D(visibleStates, visiblePosition_x, visiblePosition_y).x;
+									const float visibleState = read_2D(visibleStates, visiblePosition_x, visiblePosition_y);// .x;
 									subSum += visibleState * weight;
 									count++;
 								}
 							}
 						}
 					}
+
+					const float sum = read_2D(hiddenSummationTempBack, x, y);
 					const float hiddenSummation = sum + subSum / std::max(1, count);
 					//printf("SparseCoder:scStimulus: pos(%i,%i): sum=%f; subSum=%f\n", x, y, sum, subSum);
 					write_2D(hiddenSummationTempFront, x, y, hiddenSummation);
@@ -405,10 +429,10 @@ namespace feynman {
 
 		static void scReverse(
 			const Image2D<float> &hiddenStates,
-			const Image2D<float2> &visibleStates,
-			Image2D<float> &reconErrors, //write only
+			const Image2D<float> &visibleStates, // was float2
+			Image2D<float> &reconErrors, // write only
 			const Image3D<float> &weights,
-			//const int2 /*visibleSize*/, //unused
+			//const int2 /*visibleSize*/, // unused
 			const int2 hiddenSize,
 			const float2 visibleToHidden,
 			const float2 hiddenToVisible,
@@ -416,19 +440,16 @@ namespace feynman {
 			const int2 reverseRadii,
 			const int2 range)
 		{
-			int2 visiblePosition;
 #			pragma ivdep
 			for (int x = 0; x < range.x; ++x) {
-				visiblePosition.x = x;
 				const int hiddenPositionCenter_x = static_cast<int>(x * visibleToHidden.x + 0.5f);
 
 #				pragma ivdep
 				for (int y = 0; y < range.y; ++y) {
-					visiblePosition.y = y;
 					const int hiddenPositionCenter_y = static_cast<int>(y * visibleToHidden.y + 0.5f);
 
 					float recon = 0.0f;
-					float div = 0.0f;
+					//float div = 0.0f;
 
 #					pragma ivdep
 					for (int dx = -reverseRadii.x; dx <= reverseRadii.x; dx++) {
@@ -462,14 +483,14 @@ namespace feynman {
 											const int wi = offset_y + (offset_x * ((radius * 2) + 1));
 											const float weight = read_3D(weights, hiddenPosition_x, hiddenPosition_y, wi);
 											recon += hiddenState * weight;
-											div += hiddenState;
+											//div += hiddenState;
 										}
 									}
 								}
 							}
 						}
 					}
-					const float visibleState = read_2D(visibleStates, x, y).x;
+					const float visibleState = read_2D(visibleStates, x, y);// .x;
 					write_2D(reconErrors, x, y, visibleState - recon);
 				}
 			}
@@ -477,7 +498,7 @@ namespace feynman {
 
 		static void scSolveHidden(
 			const Image2D<float> &activations,
-			Image2D<float> &hiddenStatesFront,
+			Image2D<float> &hiddenStatesFront, // write only
 			const int2 hiddenSize,
 			const int radius,
 			const float activeRatio,
@@ -485,10 +506,8 @@ namespace feynman {
 		{
 #			pragma ivdep
 			for (int x = 0; x < range.x; ++x) {
-
 #				pragma ivdep
 				for (int y = 0; y < range.y; ++y) {
-					
 					//int2 fieldLowerBound = hiddenPosition - int2{ radius }; //TODO: unused
 
 					const float activation = read_2D(activations, x, y);
@@ -527,7 +546,7 @@ namespace feynman {
 			//const Image2D<float> &hiddenStatesPrev, // unused
 			const Image2D<float> &reconErrors,
 			const Image3D<float> &weightsBack,
-			Image3D<float> &weightsFront, //write only
+			Image3D<float> &weightsFront, // write only
 			const int2 visibleSize,
 			const float2 hiddenToVisible,
 			const int radius,
@@ -576,7 +595,7 @@ namespace feynman {
 		static void scLearnThresholds(
 			const Image2D<float> &hiddenStates,
 			const Image2D<float> &hiddenThresholdsBack,
-			Image2D<float> &hiddenThresholdsFront, //write only
+			Image2D<float> &hiddenThresholdsFront, // write only
 			const float thresholdAlpha,
 			const float activeRatio,
 			const int2 range)
@@ -610,27 +629,42 @@ namespace feynman {
 		*/
 		static void scDeriveInputs(
 			const Image2D<float> &inputs,
-			const Image2D<float2> &outputsBack,
-			Image2D<float2> &outputsFront,
-			const float lambda,
+			//const Image2D<float> /*&outputsBack*/, // unused: was float2
+			Image2D<float> &outputsFront, // write only: was float2
+			//const float /*lambda*/, // unused
 			const int2 range)
 		{
-#			pragma ivdep
-			for (int x = 0; x < range.x; ++x) {
+			//if (INFO) printf("INFO: SparseCoder::scDeriveInputs: lambda=%f\n", lambda);
+
+			if (true) {
+				const int nElements = range.x * range.y;
 #				pragma ivdep
-				for (int y = 0; y < range.y; ++y) {
-					const float input = read_2D(inputs, x, y);
-					const float outputPrev = read_2D(outputsBack, x, y).y;
-					const float outputNew = (lambda * outputPrev) + ((1.0f - lambda) * input);
+				for (int i = 0; i < nElements; ++i) {
+					const float input = inputs._data[i];
+					//const float outputPrev = outputsBack._data[i].y;
+					//const float outputNew = (lambda * outputPrev) + ((1.0f - lambda) * input);
 					//printf("SparseCoder:scDeriveInputs: pos(%i,%i): input=%f; outputPrev=%f; outputNew=%f\n", x, y, input, outputPrev, outputNew);
-					write_2D(outputsFront, x, y, float2{ input, outputNew });
+					outputsFront._data[i] = input;//float2{ input, outputNew }; //TODO: this line yields horrible vextractps code
+				}
+			}
+			else {
+#				pragma ivdep
+				for (int x = 0; x < range.x; ++x) {
+#					pragma ivdep
+					for (int y = 0; y < range.y; ++y) {
+						const float input = read_2D(inputs, x, y);
+						//const float outputPrev = read_2D(outputsBack, x, y).y;
+						//const float outputNew = (lambda * outputPrev) + ((1.0f - lambda) * input);
+						//printf("SparseCoder:scDeriveInputs: pos(%i,%i): input=%f; outputPrev=%f; outputNew=%f\n", x, y, input, outputPrev, outputNew);
+						write_2D(outputsFront, x, y, input);// float2{ input, outputNew });
+					}
 				}
 			}
 		}
 
 		static void scReconstruct(
 			const Image2D<float> &hiddenStates,
-			Image2D<float> &reconstruction,
+			Image2D<float> &reconstruction, // write only
 			const Image3D<float> &weights,
 			const int2 /*visibleSize*/,
 			const int2 hiddenSize,

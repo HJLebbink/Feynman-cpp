@@ -8,7 +8,6 @@
 
 #pragma once
 
-#include <tuple>
 #include <vector>
 #include <random>
 #include <cassert>
@@ -124,6 +123,11 @@ namespace feynman {
 			std::mt19937 &rng,
 			const bool learn = true)
 		{
+			//plots::plotImage(inputCorrupted, 8.0f, false, "Predictor:inputCorrupted");
+			//TODO: consider using binary input instead of float
+			//const float2 minmax = find_min_max(inputCorrupted);
+			//printf("INFO: Predictor:simStep, min=%f; max=%f\n", minmax.x, minmax.y);
+
 			// Activate hierarchy
 			_featureHierarchy.simStep({ inputCorrupted }, rng, learn);
 			const int nLayers = static_cast<int>(_predictorLayers.size());
@@ -131,17 +135,21 @@ namespace feynman {
 			// Forward pass through predictor to get next prediction
 			for (int layer = (nLayers - 1); (layer >= 0); --layer) {
 
+				plots::plotImage(_featureHierarchy.getLayer(layer)._sparseFeatures.getHiddenStates()[_back], 8.0f, false, "Hidden.Layer"+std::to_string(layer));
+				//const float2 minmax = find_min_max(_featureHierarchy.getLayer(layer)._sparseFeatures.getHiddenStates()[_back]);
+				//printf("INFO: Predictor:simStep, min=%f; max=%f\n", minmax.x, minmax.y);
+
 				const std::vector<Image2D<float>> visibleStates =
 					(layer == (nLayers - 1))
-						? std::vector<Image2D<float>> {
+						? std::vector<Image2D<float>> { // top-layer only get feature input from the top layer
 							_featureHierarchy.getLayer(layer)._sparseFeatures.getHiddenStates()[_back]
 						}
-						: std::vector<Image2D<float>>{
+						: std::vector<Image2D<float>>{ // non-top-layers get feature inputs from the current layer and the layer above.
 							_featureHierarchy.getLayer(layer)._sparseFeatures.getHiddenStates()[_back],
 							_predictorLayers[layer + 1].getHiddenStates()[_front]
 						};
 
-				_predictorLayers[layer].activate(visibleStates, layer != 0);
+						_predictorLayers[layer].activate(visibleStates, layer != 0);
 			}
 
 			if (learn) {
