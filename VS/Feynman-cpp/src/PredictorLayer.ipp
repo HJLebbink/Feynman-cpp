@@ -83,7 +83,7 @@ namespace feynman {
 			// Create layers
 			for (size_t vli = 0; vli < _visibleLayers.size(); vli++) {
 				VisibleLayer &vl = _visibleLayers[vli];
-				VisibleLayerDesc &vld = _visibleLayerDescs[vli];
+				const VisibleLayerDesc &vld = _visibleLayerDescs[vli];
 
 				vl._hiddenToVisible = float2{ 
 					static_cast<float>(vld._size.x) / static_cast<float>(_hiddenSize.x),
@@ -98,9 +98,9 @@ namespace feynman {
 					static_cast<int>(std::ceil(vl._visibleToHidden.y * vld._radius) + 1)
 				};
 				{
-					int weightDiam = vld._radius * 2 + 1;
-					int numWeights = weightDiam * weightDiam;
-					int3 weightsSize = { _hiddenSize.x, _hiddenSize.y, numWeights };
+					const int weightDiam = vld._radius * 2 + 1;
+					const int numWeights = weightDiam * weightDiam;
+					const int3 weightsSize = { _hiddenSize.x, _hiddenSize.y, numWeights };
 					vl._weights = createDoubleBuffer3D<float>(weightsSize);
 					randomUniform3D(vl._weights[_back], weightsSize, initWeightRange, rng);
 				}
@@ -130,21 +130,23 @@ namespace feynman {
 				VisibleLayerDesc &vld = _visibleLayerDescs[vli];
 
 				plStimulus(
-					visibleStates[vli],
-					_hiddenSummationTemp[_back],
-					_hiddenSummationTemp[_front],
-					vl._weights[_back],
+					visibleStates[vli],				// in
+					_hiddenSummationTemp[_back],	// in
+					_hiddenSummationTemp[_front],	// out
+					vl._weights[_back],				// in
 					vld._size,
 					vl._hiddenToVisible,
 					vld._radius,
 					_hiddenSize);
-				// Swap buffers
+
+				plots::plotImage(_hiddenSummationTemp[_front], 4.0f, false, "PredictionLayer:_hiddenSummationTemp:");
+
 				std::swap(_hiddenSummationTemp[_front], _hiddenSummationTemp[_back]);
 			}
 			if (threshold) {
 				plThreshold(
-					_hiddenSummationTemp[_back],
-					_hiddenStates[_front],
+					_hiddenSummationTemp[_back],	// in
+					_hiddenStates[_front],			// out
 					_hiddenSize);
 			}
 			else {
@@ -273,7 +275,7 @@ namespace feynman {
 
 		static void plThreshold(
 			const Image2D<float> &stimuli,
-			Image2D<float> &thresholded,
+			Image2D<float> &thresholded, // write only
 			const int2 range)
 		{
 			if (true) {

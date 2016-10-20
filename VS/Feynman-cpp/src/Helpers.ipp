@@ -136,43 +136,25 @@ namespace feynman {
 		return { Image3D<T>(size), Image3D<T>(size) };
 	}
 
-	template <class T>
-	static void fill(Image2D<T> &image, const T value) {
-		int nElements = image._size.x * image._size.y;
-		for (int i = 0; i < nElements; ++i) {
-			image._data[i] = value;
-		}
-	}
-
 	static void clear(Image2D<float> &image) {
-		fill(image, 0.0f);
+		const size_t nBytes = image._size.x * image._size.y * 4;
+		memset(&image._data[0], 0, nBytes);
 	}
-	static void clear(Image2D<float2> &image) {
-		fill(image, { 0.0f, 0.0f });
-	}
+//	static void clear(Image2D<float2> &image) {
+//		fill(image, { 0.0f, 0.0f });
+//	}
 
-	template <class T>
-	static void copy(const Image2D<T> &src, Image2D<T> &dst) {
-		int nElements = src._size.x * src._size.y;
-		for (int i = 0; i < nElements; ++i) {
-			dst._data[i] = src._data[i];
-		}
+	static void copy(const Image2D<float> &src, Image2D<float> &dst) {
+		const size_t nBytes = src._size.x * src._size.y * 4;
+		memcpy(&dst._data[0], &src._data[0], nBytes);
 	}
-
-	template <class T>
-	static void copy(const std::vector<T> &src, Image2D<T> &dst) {
-		int nElements = dst._size.x * dst._size.y;
-		for (int i = 0; i < nElements; ++i) {
-			dst._data[i] = src[i];
-		}
+	static void copy(const Image2D<float> &src, std::vector<float> &dst) {
+		const size_t nBytes = src._size.x * src._size.y * 4;
+		memcpy(&dst[0], &src._data[0], nBytes);
 	}
-
-	template <class T>
-	static void copy(const Image2D<T> &src, std::vector<T> &dst) {
-		int nElements = src._size.x * src._size.y;
-		for (int i = 0; i < nElements; ++i) {
-			dst[i] = src._data[i];
-		}
+	static void copy(std::vector<float> &src, Image2D<float> &dst) {
+		const size_t nBytes = dst._size.x * dst._size.y * 4;
+		memcpy(&dst._data[0], &src[0], nBytes);
 	}
 
 
@@ -280,5 +262,15 @@ namespace feynman {
 
 	inline int project(const int position, const float toScalars) {
 		return static_cast<int>((position * toScalars) + 0.5f);
+	}
+
+	inline float2 find_min_max(const Image2D<float> &image) {
+		float minimum = 1000000;
+		float maximum = -1000000;
+		for (int i = 0; i < image._size.x * image._size.y; ++i) {
+			minimum = std::min(minimum, image._data[i]);
+			maximum = std::max(maximum, image._data[i]);
+		}
+		return{ minimum, maximum };
 	}
 }

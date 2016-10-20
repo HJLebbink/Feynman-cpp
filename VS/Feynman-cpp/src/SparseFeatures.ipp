@@ -160,16 +160,16 @@ namespace feynman {
 				VisibleLayerDesc &vld = _visibleLayerDescs[vli];
 
 				spDeriveInputs(
-					visibleStates[vli],
-					vl._derivedInput[_back],
-					vl._derivedInput[_front],
+					visibleStates[vli],			// in
+					//vl._derivedInput[_back],	// unused
+					vl._derivedInput[_front],	// out
 					vld._size);
 
 				spStimulus(
-					vl._derivedInput[_front],
-					_hiddenSummationTemp[_back],
-					_hiddenSummationTemp[_front],
-					vl._weights[_back],
+					vl._derivedInput[_front],		// in
+					_hiddenSummationTemp[_back],	// in
+					_hiddenSummationTemp[_front],	// out
+					vl._weights[_back],				// in
 					vld._size,
 					vl._hiddenToVisible,
 					vld._radius,
@@ -182,17 +182,17 @@ namespace feynman {
 
 			// Activate
 			spActivate(
-				_hiddenSummationTemp[_back],
-				_hiddenStates[_back],
-				_hiddenBiases[_back],
-				_hiddenActivations[_back],
-				_hiddenActivations[_front],
+				_hiddenSummationTemp[_back],	// in
+				//_hiddenStates[_back],			// unused
+				_hiddenBiases[_back],			// in
+				//_hiddenActivations[_back],	// unused
+				_hiddenActivations[_front],		// out
 				_hiddenSize);
 
 			// Inhibit
 			spInhibit(
-				_hiddenActivations[_front],
-				_hiddenStates[_front],
+				_hiddenActivations[_front],		// in
+				_hiddenStates[_front],			// out
 				_hiddenSize,
 				_inhibitionRadius,
 				activeRatio,
@@ -220,7 +220,7 @@ namespace feynman {
 		*/
 		void learn(
 			const float biasAlpha, 
-			const float activeRatio)
+			const float /*activeRatio*/)
 		{
 			// Learn weights
 			for (size_t vli = 0; vli < _visibleLayers.size(); vli++) {
@@ -228,14 +228,14 @@ namespace feynman {
 				VisibleLayerDesc &vld = _visibleLayerDescs[vli];
 
 				spLearnWeights(
-					_hiddenStates[_front],
-					vl._derivedInput[_front],
-					vl._weights[_back],
-					vl._weights[_front],
+					_hiddenStates[_front],		// in
+					vl._derivedInput[_front],	// in
+					vl._weights[_back],			// in
+					vl._weights[_front],		// out
 					vld._size,
 					vl._hiddenToVisible,
 					vld._radius,
-					activeRatio,
+					//activeRatio,				// unused
 					vld._weightAlpha,
 					_hiddenSize);
 
@@ -244,11 +244,11 @@ namespace feynman {
 
 			// Bias update
 			spLearnBiases(
-				_hiddenSummationTemp[_back],
-				_hiddenStates[_front],
-				_hiddenBiases[_back],
-				_hiddenBiases[_front],
-				activeRatio,
+				_hiddenSummationTemp[_back],	// in
+				//_hiddenStates[_front],		// unused
+				_hiddenBiases[_back],			// in
+				_hiddenBiases[_front],			// out
+				//activeRatio,					// unused
 				biasAlpha,
 				_hiddenSize);
 
@@ -376,31 +376,41 @@ namespace feynman {
 
 		static void spActivate(
 			const Image2D<float> &stimuli,
-			const Image2D<float> /*&hiddenStates*/,
+			//const Image2D<float> /*&hiddenStates*/,
 			const Image2D<float> &biases,
-			const Image2D<float> /*&hiddenActivationsBack*/,
-			Image2D<float> &hiddenActivationsFront,
+			//const Image2D<float> /*&hiddenActivationsBack*/,
+			Image2D<float> &hiddenActivationsFront, // write only
 			const int2 range)
 		{
-#			pragma ivdep
-			for (int x = 0; x < range.x; ++x) {
-			
-#				pragma ivdep
-				for (int y = 0; y < range.y; ++y) {
-
-					const float stimulus = read_2D(stimuli, x, y);
-					//const float activationPrev = read_imagef_2D(hiddenActivationsBack, x, y);
-					//const float statePrev = read_imagef_2D(hiddenStates, x, y);
-					const float bias = read_2D(biases, x, y);
+			if (true) {
+				const int nElements = range.x * range.y;
+				for (int i = 0; i < nElements; ++i) {
+					const float stimulus = stimuli._data[i];
+					const float bias = biases._data[i];
 					const float activation = stimulus + bias;
-					write_2D(hiddenActivationsFront, x, y, activation);
+					hiddenActivationsFront._data[i] = activation;
+				}
+			}
+			else {
+#				pragma ivdep
+				for (int x = 0; x < range.x; ++x) {
+#					pragma ivdep
+					for (int y = 0; y < range.y; ++y) {
+
+						const float stimulus = read_2D(stimuli, x, y);
+						//const float activationPrev = read_imagef_2D(hiddenActivationsBack, x, y);
+						//const float statePrev = read_imagef_2D(hiddenStates, x, y);
+						const float bias = read_2D(biases, x, y);
+						const float activation = stimulus + bias;
+						write_2D(hiddenActivationsFront, x, y, activation);
+					}
 				}
 			}
 		}
 
 		static void spInhibit(
 			const Image2D<float> &activations,
-			Image2D<float> &hiddenStatesFront,
+			Image2D<float> &hiddenStatesFront, // write only
 			const int2 hiddenSize, 
 			const int radius, 
 			const float activeRatio,
@@ -444,11 +454,11 @@ namespace feynman {
 			const Image2D<float> &hiddenStates,
 			const Image2D<float> &visibleStates,
 			const Image3D<float> &weightsBack,
-			Image3D<float> &weightsFront,
+			Image3D<float> &weightsFront, // write only
 			const int2 visibleSize, 
 			const float2 hiddenToVisible, 
 			const int radius, 
-			const float /*activeRatio*/, 
+			//const float /*activeRatio*/, //unused
 			const float weightAlpha,
 			const int2 range)
 		{
@@ -470,20 +480,17 @@ namespace feynman {
 #							pragma ivdep 
 							for (int dy = -radius; dy <= radius; dy++) {
 								const int visiblePosition_y = visiblePositionCenter_y + dy;
-								
-
-								const int offset_y = visiblePosition_y - fieldLowerBound_y;
-
-								const int wi = offset_y + (offset_x * ((radius * 2) + 1));
-								const float weightPrev = read_3D(weightsBack, x, y, wi);
-								const float visibleState = read_2D(visibleStates, visiblePosition_x, visiblePosition_y);
-								const float learn = hiddenState * (visibleState - weightPrev);
-
-								//float weight = fmin(1.0f, fmax(0.0f, weightPrev + weightAlpha * learn)); // this line is slow
-								float weight = weightPrev + weightAlpha * learn;
-								weight = (weight > 1.0f) ? 1.0f : ((weight < 0.0f) ? 0.0f : weight);
-									
 								if (inBounds0(visiblePosition_y, visibleSize.y)) {
+									const int offset_y = visiblePosition_y - fieldLowerBound_y;
+
+									const int wi = offset_y + (offset_x * ((radius * 2) + 1));
+									const float weightPrev = read_3D(weightsBack, x, y, wi);
+									const float visibleState = read_2D(visibleStates, visiblePosition_x, visiblePosition_y);
+									const float learn = hiddenState * (visibleState - weightPrev);
+
+									float weight = weightPrev + weightAlpha * learn;
+									weight = (weight > 1.0f) ? 1.0f : ((weight < 0.0f) ? 0.0f : weight);
+									
 									write_3D(weightsFront, x, y, wi, weight);
 								}
 							}
@@ -495,10 +502,10 @@ namespace feynman {
 
 		static void spLearnBiases(
 			const Image2D<float> &stimuli,
-			const Image2D<float> /*&hiddenStates*/,
+			//const Image2D<float> /*&hiddenStates*/, // unused
 			const Image2D<float> &hiddenBiasesBack,
 			Image2D<float> &hiddenBiasesFront, //write only
-			const float /*activeRatio*/, 
+			//const float /*activeRatio*/, // unused
 			const float biasAlpha,
 			const int2 range)
 		{
@@ -508,18 +515,18 @@ namespace feynman {
 				for (int i = 0; i < nElements; ++i) {
 					float stimulus = stimuli._data[i];
 					float hiddenBiasPrev = hiddenBiasesBack._data[i];
-					hiddenBiasesFront._data[i] = hiddenBiasPrev + biasAlpha * (-stimulus - hiddenBiasPrev);
+					hiddenBiasesFront._data[i] = hiddenBiasPrev + (biasAlpha * (-stimulus - hiddenBiasPrev));
 				}
 			}
 			else {
-#				pragma ivdep 
+#				pragma ivdep
 				for (int x = 0; x < range.x; ++x) {
 #					pragma ivdep
 					for (int y = 0; y < range.y; ++y) {
 						float stimulus = read_2D(stimuli, x, y);
 						//float hiddenState = read_imagef_2D(hiddenStates, hiddenPosition); //TODO: unused
 						float hiddenBiasPrev = read_2D(hiddenBiasesBack, x, y);
-						write_2D(hiddenBiasesFront, x, y, hiddenBiasPrev + biasAlpha * (-stimulus - hiddenBiasPrev));
+						write_2D(hiddenBiasesFront, x, y, hiddenBiasPrev + (biasAlpha * (-stimulus - hiddenBiasPrev)));
 					}
 				}
 			}
@@ -527,8 +534,8 @@ namespace feynman {
 
 		static void spDeriveInputs(
 			const Image2D<float> &inputs,
-			const Image2D<float> /*&outputsBack*/,
-			Image2D<float> &outputsFront,
+			//const Image2D<float> /*&outputsBack*/, // unused
+			Image2D<float> &outputsFront, // write only
 			const int2 range)
 		{
 			if (true) {
