@@ -95,9 +95,6 @@ namespace feynman {
 
 			_visibleLayers.resize(_visibleLayerDescs.size());
 
-			//cl::Kernel randomUniform2DKernel = cl::Kernel(program.getProgram(), "randomUniform2D");
-			//cl::Kernel randomUniform3DKernel = cl::Kernel(program.getProgram(), "randomUniform3D");
-
 			// Create layers
 			for (int vli = 0; vli < static_cast<int>(_visibleLayers.size()); vli++) {
 				VisibleLayer &vl = _visibleLayers[vli];
@@ -310,7 +307,7 @@ namespace feynman {
 			const bool ignoreMiddle,
 			const int2 range)
 		{
-#			pragma ivdep
+//#			pragma omp parallel for schedule(dynamic,8)
 			for (int x = 0; x < range.x; ++x) {
 				const int visiblePositionCenter_x = project(x, hiddenToVisible.x);
 				const int fieldLowerBound_x = visiblePositionCenter_x - radius;
@@ -462,10 +459,12 @@ namespace feynman {
 			const float weightAlpha,
 			const int2 range)
 		{
+//#			pragma omp parallel for schedule(dynamic,8)
 			for (int x = 0; x < range.x; ++x) {
 				const int visiblePositionCenter_x = project(x, hiddenToVisible.x);
 				const int fieldLowerBound_x = visiblePositionCenter_x - radius;
 
+#				pragma ivdep 
 				for (int y = 0; y < range.y; ++y) {
 					const int visiblePositionCenter_y = project(y, hiddenToVisible.y);
 					const int fieldLowerBound_y = visiblePositionCenter_y - radius;
@@ -539,12 +538,7 @@ namespace feynman {
 			const int2 range)
 		{
 			if (true) {
-				const int nElements = range.x * range.y;
-#				pragma ivdep
-				for (int i = 0; i < nElements; ++i) {
-					const float input = inputs._data[i];
-					outputsFront._data[i] = input;
-				}
+				copy(inputs, outputsFront);
 			}
 			else {
 #				pragma ivdep 

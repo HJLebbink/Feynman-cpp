@@ -155,6 +155,11 @@
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <UseProcessorExtensions>SSE41</UseProcessorExtensions>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <GenerateAlternateCodePaths>AVXI</GenerateAlternateCodePaths>
+      <OpenMP>GenerateParallelCode</OpenMP>
+      <LoopUnrolling>2</LoopUnrolling>
+      <UseIntelOptimizedHeaders>true</UseIntelOptimizedHeaders>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
