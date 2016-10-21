@@ -13,6 +13,6 @@ int main()
 	if (false) sequenceRecall();
 
 	std::cout << "Press any key to close" << std::endl;
-	getchar();
+	//getchar();
 	return 0;
 }

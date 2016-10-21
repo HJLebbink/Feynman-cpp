@@ -68,7 +68,12 @@ namespace feynman {
 
 			_inputSize = inputSize;
 			// Create underlying hierarchy
-			_featureHierarchy.createRandom(std::vector<FeatureHierarchy::InputDesc>{ FeatureHierarchy::InputDesc(inputSize, hLayerDescs.front()._inputDescs.front()._radius) }, hLayerDescs, initWeightRange, rng);
+			_featureHierarchy.createRandom(
+				std::vector<FeatureHierarchy::InputDesc>{ FeatureHierarchy::InputDesc(inputSize, hLayerDescs.front()._inputDescs.front()._radius) }, 
+				hLayerDescs, 
+				initWeightRange, 
+				rng
+			);
 
 			int2 prevLayerSize = inputSize;
 			_pLayerDescs = pLayerDescs;
@@ -77,8 +82,8 @@ namespace feynman {
 			for (size_t layer = 0; layer < _predictorLayers.size(); layer++) {
 				std::vector<PredictorLayer::VisibleLayerDesc> pVisibleLayerDescs;
 
-				const float alpha = (layer == 0) ? firstLearningRateScalar * _pLayerDescs[layer]._alpha : _pLayerDescs[layer]._alpha;
-				const float beta = (layer == 0) ? firstLearningRateScalar * _pLayerDescs[layer]._beta : _pLayerDescs[layer]._beta;
+				const float alpha = (layer == 0) ? (firstLearningRateScalar * _pLayerDescs[layer]._alpha) : _pLayerDescs[layer]._alpha;
+				const float beta  = (layer == 0) ? (firstLearningRateScalar * _pLayerDescs[layer]._beta)  : _pLayerDescs[layer]._beta;
 
 				if (layer < _predictorLayers.size() - 1) {
 					pVisibleLayerDescs.resize(2);
@@ -135,7 +140,7 @@ namespace feynman {
 			// Forward pass through predictor to get next prediction
 			for (int layer = (nLayers - 1); (layer >= 0); --layer) {
 
-				plots::plotImage(_featureHierarchy.getLayer(layer)._sparseFeatures.getHiddenStates()[_back], 8.0f, false, "Hidden.Layer"+std::to_string(layer));
+				//plots::plotImage(_featureHierarchy.getLayer(layer)._sparseFeatures.getHiddenStates()[_back], 8.0f, false, "Hidden.Layer"+std::to_string(layer));
 				//const float2 minmax = find_min_max(_featureHierarchy.getLayer(layer)._sparseFeatures.getHiddenStates()[_back]);
 				//printf("INFO: Predictor:simStep, min=%f; max=%f\n", minmax.x, minmax.y);
 

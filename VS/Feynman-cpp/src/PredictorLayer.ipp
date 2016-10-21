@@ -139,7 +139,7 @@ namespace feynman {
 					vld._radius,
 					_hiddenSize);
 
-				plots::plotImage(_hiddenSummationTemp[_front], 4.0f, false, "PredictionLayer:_hiddenSummationTemp:");
+				//plots::plotImage(_hiddenSummationTemp[_front], 4.0f, false, "PredictionLayer:_hiddenSummationTemp:");
 
 				std::swap(_hiddenSummationTemp[_front], _hiddenSummationTemp[_back]);
 			}
@@ -232,7 +232,7 @@ namespace feynman {
 			const int radius,
 			const int2 range)
 		{
-#			pragma ivdep
+//#			pragma omp parallel for schedule(dynamic,8)
 			for (int x = 0; x < range.x; ++x) {
 				const int visiblePositionCenter_x = project(x, hiddenToVisible.x);
 				const int fieldLowerBound_x = visiblePositionCenter_x - radius;
@@ -310,7 +310,7 @@ namespace feynman {
 			const float alpha,
 			const int2 range)
 		{
-#			pragma ivdep
+//#			pragma omp parallel for schedule(dynamic,8)
 			for (int x = 0; x < range.x; ++x) {
 				const int visiblePositionCenter_x = project(x, hiddenToVisible.x);
 				const int fieldLowerBound_x = visiblePositionCenter_x - radius;

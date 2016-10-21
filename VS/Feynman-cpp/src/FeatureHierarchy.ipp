@@ -192,12 +192,17 @@ namespace feynman {
 						_layers[layer]._sparseFeatures.getHiddenStates()[_back]
 					};
 				}
-				_layers[layer]._sparseFeatures.activate(visibleStates, _layerDescs[layer]._spActiveRatio, rng);
+				_layers[layer]._sparseFeatures.activate(
+					visibleStates, 
+					_layerDescs[layer]._spActiveRatio, 
+					rng);
 			}
 			// Learn
 			if (learn) {
 				for (size_t layer = 0; layer < _layers.size(); layer++) {
-					_layers[layer]._sparseFeatures.learn(_layerDescs[layer]._spBiasAlpha, _layerDescs[layer]._spActiveRatio);
+					_layers[layer]._sparseFeatures.learn(
+						_layerDescs[layer]._spBiasAlpha, 
+						_layerDescs[layer]._spActiveRatio);
 				}
 			}
 			// Step end

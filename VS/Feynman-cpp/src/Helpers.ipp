@@ -29,12 +29,12 @@ namespace feynman {
 
 		Image2D(int2 size) : _size(size)
 		{
-			int nElements = size.x * size.y;
+			const int nElements = size.x * size.y;
 			_data.resize(nElements);
 		}
 		void swap(Image2D& other) {
 			_data.swap(other._data);
-			int2 tmp = this->_size;
+			const int2 tmp = this->_size;
 			this->_size = other._size;
 			other._size = tmp;
 		}
@@ -47,12 +47,12 @@ namespace feynman {
 
 		Image3D(int3 size) : _size(size)
 		{
-			int nElements = size.x * size.y * size.z;
+			const int nElements = size.x * size.y * size.z;
 			_data.resize(nElements);
 		}
 		void swap(Image3D& other) {
 			_data.swap(other._data);
-			int3 tmp = this->_size;
+			const int3 tmp = this->_size;
 			this->_size = other._size;
 			other._size = tmp;
 		}
@@ -196,6 +196,7 @@ namespace feynman {
 
 		for (int x = 0; x < range.x; ++x) {
 			for (int y = 0; y < range.y; ++y) {
+#				pragma ivdep
 				for (int z = 0; z < range.z; ++z) {
 					uint2 seedValue;
 					seedValue.x = seedx + (((x * 12) + 76 + z) * 3) * 12;

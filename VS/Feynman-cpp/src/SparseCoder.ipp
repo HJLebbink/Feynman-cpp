@@ -201,10 +201,8 @@ namespace feynman {
 					vld._radius,
 					vld._ignoreMiddle,
 					_hiddenSize);
-
 				//plots::plotImage(_hiddenStimulusSummationTemp[_front], 8.0f, true, "SparseCoder:_hiddenStimulusSummationTemp: out");
 
-				// Swap buffers
 				std::swap(_hiddenStimulusSummationTemp[_front], _hiddenStimulusSummationTemp[_back]);
 			}
 			//plots::plotImage(_hiddenStimulusSummationTemp[_back], 8.0f, true, "SparseCoder:_hiddenStimulusSummationTemp:");
@@ -295,7 +293,7 @@ namespace feynman {
 			std::swap(_hiddenThresholds[_front], _hiddenThresholds[_back]);
 		}
 
-		//Reconstruct an SDR
+		//Reconstruct image from an SDR
 		void reconstruct(
 			const Image2D<float> &hiddenStates,
 			std::vector<Image2D<float>> &reconstructions)
@@ -319,7 +317,6 @@ namespace feynman {
 					vld._radius,
 					vl._reverseRadii,
 					vld._size);
-
 			}
 		}
 
@@ -389,8 +386,11 @@ namespace feynman {
 					const int visiblePositionCenter_y = static_cast<int>(y * hiddenToVisible.y + 0.5f);
 					const int fieldLowerBound_y = visiblePositionCenter_y - radius;
 
-					float subSum = 0.0f;
+					float subSum = 0.0f;	// subSum is the sum of the simulus that hidden node (x,y) receives from 
 					int count = 0;
+
+					//if ((x == 10) && (y == 10)) 
+					//	printf("BREAK");
 
 #					pragma ivdep
 					for (int dx = -radius; dx <= radius; dx++) {
@@ -496,6 +496,7 @@ namespace feynman {
 			}
 		}
 
+		//Create SDR in hiddenStatesFront from activations
 		static void scSolveHidden(
 			const Image2D<float> &activations,
 			Image2D<float> &hiddenStatesFront, // write only
@@ -504,11 +505,18 @@ namespace feynman {
 			const float activeRatio,
 			const int2 range)
 		{
+			clear(hiddenStatesFront);
+
 #			pragma ivdep
 			for (int x = 0; x < range.x; ++x) {
 #				pragma ivdep
 				for (int y = 0; y < range.y; ++y) {
-					//int2 fieldLowerBound = hiddenPosition - int2{ radius }; //TODO: unused
+
+					//if (x == 10 && y == 10)
+					//	printf("BREAK");
+
+					// for every pos (x,y) in activations, count the neighbours (in range) that 
+					// have an activation that is higher (or equal)
 
 					const float activation = read_2D(activations, x, y);
 					int inhibition = 0;
@@ -535,8 +543,12 @@ namespace feynman {
 							}
 						}
 					}
-					const float state = (inhibition <= (activeRatio * count)) ? 1.0f : 0.0f;
-					write_2D(hiddenStatesFront, x, y, state);
+
+					// if the number of neighbours (with higher activation) is smaller than activeRatio, 
+					// then pos (x,y) is active;
+					if (inhibition <= (activeRatio * count)) {
+						write_2D(hiddenStatesFront, x, y, 1.0f);
+					}
 				}
 			}
 		}
@@ -635,17 +647,8 @@ namespace feynman {
 			const int2 range)
 		{
 			//if (INFO) printf("INFO: SparseCoder::scDeriveInputs: lambda=%f\n", lambda);
-
 			if (true) {
-				const int nElements = range.x * range.y;
-#				pragma ivdep
-				for (int i = 0; i < nElements; ++i) {
-					const float input = inputs._data[i];
-					//const float outputPrev = outputsBack._data[i].y;
-					//const float outputNew = (lambda * outputPrev) + ((1.0f - lambda) * input);
-					//printf("SparseCoder:scDeriveInputs: pos(%i,%i): input=%f; outputPrev=%f; outputNew=%f\n", x, y, input, outputPrev, outputNew);
-					outputsFront._data[i] = input;//float2{ input, outputNew }; //TODO: this line yields horrible vextractps code
-				}
+				copy(inputs, outputsFront);
 			}
 			else {
 #				pragma ivdep

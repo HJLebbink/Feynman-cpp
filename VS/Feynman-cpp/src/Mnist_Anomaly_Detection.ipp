@@ -78,8 +78,8 @@ namespace mnist {
 		std::mt19937 generator(static_cast<unsigned int>(time(nullptr)));
 
 		// --------------------------- Create the Sparse Coder ---------------------------
-		// Bottom input width and height
-		int bottomWidth = 28;
+		// Bottom input width and height (= Mnist data size)
+		int bottomWidth = 28; 
 		int bottomHeight = 28;
 
 		// Predictor hierarchy input width and height (= sparse coder size)
@@ -93,25 +93,34 @@ namespace mnist {
 			scLayerDescs[0]._radius = 8; // Receptive radius
 			scLayerDescs[0]._weightAlpha = 0.001f;
 
-			sparseCoder.createRandom(scLayerDescs, { hInWidth, hInHeight }, 6, { -0.001f, 0.001f }, { -0.001f, 0.001f }, generator);
+			const int2 hiddenSize = { hInWidth, hInHeight };
+			const int inhibitionRadius = 6;
+			const float2 initWeightRange = { -0.001f, 0.001f };
+			const float2 initThresholdRange = { -0.001f, 0.001f };
+
+			sparseCoder.createRandom(scLayerDescs, hiddenSize, inhibitionRadius, initWeightRange, initThresholdRange, generator);
 		}
 
 		// --------------------------- Create the Predictor ---------------------------
 		Predictor predictor;
 		{
-			std::vector<Predictor::PredLayerDesc> predictiveLayerDescs(4); // Predictor layer descriptors
-			std::vector<FeatureHierarchy::LayerDesc> layerDescs(4); // Matching feature layer descriptors
+			std::vector<Predictor::PredLayerDesc> predictiveLayerDescs(5); // Predictor layer descriptors
+			std::vector<FeatureHierarchy::LayerDesc> layerDescs(5); // Matching feature layer descriptors
 
 			// Sizes
-			layerDescs[0]._size = { 64, 64 };
-			layerDescs[1]._size = { 48, 48 };
-			layerDescs[2]._size = { 32, 32 };
-			layerDescs[3]._size = { 24, 24 };
+			layerDescs[0]._size = { 128, 128 }; //{ 64, 64 };
+			layerDescs[1]._size = { 96, 96 }; //{ 48, 48 };
+			layerDescs[2]._size = { 64, 64 }; //{ 32, 32 };
+			layerDescs[3]._size = { 48, 48 }; //{ 24, 24 };
+			layerDescs[4]._size = { 32, 32 }; //{ 24, 24 };
 
 			for (size_t l = 0; l < layerDescs.size(); l++) {
 				layerDescs[l]._spActiveRatio = 0.02f;
 			}
-			predictor.createRandom({ hInWidth, hInHeight }, predictiveLayerDescs, layerDescs, { -0.01f, 0.01f }, generator);
+			const int2 inputSize = { hInWidth, hInHeight };
+			const float2 initWeightRange = { -0.01f, 0.01f };
+
+			predictor.createRandom(inputSize, predictiveLayerDescs, layerDescs, initWeightRange, generator);
 		}
 		// --------------------------- Create the Windows ---------------------------
 
@@ -125,7 +134,6 @@ namespace mnist {
 			plot._curves.resize(1);
 			plot._curves[0]._shadow = 0.1f;
 			plot._curves[0]._name = "Prediction Error";
-
 			plot._curves[0]._points.resize(bottomWidth * overSizeMult);
 
 			// Initialize
@@ -294,8 +302,7 @@ namespace mnist {
 				}
 			}
 
-			//if (totalSamples == 1) quit = true;
-
+			//if (totalSamples == 3) quit = true;
 
 			window.clear();
 
@@ -403,7 +410,11 @@ namespace mnist {
 
 			// Activate sparse coder
 			sparseCoder.activate({ scInputImage }, 0.9f, 0.02f, generator);
-			if (trainMode) sparseCoder.learn(0.00004f, 0.02f);
+			if (trainMode) {
+				const float thresholdAlpha = 0.00004f;
+				const float activeRatio = 0.02f;
+				sparseCoder.learn(thresholdAlpha, activeRatio);
+			}
 			sparseCoder.stepEnd();
 
 			// Compare (dot product)
