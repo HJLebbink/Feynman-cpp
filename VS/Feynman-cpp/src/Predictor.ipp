@@ -123,8 +123,8 @@ namespace feynman {
 		\param learn optional argument to disable learning.
 		*/
 		void simStep(
-			const Image2D<float> &input,
-			const Image2D<float> &inputCorrupted,
+			const Image2D &input,
+			const Image2D &inputCorrupted,
 			std::mt19937 &rng,
 			const bool learn = true)
 		{
@@ -144,12 +144,12 @@ namespace feynman {
 				//const float2 minmax = find_min_max(_featureHierarchy.getLayer(layer)._sparseFeatures.getHiddenStates()[_back]);
 				//printf("INFO: Predictor:simStep, min=%f; max=%f\n", minmax.x, minmax.y);
 
-				const std::vector<Image2D<float>> visibleStates =
+				const std::vector<Image2D> visibleStates =
 					(layer == (nLayers - 1))
-						? std::vector<Image2D<float>> { // top-layer only get feature input from the top layer
+						? std::vector<Image2D> { // top-layer only get feature input from the top layer
 							_featureHierarchy.getLayer(layer)._sparseFeatures.getHiddenStates()[_back]
 						}
-						: std::vector<Image2D<float>>{ // non-top-layers get feature inputs from the current layer and the layer above.
+						: std::vector<Image2D>{ // non-top-layers get feature inputs from the current layer and the layer above.
 							_featureHierarchy.getLayer(layer)._sparseFeatures.getHiddenStates()[_back],
 							_predictorLayers[layer + 1].getHiddenStates()[_front]
 						};
@@ -160,17 +160,17 @@ namespace feynman {
 			if (learn) {
 				for (int layer = (nLayers - 1); (layer >= 0); --layer) {
 
-					const Image2D<float> target = 
+					const Image2D target = 
 						(layer == 0) 
 							? input 
 							: _featureHierarchy.getLayer(layer - 1)._sparseFeatures.getHiddenStates()[_back];
 
-					const std::vector<Image2D<float>> visibleStatesPrev =
+					const std::vector<Image2D> visibleStatesPrev =
 						(layer == (nLayers - 1))
-							? std::vector<Image2D<float>> { 
+							? std::vector<Image2D> { 
 								_featureHierarchy.getLayer(layer)._sparseFeatures.getHiddenStates()[_front] 
 							}
-							: std::vector<Image2D<float>> {
+							: std::vector<Image2D> {
 								_featureHierarchy.getLayer(layer)._sparseFeatures.getHiddenStates()[_front],
 								_predictorLayers[layer + 1].getHiddenStates()[_back]
 							};
@@ -203,7 +203,7 @@ namespace feynman {
 		}
 
 		// Get the predictions
-		const Image2D<float> &getPrediction() const {
+		const Image2D &getPrediction() const {
 			return _predictorLayers.front().getHiddenStates()[_back];
 		}
 

@@ -25,7 +25,7 @@ namespace feynman {
 
 		std::mt19937 _rng;
 
-		Image2D<float> _inputImage;
+		Image2D _inputImage;
 
 		//Prediction vector
 		std::vector<float> _pred;

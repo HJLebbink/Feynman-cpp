@@ -29,7 +29,7 @@ namespace feynman {
 		int _actionTileWidth, _actionTileHeight;
 
 		std::mt19937 _rng;
-		Image2D<float> _inputImage;
+		Image2D _inputImage;
 		std::vector<float> _action; // Exploratory action (normalized float [0, 1])
 
 	public:
@@ -95,7 +95,7 @@ namespace feynman {
 			_as.createRandom(inputSize, actionSize, { actionTileWidth, actionTileHeight }, actionRadius, aLayerDescs, hLayerDescs, float2{ initMinWeight, initMaxWeight }, _rng);
 
 			// Create temporary buffers
-			_inputImage = Image2D<float>(int2{ inputWidth, inputHeight });
+			_inputImage = Image2D(int2{ inputWidth, inputHeight });
 
 			_action.clear();
 			_action.assign(actionWidth * actionHeight, 0.0f);
@@ -133,7 +133,7 @@ namespace feynman {
 		std::vector<float> getStates(int li) {
 			std::vector<float> states(_as.getHierarchy().getLayerDesc(li)._size.x * _as.getHierarchy().getLayerDesc(li)._size.y * 2);
 			//_pCs->getQueue().enqueueReadImage(_as.getHierarchy().getLayer(li)._sp.getHiddenStates()[_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(_as.getHierarchy().getLayerDesc(li)._size.x), static_cast<cl::size_type>(_as.getHierarchy().getLayerDesc(li)._size.y), 1 }, 0, 0, states.data());
-			Image2D<float> src = _as.getHierarchy().getLayer(li)._sparseFeatures.getHiddenStates()[_back];
+			Image2D src = _as.getHierarchy().getLayer(li)._sparseFeatures.getHiddenStates()[_back];
 			return src._data;
 		}
 	};

@@ -38,7 +38,7 @@ namespace feynman {
 		struct VisibleLayer {
 
 			//Layer parameters
-			DoubleBuffer3D<float> _weights;
+			DoubleBuffer3D _weights;
 
 			float2 _hiddenToVisible;
 			float2 _visibleToHidden;
@@ -51,10 +51,10 @@ namespace feynman {
 		int2 _hiddenSize;
 
 		//Hidden stimulus summation temporary buffer
-		DoubleBuffer2D<float> _hiddenSummationTemp;
+		DoubleBuffer2D _hiddenSummationTemp;
 
 		//Predictions
-		DoubleBuffer2D<float> _hiddenStates;
+		DoubleBuffer2D _hiddenStates;
 
 		//Layers and descs
 		std::vector<VisibleLayer> _visibleLayers;
@@ -101,13 +101,13 @@ namespace feynman {
 					const int weightDiam = vld._radius * 2 + 1;
 					const int numWeights = weightDiam * weightDiam;
 					const int3 weightsSize = { _hiddenSize.x, _hiddenSize.y, numWeights };
-					vl._weights = createDoubleBuffer3D<float>(weightsSize);
+					vl._weights = createDoubleBuffer3D(weightsSize);
 					randomUniform3D(vl._weights[_back], weightsSize, initWeightRange, rng);
 				}
 			}
 			// Hidden state data
-			_hiddenStates = createDoubleBuffer2D<float>(_hiddenSize);
-			_hiddenSummationTemp = createDoubleBuffer2D<float>(_hiddenSize);
+			_hiddenStates = createDoubleBuffer2D(_hiddenSize);
+			_hiddenSummationTemp = createDoubleBuffer2D(_hiddenSize);
 
 			clear(_hiddenStates[_back]);
 		}
@@ -118,7 +118,7 @@ namespace feynman {
 		\param threshold whether or not the output should be thresholded (binary).
 		*/
 		void activate(
-			const std::vector<Image2D<float>> &visibleStates,
+			const std::vector<Image2D> &visibleStates,
 			const bool threshold)
 		{
 			// Start by clearing stimulus summation buffer to biases
@@ -161,8 +161,8 @@ namespace feynman {
 		\param visibleStatesPrev the input states of the !previous! timestep.
 		*/
 		void learn(
-			const Image2D<float> &targets,
-			const std::vector<Image2D<float>> &visibleStatesPrev)
+			const Image2D &targets,
+			const std::vector<Image2D> &visibleStatesPrev)
 		{
 			// Learn weights
 			for (size_t vli = 0; vli < _visibleLayers.size(); vli++) {
@@ -211,7 +211,7 @@ namespace feynman {
 		}
 
 		//Get the predictions
-		const DoubleBuffer2D<float> &getHiddenStates() const {
+		const DoubleBuffer2D &getHiddenStates() const {
 			return _hiddenStates;
 		}
 
@@ -223,10 +223,10 @@ namespace feynman {
 	private:
 
 		static void plStimulus(
-			const Image2D<float> &visibleStates,
-			const Image2D<float> &hiddenSummationTempBack,
-			Image2D<float> &hiddenSummationTempFront, // write only
-			const Image3D<float> &weights,
+			const Image2D &visibleStates,
+			const Image2D &hiddenSummationTempBack,
+			Image2D &hiddenSummationTempFront, // write only
+			const Image3D &weights,
 			const int2 visibleSize,
 			const float2 hiddenToVisible,
 			const int radius,
@@ -274,8 +274,8 @@ namespace feynman {
 		}
 
 		static void plThreshold(
-			const Image2D<float> &stimuli,
-			Image2D<float> &thresholded, // write only
+			const Image2D &stimuli,
+			Image2D &thresholded, // write only
 			const int2 range)
 		{
 			if (true) {
@@ -299,11 +299,11 @@ namespace feynman {
 		}
 
 		static void plLearnPredWeights(
-			const Image2D<float> &visibleStatesPrev,
-			const Image2D<float> &targets,
-			const Image2D<float> &hiddenStatesPrev,
-			const Image3D<float> &weightsBack,
-			Image3D<float> &weightsFront, //write only
+			const Image2D &visibleStatesPrev,
+			const Image2D &targets,
+			const Image2D &hiddenStatesPrev,
+			const Image3D &weightsBack,
+			Image3D &weightsFront, //write only
 			const int2 visibleSize,
 			const float2 hiddenToVisible,
 			const int radius,

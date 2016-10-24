@@ -394,7 +394,7 @@ namespace mnist {
 			renderTexture.display();
 
 			// ------------------------------------- Anomaly detection -------------------------------------
-			Image2D<float> scInputImage = Image2D<float>(int2{ bottomWidth, bottomHeight });
+			Image2D scInputImage = Image2D(int2{ bottomWidth, bottomHeight });
 			{
 				// Get image from render target
 				sf::Image renderTextureImg = renderTexture.getTexture().copyToImage();
@@ -421,8 +421,8 @@ namespace mnist {
 			float anomalyScore = 0.0f;
 
 			// Retrieve prediction
-			const Image2D<float> &newSDR_image = sparseCoder.getHiddenStates()[_back];
-			const Image2D<float> &predSDR_image = predictor.getPrediction();
+			const Image2D &newSDR_image = sparseCoder.getHiddenStates()[_back];
+			const Image2D &predSDR_image = predictor.getPrediction();
 			const std::vector<float> &newSDR = newSDR_image._data;
 			const std::vector<float> &predSDR = predSDR_image._data;
 
@@ -562,16 +562,16 @@ namespace mnist {
 				// Show SDRs is corner bottom left
 				if (true) {
 					if (true) {
-						//const Image2D<float> &newSDR_image = sparseCoder.getHiddenStates()[_back];
+						//const Image2D &newSDR_image = sparseCoder.getHiddenStates()[_back];
 						plots::plotImage(newSDR_image, { 0.0f, 0.0f }, 2.0f, window);
 					}
 					if (false) {
-						//const Image2D<float> &predSDR_image = predictor.getPrediction();
+						//const Image2D &predSDR_image = predictor.getPrediction();
 						plots::plotImage(predSDR_image, 8.0f, false, "SDR Prediction");
 					}
 					if (true) {
-						Image2D<float> image2 = Image2D<float>(scInputImage._size);
-						std::vector<Image2D<float>> reconstructions = { image2 };
+						Image2D image2 = Image2D(scInputImage._size);
+						std::vector<Image2D> reconstructions = { image2 };
 						sparseCoder.reconstruct(predSDR_image, reconstructions);
 						plots::plotImage(reconstructions.front(), 8.0f, false, "Visual Prediction");
 					}

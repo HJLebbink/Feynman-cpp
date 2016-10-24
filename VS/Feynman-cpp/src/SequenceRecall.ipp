@@ -23,7 +23,7 @@ void sequenceRecall() {
 	std::mt19937 generator(static_cast<unsigned int>(time(nullptr)));
 
 	// Input image
-	Image2D<float> inputImage = Image2D<float>(int2{ 4, 4 });
+	Image2D inputImage = Image2D(int2{ 4, 4 });
 
 	// Hierarchy structure
 	std::vector<FeatureHierarchy::LayerDesc> layerDescs(3);

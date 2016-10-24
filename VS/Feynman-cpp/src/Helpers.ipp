@@ -19,9 +19,8 @@ namespace feynman {
 	struct uint2 { unsigned int x, y; };
 	struct float2 { float x, y; };
 
-	template <class T>
 	struct Image2D {
-		std::vector<T> _data;
+		std::vector<float> _data;
 		int2 _size;
 
 		// default constructor
@@ -40,9 +39,8 @@ namespace feynman {
 		}
 	};
 
-	template <class T>
 	struct Image3D {
-		std::vector<T> _data;
+		std::vector<float> _data;
 		int3 _size;
 
 		Image3D(int3 size) : _size(size)
@@ -75,34 +73,29 @@ namespace feynman {
 	}
 
 
-	template <class T>
-	T inline read_2D(const Image2D<T> &image, const int2 coord)
+	float inline read_2D(const Image2D &image, const int2 coord)
 	{
 		return image._data[pos(coord, image._size)];
 	}
 
-	template <class T>
-	T inline read_2D(const Image2D<T> &image, const int coord_x, const int coord_y)
+	float inline read_2D(const Image2D &image, const int coord_x, const int coord_y)
 	{
 		const int idx = pos(coord_x, coord_y, image._size.y);
 		//std::cout << "read_imagef_2D: idx=" << idx << "; x=" << coord_x << "; y=" << coord_y << std::endl;
 		return image._data[idx];
 	}
 
-	template <class T>
-	T inline read_3D(const Image3D<T> &image, const int coord_x, const int coord_y, const int coord_z) {
+	float inline read_3D(const Image3D &image, const int coord_x, const int coord_y, const int coord_z) {
 		const int idx = pos(coord_x, coord_y, coord_z, image._size.y, image._size.z);
 		//std::cout << "read_imagef_3D: idx=" << idx << "; x=" << coord_x << "; y=" << coord_y << "; z=" << coord_z << std::endl;
 		return image._data[idx];
 	}
 
-	template <class T>
-	void inline write_2D(Image2D<T> &image, const int coord_x, const int coord_y, const T v) {
+	void inline write_2D(Image2D &image, const int coord_x, const int coord_y, const float v) {
 		image._data[pos(coord_x, coord_y, image._size.y)] = v;
 	}
 
-	template <class T>
-	void inline write_3D(Image3D<T> &image, const int coord_x, const int coord_y, const int coord_z, const T v) {
+	void inline write_3D(Image3D &image, const int coord_x, const int coord_y, const int coord_z, const float v) {
 		image._data[pos(coord_x, coord_y, coord_z, image._size.y, image._size.z)] = v;
 	}
 
@@ -121,22 +114,18 @@ namespace feynman {
 	};
 
 	//Double buffer types
-	template <class T>
-	using DoubleBuffer2D = std::vector<Image2D<T>>;
-	template <class T>
-	using DoubleBuffer3D = std::vector<Image3D<T>>;
+	using DoubleBuffer2D = std::vector<Image2D>;
+	using DoubleBuffer3D = std::vector<Image3D>;
 
 	//Double buffer initialization helpers
-	template <class T>
-	DoubleBuffer2D<T> createDoubleBuffer2D(int2 size) {
-		return { Image2D<T>(size), Image2D<T>(size) };
+	DoubleBuffer2D createDoubleBuffer2D(int2 size) {
+		return { Image2D(size), Image2D(size) };
 	}
-	template <class T>
-	DoubleBuffer3D<T> createDoubleBuffer3D(int3 size) {
-		return { Image3D<T>(size), Image3D<T>(size) };
+	DoubleBuffer3D createDoubleBuffer3D(int3 size) {
+		return { Image3D(size), Image3D(size) };
 	}
 
-	static void clear(Image2D<float> &image) {
+	static void clear(Image2D &image) {
 		const size_t nBytes = image._size.x * image._size.y * 4;
 		memset(&image._data[0], 0, nBytes);
 	}
@@ -144,24 +133,23 @@ namespace feynman {
 //		fill(image, { 0.0f, 0.0f });
 //	}
 
-	static void copy(const Image2D<float> &src, Image2D<float> &dst) {
+	static void copy(const Image2D &src, Image2D &dst) {
 		const size_t nBytes = src._size.x * src._size.y * 4;
 		memcpy(&dst._data[0], &src._data[0], nBytes);
 	}
-	static void copy(const Image2D<float> &src, std::vector<float> &dst) {
+	static void copy(const Image2D &src, std::vector<float> &dst) {
 		const size_t nBytes = src._size.x * src._size.y * 4;
 		memcpy(&dst[0], &src._data[0], nBytes);
 	}
-	static void copy(std::vector<float> &src, Image2D<float> &dst) {
+	static void copy(std::vector<float> &src, Image2D &dst) {
 		const size_t nBytes = dst._size.x * dst._size.y * 4;
 		memcpy(&dst._data[0], &src[0], nBytes);
 	}
 
 
 	// Initialize a random uniform 2D image (X field)
-	template <class T>
 	void randomUniform2D(
-		Image2D<T> &image2D, 
+		Image2D &image2D, 
 		const int2 range, 
 		const float2 minMax,
 		std::mt19937 &rng) 
@@ -183,9 +171,8 @@ namespace feynman {
 	}
 
 	// Initialize a random uniform 3D image (X field)
-	template <class T>
 	void randomUniform3D(
-		Image3D<T> &values,
+		Image3D &values,
 		const int3 range,
 		const float2 minMax,
 		std::mt19937 &rng)
@@ -265,7 +252,7 @@ namespace feynman {
 		return static_cast<int>((position * toScalars) + 0.5f);
 	}
 
-	inline float2 find_min_max(const Image2D<float> &image) {
+	inline float2 find_min_max(const Image2D &image) {
 		float minimum = 1000000;
 		float maximum = -1000000;
 		for (int i = 0; i < image._size.x * image._size.y; ++i) {

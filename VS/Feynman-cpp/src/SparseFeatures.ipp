@@ -11,7 +11,9 @@
 #include <tuple>
 #include <vector>
 #include <random>
+#include <algorithm> // for std::min
 
+#include "timing.h"
 #include "Helpers.ipp"
 
 namespace feynman {
@@ -45,9 +47,9 @@ namespace feynman {
 		//Visible layer
 		struct VisibleLayer {
 			//Possibly manipulated input
-			DoubleBuffer2D<float> _derivedInput;
+			DoubleBuffer2D _derivedInput;
 
-			DoubleBuffer3D<float> _weights;
+			DoubleBuffer3D _weights;
 			float2 _hiddenToVisible;
 			float2 _visibleToHidden;
 			int2 _reverseRadii;
@@ -55,9 +57,9 @@ namespace feynman {
 
 	private:
 		// Hidden activations, states, biases, errors, predictions
-		DoubleBuffer2D<float> _hiddenActivations;
-		DoubleBuffer2D<float> _hiddenStates;
-		DoubleBuffer2D<float> _hiddenBiases;
+		DoubleBuffer2D _hiddenActivations;
+		DoubleBuffer2D _hiddenStates;
+		DoubleBuffer2D _hiddenBiases;
 
 		//Hidden size
 		int2 _hiddenSize;
@@ -66,7 +68,7 @@ namespace feynman {
 		int _inhibitionRadius;
 
 		//Hidden summation temporary buffer
-		DoubleBuffer2D<float> _hiddenSummationTemp;
+		DoubleBuffer2D _hiddenSummationTemp;
 
 		//Layers and descs
 		std::vector<VisibleLayerDesc> _visibleLayerDescs;
@@ -116,19 +118,19 @@ namespace feynman {
 					int weightDiam = vld._radius * 2 + 1;
 					int numWeights = weightDiam * weightDiam;
 					int3 weightsSize = { _hiddenSize.x, _hiddenSize.y, numWeights };
-					vl._weights = createDoubleBuffer3D<float>(weightsSize);
+					vl._weights = createDoubleBuffer3D(weightsSize);
 					randomUniform3D(vl._weights[_back], weightsSize, { 0.0f, 1.0f }, rng);
 				}
 
-				vl._derivedInput = createDoubleBuffer2D<float>(vld._size);
+				vl._derivedInput = createDoubleBuffer2D(vld._size);
 				clear(vl._derivedInput[_back]);
 			}
 
 			// Hidden state data
-			_hiddenActivations = createDoubleBuffer2D<float>(_hiddenSize);
-			_hiddenStates = createDoubleBuffer2D<float>(_hiddenSize);
-			_hiddenBiases = createDoubleBuffer2D<float>(_hiddenSize);
-			_hiddenSummationTemp = createDoubleBuffer2D<float>(_hiddenSize);
+			_hiddenActivations = createDoubleBuffer2D(_hiddenSize);
+			_hiddenStates = createDoubleBuffer2D(_hiddenSize);
+			_hiddenBiases = createDoubleBuffer2D(_hiddenSize);
+			_hiddenSummationTemp = createDoubleBuffer2D(_hiddenSize);
 
 			clear(_hiddenActivations[_back]);
 			clear(_hiddenStates[_back]);
@@ -144,7 +146,7 @@ namespace feynman {
 		\param rng a random number generator.
 		*/
 		void activate(
-			const std::vector<Image2D<float>> &visibleStates,
+			const std::vector<Image2D> &visibleStates,
 			const float activeRatio, 
 			const std::mt19937 /*&rng*/) 
 		{
@@ -273,12 +275,12 @@ namespace feynman {
 		}
 
 		//Get hidden states
-		const DoubleBuffer2D<float> &getHiddenStates() const {
+		const DoubleBuffer2D &getHiddenStates() const {
 			return _hiddenStates;
 		}
 
 		//Get hidden biases
-		const DoubleBuffer2D<float> &getHiddenBiases() const {
+		const DoubleBuffer2D &getHiddenBiases() const {
 			return _hiddenBiases;
 		}
 
@@ -297,10 +299,10 @@ namespace feynman {
 		private:
 
 		static void spStimulus(
-			const Image2D<float> &visibleStates,
-			const Image2D<float> &hiddenSummationTempBack,
-			Image2D<float> &hiddenSummationTempFront, // write only
-			const Image3D<float> &weights,
+			const Image2D &visibleStates,
+			const Image2D &hiddenSummationTempBack,
+			Image2D &hiddenSummationTempFront, // write only
+			const Image3D &weights,
 			const int2 visibleSize,
 			const float2 hiddenToVisible,
 			const int radius,
@@ -372,11 +374,11 @@ namespace feynman {
 		}
 
 		static void spActivate(
-			const Image2D<float> &stimuli,
-			//const Image2D<float> /*&hiddenStates*/,
-			const Image2D<float> &biases,
-			//const Image2D<float> /*&hiddenActivationsBack*/,
-			Image2D<float> &hiddenActivationsFront, // write only
+			const Image2D &stimuli,
+			//const Image2D /*&hiddenStates*/,
+			const Image2D &biases,
+			//const Image2D /*&hiddenActivationsBack*/,
+			Image2D &hiddenActivationsFront, // write only
 			const int2 range)
 		{
 			if (true) {
@@ -406,8 +408,8 @@ namespace feynman {
 		}
 
 		static void spInhibit(
-			const Image2D<float> &activations,
-			Image2D<float> &hiddenStatesFront, // write only
+			const Image2D &activations,
+			Image2D &hiddenStatesFront, // write only
 			const int2 hiddenSize, 
 			const int radius, 
 			const float activeRatio,
@@ -448,10 +450,10 @@ namespace feynman {
 		}
 
 		static void spLearnWeights(
-			const Image2D<float> &hiddenStates,
-			const Image2D<float> &visibleStates,
-			const Image3D<float> &weightsBack,
-			Image3D<float> &weightsFront, // write only
+			const Image2D &hiddenStates,
+			const Image2D &visibleStates,
+			const Image3D &weightsBack,
+			Image3D &weightsFront, // write only
 			const int2 visibleSize, 
 			const float2 hiddenToVisible, 
 			const int radius, 
@@ -499,11 +501,48 @@ namespace feynman {
 			}
 		}
 
+		static void spLearnWeights_SpeedTest() {
+			printf("Running spLearnWeights_SpeedTest\n");
+
+			const size_t nExperiments = 5000;
+			const size_t nRandomNumbers = 10000;
+			const unsigned int randSeed = 0xF00FF00F;
+
+			Image2D hiddenStates = Image2D();
+
+
+			//----------------------------------------------------------------------------------
+			double minH1 = std::numeric_limits<double>::max();
+			size_t totalSum = 0;
+			unsigned int randInt = randSeed;
+
+			for (size_t i = 0; i < nExperiments; ++i) {
+				tools::reset_and_start_timer();
+				const double dt = ::tools::get_elapsed_mcycles();
+				minH1 = std::min(minH1, dt);
+			}
+			printf("[spLearnWeights Reference]: %2.5f Mcycles, totalSum=%llu\n", minH1, totalSum);
+
+			//----------------------------------------------------------------------------------
+			double minH2 = std::numeric_limits<double>::max();
+			totalSum = 0;
+			randInt = randSeed;
+			for (size_t i = 0; i < nExperiments; ++i) {
+				::tools::reset_and_start_timer();
+				const double dt = ::tools::get_elapsed_mcycles();
+				minH2 = std::min(minH2, dt);
+			}
+			printf("[spLearnWeights Fast1    ]: %2.5f Mcycles, totalSum=%llu\n", minH2, totalSum);
+			printf("\t\t\t\t\t(%.2fx speedup from reference)\n", minH1 / minH2);
+		}
+
+
+
 		static void spLearnBiases(
-			const Image2D<float> &stimuli,
-			//const Image2D<float> /*&hiddenStates*/, // unused
-			const Image2D<float> &hiddenBiasesBack,
-			Image2D<float> &hiddenBiasesFront, //write only
+			const Image2D &stimuli,
+			//const Image2D /*&hiddenStates*/, // unused
+			const Image2D &hiddenBiasesBack,
+			Image2D &hiddenBiasesFront, //write only
 			//const float /*activeRatio*/, // unused
 			const float biasAlpha,
 			const int2 range)
@@ -532,9 +571,9 @@ namespace feynman {
 		}
 
 		static void spDeriveInputs(
-			const Image2D<float> &inputs,
-			//const Image2D<float> /*&outputsBack*/, // unused
-			Image2D<float> &outputsFront, // write only
+			const Image2D &inputs,
+			//const Image2D /*&outputsBack*/, // unused
+			Image2D &outputsFront, // write only
 			const int2 range)
 		{
 			if (true) {
@@ -552,4 +591,10 @@ namespace feynman {
 			}
 		}
 	};
+
+	namespace speedtest {
+
+	}
+
 }
+

@@ -166,11 +166,11 @@ namespace feynman {
 		\param learn optional argument to disable learning.
 		*/
 		void simStep(
-			const std::vector<Image2D<float>> &inputs,
+			const std::vector<Image2D> &inputs,
 			std::mt19937 &rng,
 			const bool learn = true)
 		{
-			std::vector<Image2D<float>> inputsUse = inputs;
+			std::vector<Image2D> inputsUse = inputs;
 
 			if (_layerDescs.front()._recurrentRadius != 0) {
 				inputsUse.push_back(_layers.front()._sparseFeatures.getHiddenStates()[_back]);
@@ -178,16 +178,16 @@ namespace feynman {
 			// Activate
 			for (size_t layer = 0; layer < _layers.size(); layer++) {
 
-				std::vector<Image2D<float>> visibleStates;
+				std::vector<Image2D> visibleStates;
 				if (layer == 0) {
 					visibleStates = inputsUse;
 				}
 				else if (_layerDescs[layer]._recurrentRadius == 0) {
-					visibleStates = std::vector<Image2D<float>>{
+					visibleStates = std::vector<Image2D>{
 						_layers[layer - 1]._sparseFeatures.getHiddenStates()[_front]
 					};
 				} else {
-					visibleStates = std::vector<Image2D<float>>{
+					visibleStates = std::vector<Image2D>{
 						_layers[layer - 1]._sparseFeatures.getHiddenStates()[_front],
 						_layers[layer]._sparseFeatures.getHiddenStates()[_back]
 					};

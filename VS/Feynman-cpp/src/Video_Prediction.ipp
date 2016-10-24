@@ -64,8 +64,8 @@ namespace video {
 
 		// --------------------------- Create the Sparse Coder ---------------------------
 		// Input images
-		Image2D<float> inputImage = Image2D<float>(int2{ static_cast<int>(rescaleRT.getSize().x), static_cast<int>(rescaleRT.getSize().y) });
-		Image2D<float> inputImageCorrupted = Image2D<float>(int2{ static_cast<int>(rescaleRT.getSize().x), static_cast<int>(rescaleRT.getSize().y) });
+		Image2D inputImage = Image2D(int2{ static_cast<int>(rescaleRT.getSize().x), static_cast<int>(rescaleRT.getSize().y) });
+		Image2D inputImageCorrupted = Image2D(int2{ static_cast<int>(rescaleRT.getSize().x), static_cast<int>(rescaleRT.getSize().y) });
 
 		// Predictive hierarchy
 		Predictor predictor;

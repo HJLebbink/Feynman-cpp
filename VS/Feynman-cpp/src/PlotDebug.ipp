@@ -14,7 +14,7 @@ using namespace feynman;
 namespace plots {
 
 	void plotImage(
-		const Image2D<float> &image,
+		const Image2D &image,
 		const float2 pos,
 		const float scale2,
 		sf::RenderWindow &window)
@@ -46,7 +46,7 @@ namespace plots {
 	static std::map<std::string, sf::RenderWindow *> all_windows;
 
 	void plotImage(
-		const Image2D<float> &image,
+		const Image2D &image,
 		const float scale2,
 		const bool rescaleContent,
 		const std::string name)
@@ -68,7 +68,7 @@ namespace plots {
 			//printf("max=%f; min=%f", max, min);
 			if (max > min) {
 				const float diff = max - min;
-				Image2D<float> rescaledImage = Image2D<float>(image._size);
+				Image2D rescaledImage = Image2D(image._size);
 				for (int i = 0; i < image._size.x * image._size.y; ++i) {
 					rescaledImage._data[i] = ((image._data[i] - min)/diff);
 				}

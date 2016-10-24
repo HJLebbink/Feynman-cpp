@@ -17,7 +17,7 @@ namespace feynman {
 	private:
 
 		//Resulting whitened image
-		Image2D<float> _result;
+		Image2D _result;
 
 		//Size of the whitened image
 		int2 _imageSize;
@@ -37,7 +37,7 @@ namespace feynman {
 			int imageType) 
 		{
 			_imageSize = imageSize;
-			_result = Image2D<float>(imageSize);
+			_result = Image2D(imageSize);
 		}
 
 		/*!
@@ -48,7 +48,7 @@ namespace feynman {
 		\param intensity the strength of the whitening.
 		*/
 		void filter(
-			Image2D<float> &input,
+			Image2D &input,
 			int kernelRadius,
 			float intensity = 1024.0f) 
 		{
@@ -62,7 +62,7 @@ namespace feynman {
 		}
 
 		//Return filtered image result
-		const Image2D<float> &getResult() const {
+		const Image2D &getResult() const {
 			return _result;
 		}
 
@@ -70,8 +70,8 @@ namespace feynman {
 	private:
 
 		static void whiten(
-			const Image2D<float> &input, 
-			Image2D<float> &result,
+			const Image2D &input, 
+			Image2D &result,
 			const int2 imageSize, 
 			const int kernelRadius, 
 			const float intensity,

@@ -48,7 +48,7 @@ namespace feynman {
 		std::vector<AgentLayerDesc> _aLayerDescs;
 
 		// All ones image for first layer modulation
-		Image2D<float> _ones;
+		Image2D _ones;
 
 	public:
 
@@ -99,7 +99,7 @@ namespace feynman {
 				_aLayers[l].createRandom((l == _aLayerDescs.size() - 1) ? actionSize : hLayerDescs[l + 1]._size, (l == _aLayerDescs.size() - 1) ? actionTileSize : int2{ 2, 2 }, agentVisibleLayerDescs, initWeightRange, rng);
 			}
 
-			_ones = Image2D<float>(actionSize);
+			_ones = Image2D(actionSize);
 			clear(_ones);
 		}
 
@@ -114,7 +114,7 @@ namespace feynman {
 		*/
 		void simStep(
 			const float reward,
-			const Image2D<float> &input,
+			const Image2D &input,
 			std::mt19937 &rng,
 			const bool learn) 
 		{
@@ -122,12 +122,12 @@ namespace feynman {
 
 			// Update agent layers
 			for (int l = 0; l < _aLayers.size(); l++) {
-				Image2D<float> feedBack = (l == 0) ? _h.getLayer(l)._sparseFeatures.getHiddenStates()[_back] : _aLayers[l - 1].getOneHotActions();
+				Image2D feedBack = (l == 0) ? _h.getLayer(l)._sparseFeatures.getHiddenStates()[_back] : _aLayers[l - 1].getOneHotActions();
 
 				if (l == _aLayers.size() - 1)
-					_aLayers[l].simStep(reward, std::vector<Image2D<float>>(1, feedBack), _ones, _aLayerDescs[l]._qGamma, _aLayerDescs[l]._qLambda, _aLayerDescs[l]._epsilon, rng, learn);
+					_aLayers[l].simStep(reward, std::vector<Image2D>(1, feedBack), _ones, _aLayerDescs[l]._qGamma, _aLayerDescs[l]._qLambda, _aLayerDescs[l]._epsilon, rng, learn);
 				else
-					_aLayers[l].simStep(reward, std::vector<Image2D<float>>(1, feedBack), _h.getLayer(l + 1)._sparseFeatures.getHiddenStates()[_back], _aLayerDescs[l]._qGamma, _aLayerDescs[l]._qLambda, _aLayerDescs[l]._epsilon, rng, learn);
+					_aLayers[l].simStep(reward, std::vector<Image2D>(1, feedBack), _h.getLayer(l + 1)._sparseFeatures.getHiddenStates()[_back], _aLayerDescs[l]._qGamma, _aLayerDescs[l]._qLambda, _aLayerDescs[l]._epsilon, rng, learn);
 			}
 
 		}
@@ -159,7 +159,7 @@ namespace feynman {
 		Returns float 2D image where each element is actually an integer, representing the index of the select action for each tile.
 		To get continuous values, divide each tile index by the number of elements in a tile (actionTileSize.x * actionTileSize.y).
 		*/
-		const Image2D<float> &getAction() const {
+		const Image2D &getAction() const {
 			return _aLayers.back().getActions()[_back];
 		}
 
