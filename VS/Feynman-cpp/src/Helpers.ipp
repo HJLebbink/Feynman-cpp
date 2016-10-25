@@ -261,4 +261,31 @@ namespace feynman {
 		}
 		return{ minimum, maximum };
 	}
+
+	static std::tuple<int2, int2> cornerCaseRange(
+		const int2 hiddenRange,
+		const int2 visibleRange,
+		const int radius,
+		const float2 hiddenToVisible)
+	{
+		int2 rangeX = int2{ hiddenRange.x, hiddenRange.x };
+
+		for (int x = 0; x < hiddenRange.x; ++x) {
+			const int visiblePositionCenter_x = project(x, hiddenToVisible.x);
+			const int fieldLowerBound_x = visiblePositionCenter_x - radius;
+			if (inBounds0(fieldLowerBound_x, visibleRange.x)) {
+				rangeX.x = x;
+				break;
+			}
+		}
+		for (int x = rangeX.x + 1; x < hiddenRange.x; ++x) {
+			const int visiblePositionCenter_x = project(x, hiddenToVisible.x);
+			const int fieldUpperBound_x = visiblePositionCenter_x + radius;
+			if (!inBounds0(fieldUpperBound_x, visibleRange.x)) {
+				rangeX.y = x;
+				break;
+			}
+		}
+		return{ rangeX, rangeX };
+	}
 }

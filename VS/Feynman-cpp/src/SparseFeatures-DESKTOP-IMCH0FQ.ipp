@@ -12,6 +12,8 @@
 #include <vector>
 #include <random>
 #include <algorithm> // for std::min
+#include <cassert>
+#include <set>
 
 #include "timing.h"
 #include "Helpers.ipp"
@@ -115,9 +117,9 @@ namespace feynman {
 					static_cast<int>(std::ceil(vl._visibleToHidden.y * vld._radius) + 1)
 				};
 				{
-					const int weightDiam = vld._radius * 2 + 1;
-					const int numWeights = weightDiam * weightDiam;
-					const int3 weightsSize = { _hiddenSize.x, _hiddenSize.y, numWeights };
+					int weightDiam = vld._radius * 2 + 1;
+					int numWeights = weightDiam * weightDiam;
+					int3 weightsSize = { _hiddenSize.x, _hiddenSize.y, numWeights };
 					vl._weights = createDoubleBuffer3D(weightsSize);
 					randomUniform3D(vl._weights[_back], weightsSize, { 0.0f, 1.0f }, rng);
 				}
@@ -295,17 +297,18 @@ namespace feynman {
 			}
 		}
 
-		static void speedTest(const size_t nExperiments = 1) {
-			printf("Running SparseFeatures::speedTest\n");
+		static void spLearnWeights_SpeedTest() {
+			printf("Running spLearnWeights_SpeedTest\n");
 			std::mt19937 generator(static_cast<unsigned int>(time(nullptr)));
 
-			const int radius = 8;
-			const float weightAlpha = 0.002;
-			const int2 visibleSize = { 128, 128 };
-			const int2 hiddenSize = { 96, 96 };
+			const size_t nExperiments = 1;
 
+			const int radius = 6;
 			const int weightDiam = radius * 2 + 1;
 			const int numWeights = weightDiam * weightDiam;
+
+			const int2 hiddenSize = { 96, 96 };
+			const int2 visibleSize = { 128, 128 };
 			const int3 weightsSize = { hiddenSize.x, hiddenSize.y, numWeights };
 
 			Image2D derivedInput = Image2D(visibleSize);
@@ -313,23 +316,26 @@ namespace feynman {
 			Image3D weightsBack = Image3D(weightsSize);
 			Image3D weightsFront0 = Image3D(weightsSize);
 			Image3D weightsFront1 = Image3D(weightsSize);
+
+
 			const float2 hiddenToVisible = float2{
 				static_cast<float>(visibleSize.x) / static_cast<float>(hiddenSize.x),
 				static_cast<float>(visibleSize.y) / static_cast<float>(hiddenSize.y)
 			};
 
-			//----------------------------------------------------------------------------------
-			const float2 initRange = { -0.001f, 0.001f };
-			randomUniform2D(derivedInput, visibleSize, initRange, generator);
-			randomUniform2D(hiddenStates, hiddenSize, initRange, generator);
-			randomUniform3D(weightsBack, weightsSize, initRange, generator);
+			const int2 range = hiddenSize;
+			float weightAlpha = 0.001f;
+
+			randomUniform2D(hiddenStates, hiddenSize, { 0.0f, 1.0f }, generator);
+			randomUniform2D(derivedInput, visibleSize, { 0.0f, 1.0f }, generator);
+			randomUniform3D(weightsBack, weightsSize, { 0.0f, 1.0f }, generator);
 
 			//----------------------------------------------------------------------------------
 			double min0 = std::numeric_limits<double>::max();
 			for (size_t i = 0; i < nExperiments; ++i) {
 				::tools::reset_and_start_timer();
 
-				spLearnWeights_v0(
+				spLearnWeights(
 					hiddenStates,		// in
 					derivedInput,		// in
 					weightsBack,		// in
@@ -343,14 +349,14 @@ namespace feynman {
 				const double dt = ::tools::get_elapsed_mcycles();
 				min0 = std::min(min0, dt);
 			}
-			printf("[spLearnWeights_v0]: %2.5f Mcycles\n", min0);
+			printf("[spLearnWeights Reference]: %2.5f Mcycles\n", min0);
 
 			//----------------------------------------------------------------------------------
 			double min1 = std::numeric_limits<double>::max();
 			for (size_t i = 0; i < nExperiments; ++i) {
 				::tools::reset_and_start_timer();
 
-				spLearnWeights_v1(
+				spLearnWeights_s1(
 					hiddenStates,		// in
 					derivedInput,		// in
 					weightsBack,		// in
@@ -364,15 +370,19 @@ namespace feynman {
 				const double dt = ::tools::get_elapsed_mcycles();
 				min1 = std::min(min1, dt);
 			}
-			printf("[spLearnWeights_v1]: %2.5f Mcycles\n", min1);
+			printf("[spLearnWeights Fast1    ]: %2.5f Mcycles\n", min1);
 			printf("\t\t\t\t\t(%.2fx speedup from reference)\n", min0 / min1);
+
 
 			for (int x = 0; x < weightsFront1._size.x; ++x) {
 				for (int y = 0; y < weightsFront1._size.y; ++y) {
 					for (int z = 0; z < weightsFront1._size.z; ++z) {
 						const float f0 = read_3D(weightsFront0, x, y, z);
 						const float f1 = read_3D(weightsFront1, x, y, z);
-						if (f0 != f1) printf("WARNING: SparseFeatures::speedTest: coord=(%i,%i,%i): f0=%f; f1=%f\n", x, y, z, f0, f1);
+						if (f0 != f1) {
+							printf("WARNING: spLearnWeights_SpeedTest: pos=(%i,%i,%i): method 1: %f; method 2: %f\n", x, y, z, f0, f1);
+							return;
+						}
 					}
 				}
 			}
@@ -413,9 +423,9 @@ namespace feynman {
 
 #							pragma ivdep
 							for (int dy = -radius; dy <= radius; ++dy) { // loop peeling is inefficient 
-								//if (ignoreMiddle && (dx == 0) && (dy == 0)) {
+								if (ignoreMiddle && (dx == 0) && (dy == 0)) {
 									// do nothing;
-								//} else {
+								} else {
 									const int visiblePosition_y = visiblePositionCenter_y + dy;
 									if (inBounds0(visiblePosition_y, visibleSize.y)) {
 										const int offset_y = visiblePosition_y - fieldLowerBound_y;
@@ -426,7 +436,7 @@ namespace feynman {
 										subSum += visibleState * weight;
 										stateSum += visibleState;
 									}
-								//}
+								}
 							}
 						}
 					}
@@ -531,111 +541,144 @@ namespace feynman {
 			}
 		}
 
-		template <bool CORNER>
-		static inline void updateWeight_spLearnWeights(
-			const int hiddenPosition_x,
-			const int hiddenPosition_y,
-			const int2 visibleSize,
-			const float2 hiddenToVisible,
+		static void updateWeight(
+			const int x,
+			const int y,
+			const int visiblePosition_x,
+			const int visiblePosition_y,
+			const int fieldLowerBound_y,
+			const int offset_x,
+			const Image2D &visibleStates,
+			const Image3D &weightsBack,
+			Image3D &weightsFront,
 			const int radius,
-			const float weightAlpha,
+			const float hiddenState, 
+			const float weightAlpha
+		) {
+			const int offset_y = visiblePosition_y - fieldLowerBound_y;
+			const int wi = offset_y + (offset_x * ((radius * 2) + 1));
+			const float weightPrev = read_3D(weightsBack, x, y, wi);
+			const float visibleState = read_2D(visibleStates, visiblePosition_x, visiblePosition_y);
+			const float learn = hiddenState * (visibleState - weightPrev);
+			float weight = weightPrev + weightAlpha * learn;
+			weight = (weight > 1.0f) ? 1.0f : ((weight < 0.0f) ? 0.0f : weight);
+			if (wi == 0) printf("INFO: updateWeight (%i,%i,%i): weight=%f\n", x, y, wi, weight);
+
+			write_3D(weightsFront, x, y, wi, weight);
+		}
+
+		static void spLearnWeights_s1(
 			const Image2D &hiddenStates,
 			const Image2D &visibleStates,
 			const Image3D &weightsBack,
-			Image3D &weightsFront)
+			Image3D &weightsFront, // write only
+			const int2 visibleSize,
+			const float2 hiddenToVisible,
+			const int radius,
+			//const float /*activeRatio*/, //unused
+			const float weightAlpha)
 		{
-			const int visiblePositionCenter_x = project(hiddenPosition_x, hiddenToVisible.x);
-			const int fieldLowerBound_x = visiblePositionCenter_x - radius;
+			int2 cornerCaseX;
+			{
+				for (int hiddenPosition_x = 0; hiddenPosition_x < hiddenStates._size.x; ++hiddenPosition_x) {
+					const int visiblePositionCenter_x = project(hiddenPosition_x, hiddenToVisible.x);
+					const int visiblePosition_x = visiblePositionCenter_x - radius;
+					if (inBounds0(visiblePosition_x, visibleSize.x)) {
+						cornerCaseX.x = hiddenPosition_x;
+						break;
+					}
+				}
+				for (int hiddenPosition_x = cornerCaseX.x + 1; hiddenPosition_x < hiddenStates._size.x; ++hiddenPosition_x) {
+					const int visiblePositionCenter_x = project(hiddenPosition_x, hiddenToVisible.x);
+					const int visiblePosition_x = visiblePositionCenter_x + radius;
+					if (!inBounds0(visiblePosition_x, visibleSize.x)) {
+						cornerCaseX.y = hiddenPosition_x;
+						break;
+					}
+				}
+				printf("INFO: radius=%i; hiddenStates._size.x=%i; cornerCaseX=%i,%i\n", radius, hiddenStates._size.x, cornerCaseX.x, cornerCaseX.y);
+			}
+			std::vector<int> cornerCase = std::vector<int>();
+			{
+				for (int i = 0; i < cornerCaseX.x; ++i) cornerCase.push_back(i);
+				for (int i = cornerCaseX.y; i < hiddenStates._size.x; ++i) cornerCase.push_back(i);
+			}
 
-			const int visiblePositionCenter_y = project(hiddenPosition_y, hiddenToVisible.y);
-			const int fieldLowerBound_y = visiblePositionCenter_y - radius;
-			const float hiddenState = read_2D(hiddenStates, hiddenPosition_x, hiddenPosition_y);
+			for (const int x : cornerCase) {
+				printf("x1=%i\n",x);
+				const int visiblePositionCenter_x = project(x, hiddenToVisible.x);
+				const int fieldLowerBound_x = visiblePositionCenter_x - radius;
 
-#			pragma ivdep 
-			for (int dx = -radius; dx <= radius; dx++) {
-				const int visiblePosition_x = visiblePositionCenter_x + dx;
+				for (const int y : cornerCase) {
+					const int visiblePositionCenter_y = project(y, hiddenToVisible.y);
+					const int fieldLowerBound_y = visiblePositionCenter_y - radius;
+					const float hiddenState = read_2D(hiddenStates, x, y);
 
-				if (!CORNER || inBounds0(visiblePosition_x, visibleSize.x)) {
-					const int offset_x = visiblePosition_x - fieldLowerBound_x;
+					for (int dx = -radius; dx <= radius; dx++) {
+						const int visiblePosition_x = visiblePositionCenter_x + dx;
+						if (inBounds0(visiblePosition_x, visibleSize.x)) {
+							const int offset_x = visiblePosition_x - fieldLowerBound_x;
 
-#					pragma ivdep 
-					for (int dy = -radius; dy <= radius; dy++) {
-
-						const int visiblePosition_y = visiblePositionCenter_y + dy;
-						if (!CORNER || inBounds0(visiblePosition_y, visibleSize.y)) {
-
-							const int offset_y = visiblePosition_y - fieldLowerBound_y;
-							const int wi = offset_y + (offset_x * ((radius * 2) + 1));
-							const float weightPrev = read_3D(weightsBack, hiddenPosition_x, hiddenPosition_y, wi);
-							const float visibleState = read_2D(visibleStates, visiblePosition_x, visiblePosition_y);
-							const float learn = hiddenState * (visibleState - weightPrev);
-							float weight = weightPrev + weightAlpha * learn;
-							weight = (weight > 1.0f) ? 1.0f : ((weight < 0.0f) ? 0.0f : weight);
-							write_3D(weightsFront, hiddenPosition_x, hiddenPosition_y, wi, weight);
+#							pragma ivdep 
+							for (int dy = -radius; dy <= radius; dy++) {
+								const int visiblePosition_y = visiblePositionCenter_y + dy;
+								if (inBounds0(visiblePosition_y, visibleSize.y)) {
+									if (true) {
+										const int offset_y = visiblePosition_y - fieldLowerBound_y;
+										const int wi = offset_y + (offset_x * ((radius * 2) + 1));
+										const float weightPrev = read_3D(weightsBack, x, y, wi);
+										const float visibleState = read_2D(visibleStates, visiblePosition_x, visiblePosition_y);
+										const float learn = hiddenState * (visibleState - weightPrev);
+										float weight = weightPrev + weightAlpha * learn;
+										weight = (weight > 1.0f) ? 1.0f : ((weight < 0.0f) ? 0.0f : weight);
+										write_3D(weightsFront, x, y, wi, weight);
+									}
+									else {
+										updateWeight(x, y, visiblePosition_x, visiblePosition_y, fieldLowerBound_y, offset_x, visibleStates, weightsBack, weightsFront, radius, hiddenState, weightAlpha);
+									}
+								}
+							}
 						}
 					}
 				}
 			}
-		}
+			
+			for (int x = cornerCaseX.x; x < cornerCaseX.y; ++x) {
+				//printf("x2=%i\n",x);
 
-		static void spLearnWeights_v1(
-			const Image2D &hiddenStates,
-			const Image2D &visibleStates,
-			const Image3D &weightsBack,
-			Image3D &weightsFront, // write only
-			const int2 visibleSize,
-			const float2 hiddenToVisible,
-			const int radius,
-			//const float /*activeRatio*/, //unused
-			const float weightAlpha)
-		{
-			std::tuple<int2, int2> ranges = cornerCaseRange(hiddenStates._size, visibleStates._size, radius, hiddenToVisible);
-			const int x0 = 0;
-			const int x1 = std::get<0>(ranges).x;
-			const int x2 = std::get<0>(ranges).y;
-			const int x3 = hiddenStates._size.x;
-			const int y0 = 0;
-			const int y1 = std::get<1>(ranges).x;
-			const int y2 = std::get<1>(ranges).y;
-			const int y3 = hiddenStates._size.y;
+				const int visiblePositionCenter_x = project(x, hiddenToVisible.x);
+				const int fieldLowerBound_x = visiblePositionCenter_x - radius;
 
-			for (int hiddenPosition_x = x0; hiddenPosition_x < x1; ++hiddenPosition_x) {
-				for (int hiddenPosition_y = y0; hiddenPosition_y < y3; ++hiddenPosition_y) {
-					updateWeight_spLearnWeights<true>(hiddenPosition_x, hiddenPosition_y, visibleSize, hiddenToVisible, radius, weightAlpha, hiddenStates, visibleStates, weightsBack, weightsFront);
-				}
-			}
-			for (int hiddenPosition_x = x1; hiddenPosition_x < x2; ++hiddenPosition_x) {
-				for (int hiddenPosition_y = y0; hiddenPosition_y < y1; ++hiddenPosition_y) {
-					updateWeight_spLearnWeights<true>(hiddenPosition_x, hiddenPosition_y, visibleSize, hiddenToVisible, radius, weightAlpha, hiddenStates, visibleStates, weightsBack, weightsFront);
-				}
-				for (int hiddenPosition_y = y1; hiddenPosition_y < y2; ++hiddenPosition_y) {
-					updateWeight_spLearnWeights<false>(hiddenPosition_x, hiddenPosition_y, visibleSize, hiddenToVisible, radius, weightAlpha, hiddenStates, visibleStates, weightsBack, weightsFront);
-				}
-				for (int hiddenPosition_y = y2; hiddenPosition_y < y3; ++hiddenPosition_y) {
-					updateWeight_spLearnWeights<true>(hiddenPosition_x, hiddenPosition_y, visibleSize, hiddenToVisible, radius, weightAlpha, hiddenStates, visibleStates, weightsBack, weightsFront);
-				}
-			}
-			for (int hiddenPosition_x = x2; hiddenPosition_x < x3; ++hiddenPosition_x) {
-				for (int hiddenPosition_y = y0; hiddenPosition_y < y3; ++hiddenPosition_y) {
-					updateWeight_spLearnWeights<true>(hiddenPosition_x, hiddenPosition_y, visibleSize, hiddenToVisible, radius, weightAlpha, hiddenStates, visibleStates, weightsBack, weightsFront);
-				}
-			}
-		}
+				for (int y = cornerCaseX.x; y < cornerCaseX.y; ++y) {
+					const int visiblePositionCenter_y = project(y, hiddenToVisible.y);
+					const int fieldLowerBound_y = visiblePositionCenter_y - radius;
+					const float hiddenState = read_2D(hiddenStates, x, y);
 
-		static void spLearnWeights_v0(
-			const Image2D &hiddenStates,
-			const Image2D &visibleStates,
-			const Image3D &weightsBack,
-			Image3D &weightsFront, // write only
-			const int2 visibleSize,
-			const float2 hiddenToVisible,
-			const int radius,
-			//const float /*activeRatio*/, //unused
-			const float weightAlpha)
-		{
-			for (int hiddenPosition_x = 0; hiddenPosition_x < hiddenStates._size.x; ++hiddenPosition_x) {
-				for (int hiddenPosition_y = 0; hiddenPosition_y < hiddenStates._size.y; ++hiddenPosition_y) {
-					updateWeight_spLearnWeights<true>(hiddenPosition_x, hiddenPosition_y, visibleSize, hiddenToVisible, radius, weightAlpha, hiddenStates, visibleStates, weightsBack, weightsFront);
+					for (int dx = -radius; dx <= radius; dx++) {
+						const int visiblePosition_x = visiblePositionCenter_x + dx;
+						const int offset_x = visiblePosition_x - fieldLowerBound_x;
+						assert(inBounds0(visiblePosition_x, visibleSize.x));
+
+#						pragma ivdep 
+						for (int dy = -radius; dy <= radius; dy++) {
+							const int visiblePosition_y = visiblePositionCenter_y + dy;
+							assert(inBounds0(visiblePosition_y, visibleSize.y));
+
+							if (true) {
+								const int offset_y = visiblePosition_y - fieldLowerBound_y;
+								const int wi = offset_y + (offset_x * ((radius * 2) + 1));
+								const float weightPrev = read_3D(weightsBack, x, y, wi);
+								const float visibleState = read_2D(visibleStates, visiblePosition_x, visiblePosition_y);
+								const float learn = hiddenState * (visibleState - weightPrev);
+								float weight = weightPrev + weightAlpha * learn;
+								weight = (weight > 1.0f) ? 1.0f : ((weight < 0.0f) ? 0.0f : weight);
+								write_3D(weightsFront, x, y, wi, weight);
+							}
+							else {
+								updateWeight(x, y, visiblePosition_x, visiblePosition_y, fieldLowerBound_y, offset_x, visibleStates, weightsBack, weightsFront, radius, hiddenState, weightAlpha);
+							}
+						}
+					}
 				}
 			}
 		}
@@ -645,19 +688,98 @@ namespace feynman {
 			const Image2D &visibleStates,
 			const Image3D &weightsBack,
 			Image3D &weightsFront, // write only
-			const int2 visibleSize,
-			const float2 hiddenToVisible,
-			const int radius,
+			const int2 visibleSize, 
+			const float2 hiddenToVisible, 
+			const int radius, 
 			//const float /*activeRatio*/, //unused
 			const float weightAlpha)
 		{
-			//printf("hiddenStates.size=(%i,%i)\n", hiddenStates._size.x, hiddenStates._size.y);
-			//printf("visibleStates.size=(%i,%i)\n", visibleStates._size.x, visibleStates._size.y);
-			//printf("weightsBack.size=(%i,%i,%i)\n", weightsBack._size.x, weightsBack._size.y, weightsBack._size.z);
-			//printf("hiddenToVisible=(%f,%f)\n", hiddenToVisible.x, hiddenToVisible.y);
+			/* original
+			void kernel spLearnWeights(
+				read_only image2d_t hiddenStates,
+				read_only image2d_t visibleStates,
+				read_only image3d_t weightsBack, 
+				write_only image3d_t weightsFront,
+				int2 visibleSize, float2 hiddenToVisible, int radius, float activeRatio, float weightAlpha)
+			{
+				int2 hiddenPosition = (int2)(get_global_id(0), get_global_id(1));
+				int2 visiblePositionCenter = project(hiddenPosition, hiddenToVisible);
+				int2 fieldLowerBound = visiblePositionCenter - (int2)(radius);
+				float hiddenState = read_imagef(hiddenStates, defaultSampler, hiddenPosition).x;
 
-			//spLearnWeights_v0(hiddenStates, visibleStates, weightsBack, weightsFront, visibleSize, hiddenToVisible, radius, weightAlpha);
-			spLearnWeights_v1(hiddenStates, visibleStates, weightsBack, weightsFront, visibleSize, hiddenToVisible, radius, weightAlpha);
+				for (int dx = -radius; dx <= radius; dx++)
+					for (int dy = -radius; dy <= radius; dy++) {
+						int2 visiblePosition = visiblePositionCenter + (int2)(dx, dy);
+
+						if (inBounds0(visiblePosition, visibleSize)) {
+							int2 offset = visiblePosition - fieldLowerBound;
+							int wi = offset.y + offset.x * (radius * 2 + 1);
+							float weightPrev = read_imagef(weightsBack, defaultSampler, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0)).x;
+							float visibleState = read_imagef(visibleStates, defaultSampler, visiblePosition).x;
+							float learn = hiddenState * (visibleState - weightPrev);
+							write_imagef(weightsFront, (int4)(hiddenPosition.x, hiddenPosition.y, wi, 0), (float4)(fmin(1.0f, fmax(0.0f, weightPrev + weightAlpha * learn)), 0.0f, 0.0f, 0.0f));
+						}
+					}
+			}
+			*/
+
+			if (true) {
+				printf("------------------------\n");
+				printf("hiddenStates.size=(%i,%i)\n", hiddenStates._size.x, hiddenStates._size.y);
+				printf("visibleStates.size=(%i,%i)\n", visibleStates._size.x, visibleStates._size.y);
+				printf("weightsBack.size=(%i,%i,%i)\n", weightsBack._size.x, weightsBack._size.y, weightsBack._size.z);
+				printf("hiddenToVisible=(%f,%f)\n", hiddenToVisible.x, hiddenToVisible.y);
+				printf("visibleSize=(%i,%i)\n", visibleSize.x, visibleSize.y);
+				printf("radius=%i\n", radius);
+			}
+
+			//std::set<int> cornerCases;
+
+//#			pragma omp parallel for schedule(dynamic,8)
+			for (int hiddenPosition_x = 0; hiddenPosition_x < hiddenStates._size.x; ++hiddenPosition_x) {
+				const int visiblePositionCenter_x = project(hiddenPosition_x, hiddenToVisible.x);
+				const int fieldLowerBound_x = visiblePositionCenter_x - radius;
+
+#				pragma ivdep 
+				for (int hiddenPosition_y = 0; hiddenPosition_y < hiddenStates._size.y; ++hiddenPosition_y) {
+					const int visiblePositionCenter_y = project(hiddenPosition_y, hiddenToVisible.y);
+					const int fieldLowerBound_y = visiblePositionCenter_y - radius;
+					const float hiddenState = read_2D(hiddenStates, hiddenPosition_x, hiddenPosition_y);
+
+#					pragma ivdep 
+					for (int dx = -radius; dx <= radius; dx++) {
+						const int visiblePosition_x = visiblePositionCenter_x + dx;
+						if (inBounds0(visiblePosition_x, visibleSize.x)) {
+							const int offset_x = visiblePosition_x - fieldLowerBound_x;
+
+#							pragma ivdep 
+							for (int dy = -radius; dy <= radius; dy++) {
+								const int visiblePosition_y = visiblePositionCenter_y + dy;
+								if (inBounds0(visiblePosition_y, visibleSize.y)) {
+									const int offset_y = visiblePosition_y - fieldLowerBound_y;
+
+									const int wi = offset_y + (offset_x * ((radius * 2) + 1));
+									const float weightPrev = read_3D(weightsBack, hiddenPosition_x, hiddenPosition_y, wi);
+									const float visibleState = read_2D(visibleStates, visiblePosition_x, visiblePosition_y);
+									const float learn = hiddenState * (visibleState - weightPrev);
+
+									float weight = weightPrev + (weightAlpha * learn);
+									weight = (weight > 1.0f) ? 1.0f : ((weight < 0.0f) ? 0.0f : weight);
+									
+									write_3D(weightsFront, hiddenPosition_x, hiddenPosition_y, wi, weight);
+								}
+							}
+						}
+						else {
+							//cornerCases.insert(hiddenPosition_x);
+							//if ((dx == -radius) || (dx == radius)) {
+							//	printf("INFO: hiddenPosition_x=%i; visiblePosition_x=%i; dx=%i has corner case\n", hiddenPosition_x, visiblePosition_x, dx);
+							//}
+						}
+					}
+				}
+			}
+			//for (const int i : cornerCases) printf("INFO: hiddenPosition_x=%i is corner case\n",i);
 		}
 
 		static void spLearnBiases(

@@ -16,7 +16,7 @@ namespace feynman {
 	class SparseCoder {
 	public:
 
-		const static bool INFO = true;
+		static const bool INFO = true;
 
 		//Visible layer descriptor
 		struct VisibleLayerDesc {
