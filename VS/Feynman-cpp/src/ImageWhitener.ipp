@@ -94,7 +94,7 @@ namespace feynman {
 
 							const int2 otherPosition = position + int2{ dx, dy };
 
-							if (inBounds0(otherPosition, imageSize)) {
+							if (inBounds(otherPosition, imageSize)) {
 								float otherColor = read_2D(input, otherPosition);
 								center = center + otherColor;
 								count++;
@@ -113,7 +113,7 @@ namespace feynman {
 
 							int2 otherPosition = position + int2{ dx, dy };
 
-							if (inBounds0(otherPosition, imageSize)) {
+							if (inBounds(otherPosition, imageSize)) {
 								float4 otherColor = read_2D(input, otherPosition);
 								float4 centeredOtherColor = otherColor - center;
 								covariances = covariances + (centeredOtherColor * centeredCurrentColor);
@@ -141,7 +141,7 @@ namespace feynman {
 
 							int2 otherPosition = position + int2{ dx, dy };
 
-							if (inBounds0(otherPosition, imageSize)) {
+							if (inBounds(otherPosition, imageSize)) {
 								float4 otherColor = read_2D(input, otherPosition);
 								center = center + otherColor;
 								count++;
@@ -161,7 +161,7 @@ namespace feynman {
 
 							int2 otherPosition = position + (int2)(dx, dy);
 
-							if (inBounds0(otherPosition, imageSize)) {
+							if (inBounds(otherPosition, imageSize)) {
 								float4 otherColor = read_2D(input, otherPosition);
 								float4 centeredOtherColor = otherColor - center;
 								covariances = covariances + centeredOtherColor * centeredCurrentColor;

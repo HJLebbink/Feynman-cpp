@@ -104,15 +104,14 @@ namespace mnist {
 		// --------------------------- Create the Predictor ---------------------------
 		Predictor predictor;
 		{
-			std::vector<Predictor::PredLayerDesc> predictiveLayerDescs(5); // Predictor layer descriptors
+			std::vector<Predictor::PredLayerDesc> predictiveLayerDescs(4); // Predictor layer descriptors
 			std::vector<FeatureHierarchy::LayerDesc> layerDescs(5); // Matching feature layer descriptors
 
 			// Sizes
-			layerDescs[0]._size = { 128, 128 }; //{ 64, 64 };
-			layerDescs[1]._size = { 96, 96 }; //{ 48, 48 };
-			layerDescs[2]._size = { 64, 64 }; //{ 32, 32 };
-			layerDescs[3]._size = { 48, 48 }; //{ 24, 24 };
-			layerDescs[4]._size = { 32, 32 }; //{ 24, 24 };
+			layerDescs[0]._size = { 64, 64 };
+			layerDescs[1]._size = { 48, 48 };
+			layerDescs[2]._size = { 32, 32 };
+			layerDescs[3]._size = { 24, 24 };
 
 			for (size_t l = 0; l < layerDescs.size(); l++) {
 				layerDescs[l]._spActiveRatio = 0.02f;
@@ -302,7 +301,7 @@ namespace mnist {
 				}
 			}
 
-			if (totalSamples == 1) quit = true;
+			//if (totalSamples == 2) quit = true;
 
 			window.clear();
 

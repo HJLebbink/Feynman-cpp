@@ -396,7 +396,7 @@ namespace feynman {
 					for (int dx = -radius; dx <= radius; dx++) {
 						const int visiblePosition_x = visiblePositionCenter_x + dx;
 
-						if (inBounds0(visiblePosition_x, visibleSize.x)) {
+						if (inBounds(visiblePosition_x, visibleSize.x)) {
 							const int offset_x = visiblePosition_x - fieldLowerBound_x;
 
 #							pragma ivdep
@@ -406,7 +406,7 @@ namespace feynman {
 
 								const int visiblePosition_y = visiblePositionCenter_y + dy;
 
-								if (inBounds0(visiblePosition_y, visibleSize.y)) {
+								if (inBounds(visiblePosition_y, visibleSize.y)) {
 									const int offset_y = visiblePosition_y - fieldLowerBound_y;
 
 									const int wi = offset_y + (offset_x * ((radius * 2) + 1));
@@ -455,7 +455,7 @@ namespace feynman {
 					for (int dx = -reverseRadii.x; dx <= reverseRadii.x; dx++) {
 						const int hiddenPosition_x = hiddenPositionCenter_x + dx;
 
-						if (inBounds0(hiddenPosition_x, hiddenSize.x)) {
+						if (inBounds(hiddenPosition_x, hiddenSize.x)) {
 							const int fieldCenter_x = static_cast<int>(hiddenPosition_x * hiddenToVisible.x + 0.5f);
 							const int fieldLowerBound_x = fieldCenter_x - radius;
 							const int fieldUpperBound_x = fieldCenter_x + radius + 1; // So is included in inBounds
@@ -468,7 +468,7 @@ namespace feynman {
 								for (int dy = -reverseRadii.y; dy <= reverseRadii.y; dy++) {
 									const int hiddenPosition_y = hiddenPositionCenter_y + dy;
 
-									if (inBounds0(hiddenPosition_y, hiddenSize.y)) {
+									if (inBounds(hiddenPosition_y, hiddenSize.y)) {
 										// Next layer node's receptive field
 										const int fieldCenter_y = static_cast<int>(hiddenPosition_y * hiddenToVisible.y + 0.5f);
 
@@ -526,7 +526,7 @@ namespace feynman {
 					for (int dx = -radius; dx <= radius; ++dx) {
 						const int otherPosition_x = x + dx;
 
-						if (inBounds0(otherPosition_x, hiddenSize.x)) {
+						if (inBounds(otherPosition_x, hiddenSize.x)) {
 
 #							pragma ivdep
 							for (int dy = -radius; dy <= radius; ++dy) {
@@ -535,7 +535,7 @@ namespace feynman {
 
 								const int otherPosition_y = y + dy;
 
-								if (inBounds0(otherPosition_y, hiddenSize.y)) {
+								if (inBounds(otherPosition_y, hiddenSize.y)) {
 									const float otherActivation = read_2D(activations, otherPosition_x, otherPosition_y);
 									inhibition += (otherActivation >= activation) ? 1 : 0;
 									count++;
@@ -581,14 +581,14 @@ namespace feynman {
 					for (int dx = -radius; dx <= radius; ++dx) {
 						const int visiblePosition_x = visiblePositionCenter_x + dx;
 
-						if (inBounds0(visiblePosition_x, visibleSize.x)) {
+						if (inBounds(visiblePosition_x, visibleSize.x)) {
 							const int offset_x = visiblePosition_x - fieldLowerBound_x;
 
 #							pragma ivdep
 							for (int dy = -radius; dy <= radius; ++dy) {
 								const int visiblePosition_y = visiblePositionCenter_y + dy;
 
-								if (inBounds0(visiblePosition_y, visibleSize.y)) {
+								if (inBounds(visiblePosition_y, visibleSize.y)) {
 									const int offset_y = visiblePosition_y - fieldLowerBound_y;
 
 									const int wi = offset_y + (offset_x * ((radius * 2) + 1));
@@ -692,7 +692,7 @@ namespace feynman {
 					for (int dx = -reverseRadii.x; dx <= reverseRadii.x; ++dx) {
 						const int hiddenPosition_x = hiddenPositionCenter_x + dx;
 
-						if (inBounds0(hiddenPosition_x, hiddenSize.x)) {
+						if (inBounds(hiddenPosition_x, hiddenSize.x)) {
 							const int fieldCenter_x = static_cast<int>(hiddenPosition_x * hiddenToVisible.x + 0.5f);
 							const int fieldLowerBound_x = fieldCenter_x - radius;
 							const int fieldUpperBound_x = fieldCenter_x + radius + 1; // So is included in inBounds
@@ -702,7 +702,7 @@ namespace feynman {
 							for (int dy = -reverseRadii.y; dy <= reverseRadii.y; ++dy) {
 								const int hiddenPosition_y = hiddenPositionCenter_y + dy;
 
-								if (inBounds0(hiddenPosition_y, hiddenSize.y)) {
+								if (inBounds(hiddenPosition_y, hiddenSize.y)) {
 									// Next layer node's receptive field
 									const int fieldCenter_y = static_cast<int>(hiddenPosition_y * hiddenToVisible.y + 0.5f);
 									const int fieldLowerBound_y = fieldCenter_y - radius;

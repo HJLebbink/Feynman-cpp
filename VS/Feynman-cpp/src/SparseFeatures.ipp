@@ -214,8 +214,6 @@ namespace feynman {
 		/*!
 		\brief Learning
 		\param biasAlpha learning rate of bias.
-		\param activeRatio % active units.
-		\param gamma synaptic trace decay.
 		*/
 		void learn(
 			const float biasAlpha, 
@@ -408,7 +406,7 @@ namespace feynman {
 					for (int dx = -radius; dx <= radius; ++dx) {
 						const int visiblePosition_x = visiblePositionCenter_x + dx;
 
-						if (inBounds0(visiblePosition_x, visibleSize.x)) {
+						if (inBounds(visiblePosition_x, visibleSize.x)) {
 							const int offset_x = visiblePosition_x - fieldLowerBound_x;
 
 #							pragma ivdep
@@ -417,7 +415,7 @@ namespace feynman {
 									// do nothing;
 								//} else {
 									const int visiblePosition_y = visiblePositionCenter_y + dy;
-									if (inBounds0(visiblePosition_y, visibleSize.y)) {
+									if (inBounds(visiblePosition_y, visibleSize.y)) {
 										const int offset_y = visiblePosition_y - fieldLowerBound_y;
 
 										const int wi = offset_y + (offset_x * ((radius * 2) + 1));
@@ -508,7 +506,7 @@ namespace feynman {
 					for (int dx = -radius; dx <= radius; ++dx) {
 						const int otherPosition_x = x + dx;
 
-						if (inBounds0(otherPosition_x, hiddenSize.x)) {
+						if (inBounds(otherPosition_x, hiddenSize.x)) {
 #							pragma ivdep
 							for (int dy = -radius; dy <= radius; ++dy) {
 								if (dx == 0 && dy == 0) {
@@ -516,7 +514,7 @@ namespace feynman {
 								}
 								else {
 									const int otherPosition_y = y + dy;
-									if (inBounds0(otherPosition_y, hiddenSize.y)) {
+									if (inBounds(otherPosition_y, hiddenSize.y)) {
 										float otherActivation = read_2D(activations, otherPosition_x, otherPosition_y);
 										inhibition += (otherActivation >= activation) ? 1 : 0;
 										count++;
@@ -532,7 +530,7 @@ namespace feynman {
 		}
 
 		template <bool CORNER>
-		static inline void updateWeight_spLearnWeights(
+		static inline void spLearnWeights_kernel(
 			const int hiddenPosition_x,
 			const int hiddenPosition_y,
 			const int2 visibleSize,
@@ -549,21 +547,21 @@ namespace feynman {
 
 			const int visiblePositionCenter_y = project(hiddenPosition_y, hiddenToVisible.y);
 			const int fieldLowerBound_y = visiblePositionCenter_y - radius;
+			
 			const float hiddenState = read_2D(hiddenStates, hiddenPosition_x, hiddenPosition_y);
 
 #			pragma ivdep 
-			for (int dx = -radius; dx <= radius; dx++) {
+			for (int dx = -radius; dx <= radius; ++dx) {
 				const int visiblePosition_x = visiblePositionCenter_x + dx;
 
-				if (!CORNER || inBounds0(visiblePosition_x, visibleSize.x)) {
+				if (!CORNER || inBounds(visiblePosition_x, visibleSize.x)) {
 					const int offset_x = visiblePosition_x - fieldLowerBound_x;
 
 #					pragma ivdep 
-					for (int dy = -radius; dy <= radius; dy++) {
-
+					for (int dy = -radius; dy <= radius; ++dy) {
 						const int visiblePosition_y = visiblePositionCenter_y + dy;
-						if (!CORNER || inBounds0(visiblePosition_y, visibleSize.y)) {
 
+						if (!CORNER || inBounds(visiblePosition_y, visibleSize.y)) {
 							const int offset_y = visiblePosition_y - fieldLowerBound_y;
 							const int wi = offset_y + (offset_x * ((radius * 2) + 1));
 							const float weightPrev = read_3D(weightsBack, hiddenPosition_x, hiddenPosition_y, wi);
@@ -577,6 +575,50 @@ namespace feynman {
 				}
 			}
 		}
+
+		static inline void updateWeight_spLearnWeights_NoCorner(
+			const int hiddenPosition_x,
+			const int hiddenPosition_y,
+			const int2 /*visibleSize*/,
+			const float2 hiddenToVisible,
+			const int radius,
+			const float weightAlpha,
+			const Image2D &hiddenStates,
+			const Image2D &visibleStates,
+			const Image3D &weightsBack,
+			Image3D &weightsFront)
+		{
+			const int visiblePositionCenter_x = project(hiddenPosition_x, hiddenToVisible.x);
+			const int fieldLowerBound_x = visiblePositionCenter_x - radius;
+
+			const int visiblePositionCenter_y = project(hiddenPosition_y, hiddenToVisible.y);
+			const int fieldLowerBound_y = visiblePositionCenter_y - radius;
+			const float hiddenState = read_2D(hiddenStates, hiddenPosition_x, hiddenPosition_y);
+
+//#pragma	vector always
+#pragma		ivdep 
+			for (int dx = -radius; dx <= radius; ++dx) {
+				const int visiblePosition_x = visiblePositionCenter_x + dx;
+				const int offset_x = visiblePosition_x - fieldLowerBound_x;
+
+//#pragma		novector
+#pragma			ivdep 
+				for (int dy = -radius; dy <= radius; ++dy) {
+					const int visiblePosition_y = visiblePositionCenter_y + dy;
+					const int offset_y = visiblePosition_y - fieldLowerBound_y;
+
+					const int wi = offset_y + (offset_x * ((radius * 2) + 1));
+					const float weightPrev = read_3D(weightsBack, hiddenPosition_x, hiddenPosition_y, wi);
+					const float visibleState = read_2D(visibleStates, visiblePosition_x, visiblePosition_y);
+					const float learn = hiddenState * (visibleState - weightPrev);
+					float weight = weightPrev + (weightAlpha * learn);
+					weight = (weight > 1.0f) ? 1.0f : ((weight < 0.0f) ? 0.0f : weight);
+					write_3D(weightsFront, hiddenPosition_x, hiddenPosition_y, wi, weight);
+				}
+			}
+		}
+
+
 
 		static void spLearnWeights_v1(
 			const Image2D &hiddenStates,
@@ -601,23 +643,24 @@ namespace feynman {
 
 			for (int hiddenPosition_x = x0; hiddenPosition_x < x1; ++hiddenPosition_x) {
 				for (int hiddenPosition_y = y0; hiddenPosition_y < y3; ++hiddenPosition_y) {
-					updateWeight_spLearnWeights<true>(hiddenPosition_x, hiddenPosition_y, visibleSize, hiddenToVisible, radius, weightAlpha, hiddenStates, visibleStates, weightsBack, weightsFront);
+					spLearnWeights_kernel<true>(hiddenPosition_x, hiddenPosition_y, visibleSize, hiddenToVisible, radius, weightAlpha, hiddenStates, visibleStates, weightsBack, weightsFront);
 				}
 			}
 			for (int hiddenPosition_x = x1; hiddenPosition_x < x2; ++hiddenPosition_x) {
 				for (int hiddenPosition_y = y0; hiddenPosition_y < y1; ++hiddenPosition_y) {
-					updateWeight_spLearnWeights<true>(hiddenPosition_x, hiddenPosition_y, visibleSize, hiddenToVisible, radius, weightAlpha, hiddenStates, visibleStates, weightsBack, weightsFront);
+					spLearnWeights_kernel<true>(hiddenPosition_x, hiddenPosition_y, visibleSize, hiddenToVisible, radius, weightAlpha, hiddenStates, visibleStates, weightsBack, weightsFront);
 				}
 				for (int hiddenPosition_y = y1; hiddenPosition_y < y2; ++hiddenPosition_y) {
-					updateWeight_spLearnWeights<false>(hiddenPosition_x, hiddenPosition_y, visibleSize, hiddenToVisible, radius, weightAlpha, hiddenStates, visibleStates, weightsBack, weightsFront);
+					//spLearnWeights_kernel<false>(hiddenPosition_x, hiddenPosition_y, visibleSize, hiddenToVisible, radius, weightAlpha, hiddenStates, visibleStates, weightsBack, weightsFront);
+					updateWeight_spLearnWeights_NoCorner(hiddenPosition_x, hiddenPosition_y, visibleSize, hiddenToVisible, radius, weightAlpha, hiddenStates, visibleStates, weightsBack, weightsFront);
 				}
 				for (int hiddenPosition_y = y2; hiddenPosition_y < y3; ++hiddenPosition_y) {
-					updateWeight_spLearnWeights<true>(hiddenPosition_x, hiddenPosition_y, visibleSize, hiddenToVisible, radius, weightAlpha, hiddenStates, visibleStates, weightsBack, weightsFront);
+					spLearnWeights_kernel<true>(hiddenPosition_x, hiddenPosition_y, visibleSize, hiddenToVisible, radius, weightAlpha, hiddenStates, visibleStates, weightsBack, weightsFront);
 				}
 			}
 			for (int hiddenPosition_x = x2; hiddenPosition_x < x3; ++hiddenPosition_x) {
 				for (int hiddenPosition_y = y0; hiddenPosition_y < y3; ++hiddenPosition_y) {
-					updateWeight_spLearnWeights<true>(hiddenPosition_x, hiddenPosition_y, visibleSize, hiddenToVisible, radius, weightAlpha, hiddenStates, visibleStates, weightsBack, weightsFront);
+					spLearnWeights_kernel<true>(hiddenPosition_x, hiddenPosition_y, visibleSize, hiddenToVisible, radius, weightAlpha, hiddenStates, visibleStates, weightsBack, weightsFront);
 				}
 			}
 		}
@@ -635,7 +678,7 @@ namespace feynman {
 		{
 			for (int hiddenPosition_x = 0; hiddenPosition_x < hiddenStates._size.x; ++hiddenPosition_x) {
 				for (int hiddenPosition_y = 0; hiddenPosition_y < hiddenStates._size.y; ++hiddenPosition_y) {
-					updateWeight_spLearnWeights<true>(hiddenPosition_x, hiddenPosition_y, visibleSize, hiddenToVisible, radius, weightAlpha, hiddenStates, visibleStates, weightsBack, weightsFront);
+					spLearnWeights_kernel<true>(hiddenPosition_x, hiddenPosition_y, visibleSize, hiddenToVisible, radius, weightAlpha, hiddenStates, visibleStates, weightsBack, weightsFront);
 				}
 			}
 		}

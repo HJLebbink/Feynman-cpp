@@ -219,15 +219,15 @@ namespace feynman {
 		return x > 0.0f && x < 1.0f ? 1.0f : leak;
 	}
 	/*
-	inline bool inBounds0(int2 position, int2 upperBound) {
+	inline bool inBounds(int2 position, int2 upperBound) {
 		return (position.x >= 0) && (position.x < upperBound.x) && (position.y >= 0) && (position.y < upperBound.y);
 	}
 	*/
-	inline bool inBounds0(int pos_x, int pos_y, int max_x, int max_y) {
+	inline bool inBounds(int pos_x, int pos_y, int max_x, int max_y) {
 		return (pos_x >= 0) && (pos_x < max_x) && (pos_y >= 0) && (pos_y < max_y);
 	}
 
-	inline bool inBounds0(const int pos, const int max) {
+	inline bool inBounds(const int pos, const int max) {
 		return (pos >= 0) && (pos < max);
 	}
 
@@ -273,7 +273,7 @@ namespace feynman {
 		for (int x = 0; x < hiddenRange.x; ++x) {
 			const int visiblePositionCenter_x = project(x, hiddenToVisible.x);
 			const int fieldLowerBound_x = visiblePositionCenter_x - radius;
-			if (inBounds0(fieldLowerBound_x, visibleRange.x)) {
+			if (inBounds(fieldLowerBound_x, visibleRange.x)) {
 				rangeX.x = x;
 				break;
 			}
@@ -281,7 +281,7 @@ namespace feynman {
 		for (int x = rangeX.x + 1; x < hiddenRange.x; ++x) {
 			const int visiblePositionCenter_x = project(x, hiddenToVisible.x);
 			const int fieldUpperBound_x = visiblePositionCenter_x + radius;
-			if (!inBounds0(fieldUpperBound_x, visibleRange.x)) {
+			if (!inBounds(fieldUpperBound_x, visibleRange.x)) {
 				rangeX.y = x;
 				break;
 			}

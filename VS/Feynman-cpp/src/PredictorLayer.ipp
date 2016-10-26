@@ -136,8 +136,7 @@ namespace feynman {
 					vl._weights[_back],				// in
 					vld._size,
 					vl._hiddenToVisible,
-					vld._radius,
-					_hiddenSize);
+					vld._radius);
 
 				//plots::plotImage(_hiddenSummationTemp[_front], 4.0f, false, "PredictionLayer:_hiddenSummationTemp:");
 
@@ -219,7 +218,16 @@ namespace feynman {
 			return _hiddenSize;
 		}
 
-		static void speedTest(const size_t nExperiments = 1) {
+		static void speedTest(size_t nExperiments = 1)
+		{
+#ifdef _DEBUG
+			nExperiments = 1;
+#endif
+			speedTest_plLearnPredWeights(nExperiments);
+			speedTest_plStimulus(nExperiments);
+		}
+
+		static void speedTest_plLearnPredWeights(const size_t nExperiments = 1) {
 			printf("Running PredictorLayer::speedTest\n");
 			std::mt19937 generator(static_cast<unsigned int>(time(nullptr)));
 
@@ -300,7 +308,84 @@ namespace feynman {
 					for (int z = 0; z < weightsFront1._size.z; ++z) {
 						const float f0 = read_3D(weightsFront0, x, y, z);
 						const float f1 = read_3D(weightsFront1, x, y, z);
-						if (f0 != f1) printf("WARNING: PredictorLayer::speedTest: coord=(%i,%i,%i): f0=%f; f1=%f\n", x, y, z, f0, f1);
+						if (f0 != f1) printf("WARNING: PredictorLayer::speedTest_plLearnPredWeights: coord=(%i,%i,%i): f0=%f; f1=%f\n", x, y, z, f0, f1);
+					}
+				}
+			}
+		}
+		static void speedTest_plStimulus(const size_t nExperiments = 1) {
+			printf("Running PredictorLayer::speedTest\n");
+			std::mt19937 generator(static_cast<unsigned int>(time(nullptr)));
+
+			const int radius = 8;
+			const int2 visibleSize = { 128, 128 };
+			const int2 hiddenSize = { 96, 96 };
+
+			const int weightDiam = radius * 2 + 1;
+			const int numWeights = weightDiam * weightDiam;
+			const int3 weightsSize = { hiddenSize.x, hiddenSize.y, numWeights };
+
+			Image2D visibleStates = Image2D(visibleSize);
+			Image2D hiddenSummationTempBack = Image2D(hiddenSize);
+			Image2D hiddenSummationTempFront = Image2D(hiddenSize);
+			Image3D weights0 = Image3D(weightsSize);
+			Image3D weights1 = Image3D(weightsSize);
+			const float2 hiddenToVisible = float2{
+				static_cast<float>(visibleSize.x) / static_cast<float>(hiddenSize.x),
+				static_cast<float>(visibleSize.y) / static_cast<float>(hiddenSize.y)
+			};
+
+			//----------------------------------------------------------------------------------
+			const float2 initRange = { -0.001f, 0.001f };
+			randomUniform2D(visibleStates, visibleSize, initRange, generator);
+			randomUniform2D(hiddenSummationTempBack, hiddenSize, initRange, generator);
+			randomUniform2D(hiddenSummationTempFront, hiddenSize, initRange, generator);
+
+			//----------------------------------------------------------------------------------
+			double min0 = std::numeric_limits<double>::max();
+			for (size_t i = 0; i < nExperiments; ++i) {
+				::tools::reset_and_start_timer();
+
+				plStimulus_v0(
+					visibleStates,				// in
+					hiddenSummationTempBack,	// in
+					hiddenSummationTempFront,	// in
+					weights0,					// out
+					visibleSize,
+					hiddenToVisible,
+					radius);
+
+				const double dt = ::tools::get_elapsed_mcycles();
+				min0 = std::min(min0, dt);
+			}
+			printf("[plStimulus_v0]: %2.5f Mcycles\n", min0);
+
+			//----------------------------------------------------------------------------------
+			double min1 = std::numeric_limits<double>::max();
+			for (size_t i = 0; i < nExperiments; ++i) {
+				::tools::reset_and_start_timer();
+
+				plStimulus_v1(
+					visibleStates,				// in
+					hiddenSummationTempBack,	// in
+					hiddenSummationTempFront,	// in
+					weights1,					// out
+					visibleSize,
+					hiddenToVisible,
+					radius);
+
+				const double dt = ::tools::get_elapsed_mcycles();
+				min1 = std::min(min1, dt);
+			}
+			printf("[plStimulus_v1]: %2.5f Mcycles\n", min1);
+			printf("\t\t\t\t\t(%.2fx speedup from reference)\n", min0 / min1);
+
+			for (int x = 0; x < weights1._size.x; ++x) {
+				for (int y = 0; y < weights1._size.y; ++y) {
+					for (int z = 0; z < weights1._size.z; ++z) {
+						const float f0 = read_3D(weights0, x, y, z);
+						const float f1 = read_3D(weights1, x, y, z);
+						if (f0 != f1) printf("WARNING: PredictorLayer::speedTest_plStimulus: coord=(%i,%i,%i): f0=%f; f1=%f\n", x, y, z, f0, f1);
 					}
 				}
 			}
@@ -308,24 +393,68 @@ namespace feynman {
 
 	private:
 
-		static void plStimulus(
+		template <bool CORNER>
+		static void plStimulus_kernel(
+			const int hiddenPosition_x,
+			const int hiddenPosition_y,
 			const Image2D &visibleStates,
 			const Image2D &hiddenSummationTempBack,
 			Image2D &hiddenSummationTempFront, // write only
 			const Image3D &weights,
 			const int2 visibleSize,
 			const float2 hiddenToVisible,
-			const int radius,
-			const int2 range)
+			const int radius)
+		{
+			const int visiblePositionCenter_x = project(hiddenPosition_x, hiddenToVisible.x);
+			const int fieldLowerBound_x = visiblePositionCenter_x - radius;
+
+			const int visiblePositionCenter_y = project(hiddenPosition_y, hiddenToVisible.y);
+			const int fieldLowerBound_y = visiblePositionCenter_y - radius;
+
+			float subSum = 0.0f;
+
+#			pragma ivdep 
+			for (int dx = -radius; dx <= radius; ++dx) {
+				const int visiblePosition_x = visiblePositionCenter_x + dx;
+
+				if (!CORNER || inBounds(visiblePosition_x, visibleSize.x)) {
+					const int offset_x = visiblePosition_x - fieldLowerBound_x;
+
+#					pragma ivdep
+					for (int dy = -radius; dy <= radius; ++dy) {
+						const int visiblePosition_y = visiblePositionCenter_y + dy;
+
+						if (!CORNER || inBounds(visiblePosition_y, visibleSize.y)) {
+							const int offset_y = visiblePosition_y - fieldLowerBound_y;
+							const int wi = offset_y + (offset_x * ((radius * 2) + 1));
+							const float weight = read_3D(weights, hiddenPosition_x, hiddenPosition_y, wi);
+							const float visibleState = read_2D(visibleStates, visiblePosition_x, visiblePosition_y);
+							subSum += visibleState * weight;
+						}
+					}
+				}
+			}
+			const float sum = read_2D(hiddenSummationTempBack, hiddenPosition_x, hiddenPosition_y);
+			write_2D(hiddenSummationTempFront, hiddenPosition_x, hiddenPosition_y, sum + subSum);
+		}
+
+		static void plStimulus_vx(
+			const Image2D &visibleStates,
+			const Image2D &hiddenSummationTempBack,
+			Image2D &hiddenSummationTempFront, // write only
+			const Image3D &weights,
+			const int2 visibleSize,
+			const float2 hiddenToVisible,
+			const int radius)
 		{
 //#			pragma omp parallel for schedule(dynamic,8)
-			for (int x = 0; x < range.x; ++x) {
-				const int visiblePositionCenter_x = project(x, hiddenToVisible.x);
+			for (int hiddenPosition_x = 0; hiddenPosition_x < hiddenSummationTempBack._size.x; ++hiddenPosition_x) {
+				const int visiblePositionCenter_x = project(hiddenPosition_x, hiddenToVisible.x);
 				const int fieldLowerBound_x = visiblePositionCenter_x - radius;
 
 #				pragma ivdep
-				for (int y = 0; y < range.y; ++y) {
-					const int visiblePositionCenter_y = project(y, hiddenToVisible.y);
+				for (int hiddenPosition_y = 0; hiddenPosition_y < hiddenSummationTempBack._size.y; ++hiddenPosition_y) {
+					const int visiblePositionCenter_y = project(hiddenPosition_y, hiddenToVisible.y);
 					const int fieldLowerBound_y = visiblePositionCenter_y - radius;
 
 					float subSum = 0.0f;
@@ -334,29 +463,104 @@ namespace feynman {
 					for (int dx = -radius; dx <= radius; ++dx) {
 						const int visiblePosition_x = visiblePositionCenter_x + dx;
 
-						if (inBounds0(visiblePosition_x, visibleSize.x)) {
+						if (inBounds(visiblePosition_x, visibleSize.x)) {
 							const int offset_x = visiblePosition_x - fieldLowerBound_x;
 
 #							pragma ivdep
 							for (int dy = -radius; dy <= radius; ++dy) {
 								const int visiblePosition_y = visiblePositionCenter_y + dy;
 
-								if (inBounds0(visiblePosition_y, visibleSize.y)) {
+								if (inBounds(visiblePosition_y, visibleSize.y)) {
 									const int offset_y = visiblePosition_y - fieldLowerBound_y;
 
 									const int wi = offset_y + (offset_x * ((radius * 2) + 1));
-									const float weight = read_3D(weights, x, y, wi);
+									const float weight = read_3D(weights, hiddenPosition_x, hiddenPosition_y, wi);
 									const float visibleState = read_2D(visibleStates, visiblePosition_x, visiblePosition_y);
 									subSum += visibleState * weight;
 								}
 							}
 						}
 					}
-
-					const float sum = read_2D(hiddenSummationTempBack, x, y);
-					write_2D(hiddenSummationTempFront, x, y, sum + subSum);
+					const float sum = read_2D(hiddenSummationTempBack, hiddenPosition_x, hiddenPosition_y);
+					write_2D(hiddenSummationTempFront, hiddenPosition_x, hiddenPosition_y, sum + subSum);
 				}
 			}
+		}
+
+		static void plStimulus_v0(
+			const Image2D &visibleStates,
+			const Image2D &hiddenSummationTempBack,
+			Image2D &hiddenSummationTempFront, // write only
+			const Image3D &weights,
+			const int2 visibleSize,
+			const float2 hiddenToVisible,
+			const int radius)
+		{
+			for (int hiddenPosition_x = 0; hiddenPosition_x < hiddenSummationTempBack._size.x; ++hiddenPosition_x) {
+				for (int hiddenPosition_y = 0; hiddenPosition_y < hiddenSummationTempBack._size.y; ++hiddenPosition_y) {
+					plStimulus_kernel<true>(hiddenPosition_x, hiddenPosition_y, visibleStates, hiddenSummationTempBack, hiddenSummationTempFront, weights, visibleSize, hiddenToVisible, radius);
+				}
+			}
+		}
+
+		static void plStimulus_v1(
+			const Image2D &visibleStates,
+			const Image2D &hiddenSummationTempBack,
+			Image2D &hiddenSummationTempFront, // write only
+			const Image3D &weights,
+			const int2 visibleSize,
+			const float2 hiddenToVisible,
+			const int radius)
+		{
+			std::tuple<int2, int2> ranges = cornerCaseRange(hiddenSummationTempBack._size, visibleStates._size, radius, hiddenToVisible);
+			const int x0 = 0;
+			const int x1 = std::get<0>(ranges).x;
+			const int x2 = std::get<0>(ranges).y;
+			const int x3 = hiddenSummationTempBack._size.x;
+			const int y0 = 0;
+			const int y1 = std::get<1>(ranges).x;
+			const int y2 = std::get<1>(ranges).y;
+			const int y3 = hiddenSummationTempBack._size.y;
+
+			for (int hiddenPosition_x = x0; hiddenPosition_x < x1; ++hiddenPosition_x) {
+				for (int hiddenPosition_y = y0; hiddenPosition_y < y3; ++hiddenPosition_y) {
+					plStimulus_kernel<true>(hiddenPosition_x, hiddenPosition_y, visibleStates, hiddenSummationTempBack, hiddenSummationTempFront, weights, visibleSize, hiddenToVisible, radius);
+				}
+			}
+			for (int hiddenPosition_x = x1; hiddenPosition_x < x2; ++hiddenPosition_x) {
+				for (int hiddenPosition_y = y0; hiddenPosition_y < y1; ++hiddenPosition_y) {
+					plStimulus_kernel<true>(hiddenPosition_x, hiddenPosition_y, visibleStates, hiddenSummationTempBack, hiddenSummationTempFront, weights, visibleSize, hiddenToVisible, radius);
+				}
+				for (int hiddenPosition_y = y1; hiddenPosition_y < y2; ++hiddenPosition_y) {
+					plStimulus_kernel<false>(hiddenPosition_x, hiddenPosition_y, visibleStates, hiddenSummationTempBack, hiddenSummationTempFront, weights, visibleSize, hiddenToVisible, radius);
+				}
+				for (int hiddenPosition_y = y2; hiddenPosition_y < y3; ++hiddenPosition_y) {
+					plStimulus_kernel<true>(hiddenPosition_x, hiddenPosition_y, visibleStates, hiddenSummationTempBack, hiddenSummationTempFront, weights, visibleSize, hiddenToVisible, radius);
+				}
+			}
+			for (int hiddenPosition_x = x2; hiddenPosition_x < x3; ++hiddenPosition_x) {
+				for (int hiddenPosition_y = y0; hiddenPosition_y < y3; ++hiddenPosition_y) {
+					plStimulus_kernel<true>(hiddenPosition_x, hiddenPosition_y, visibleStates, hiddenSummationTempBack, hiddenSummationTempFront, weights, visibleSize, hiddenToVisible, radius);
+				}
+			}
+		}
+
+		static void plStimulus(
+			const Image2D &visibleStates,
+			const Image2D &hiddenSummationTempBack,
+			Image2D &hiddenSummationTempFront, // write only
+			const Image3D &weights,
+			const int2 visibleSize,
+			const float2 hiddenToVisible,
+			const int radius)
+		{
+			printf("visibleStates.size=(%i,%i)\n", visibleStates._size.x, visibleStates._size.y);
+			printf("hiddenSummationTempBack.size=(%i,%i)\n", hiddenSummationTempBack._size.x, hiddenSummationTempBack._size.y);
+			printf("hiddenSummationTempFront.size=(%i,%i)\n", hiddenSummationTempFront._size.x, hiddenSummationTempFront._size.y);
+			printf("weights.size=(%i,%i,%i)\n", weights._size.x, weights._size.y, weights._size.z);
+			printf("hiddenToVisible=(%f,%f)\n", hiddenToVisible.x, hiddenToVisible.y);
+
+			plStimulus_v0(visibleStates, hiddenSummationTempBack, hiddenSummationTempFront, weights, visibleSize, hiddenToVisible, radius);
 		}
 
 		static void plThreshold(
@@ -385,7 +589,7 @@ namespace feynman {
 		}
 
 		template <bool CORNER>
-		static void updateWeights_plLearnPredWeights(
+		static void plLearnPredWeights_kernel(
 			const int hiddenPosition_x,
 			const int hiddenPosition_y,
 			const float2 hiddenToVisible,
@@ -408,14 +612,14 @@ namespace feynman {
 			for (int dx = -radius; dx <= radius; ++dx) {
 				const int visiblePosition_x = visiblePositionCenter_x + dx;
 
-				if (!CORNER || inBounds0(visiblePosition_x, visibleStatesPrev._size.x)) {
+				if (!CORNER || inBounds(visiblePosition_x, visibleStatesPrev._size.x)) {
 					const int offset_x = visiblePosition_x - fieldLowerBound_x;
 
 #					pragma ivdep 
 					for (int dy = -radius; dy <= radius; ++dy) {
 						const int visiblePosition_y = visiblePositionCenter_y + dy;
 
-						if (!CORNER || inBounds0(visiblePosition_y, visibleStatesPrev._size.y)) {
+						if (!CORNER || inBounds(visiblePosition_y, visibleStatesPrev._size.y)) {
 
 							const int offset_y = visiblePosition_y - fieldLowerBound_y;
 							const int wi = offset_y + (offset_x * ((radius * 2) + 1));
@@ -435,7 +639,7 @@ namespace feynman {
 			const Image2D &hiddenStatesPrev,
 			const Image3D &weightsBack,
 			Image3D &weightsFront, //write only
-			const int2 visibleSize,
+			const int2 /*visibleSize*/,
 			const float2 hiddenToVisible,
 			const int radius,
 			const float weightAlpha)
@@ -452,23 +656,23 @@ namespace feynman {
 
 			for (int hiddenPosition_x = x0; hiddenPosition_x < x1; ++hiddenPosition_x) {
 				for (int hiddenPosition_y = y0; hiddenPosition_y < y3; ++hiddenPosition_y) {
-					updateWeights_plLearnPredWeights<true>(hiddenPosition_x, hiddenPosition_y, hiddenToVisible, radius, weightAlpha, visibleStatesPrev, targets, hiddenStatesPrev, weightsBack, weightsFront);
+					plLearnPredWeights_kernel<true>(hiddenPosition_x, hiddenPosition_y, hiddenToVisible, radius, weightAlpha, visibleStatesPrev, targets, hiddenStatesPrev, weightsBack, weightsFront);
 				}
 			}
 			for (int hiddenPosition_x = x1; hiddenPosition_x < x2; ++hiddenPosition_x) {
 				for (int hiddenPosition_y = y0; hiddenPosition_y < y1; ++hiddenPosition_y) {
-					updateWeights_plLearnPredWeights<true>(hiddenPosition_x, hiddenPosition_y, hiddenToVisible, radius, weightAlpha, visibleStatesPrev, targets, hiddenStatesPrev, weightsBack, weightsFront);
+					plLearnPredWeights_kernel<true>(hiddenPosition_x, hiddenPosition_y, hiddenToVisible, radius, weightAlpha, visibleStatesPrev, targets, hiddenStatesPrev, weightsBack, weightsFront);
 				}
 				for (int hiddenPosition_y = y1; hiddenPosition_y < y2; ++hiddenPosition_y) {
-					updateWeights_plLearnPredWeights<false>(hiddenPosition_x, hiddenPosition_y, hiddenToVisible, radius, weightAlpha, visibleStatesPrev, targets, hiddenStatesPrev, weightsBack, weightsFront);
+					plLearnPredWeights_kernel<false>(hiddenPosition_x, hiddenPosition_y, hiddenToVisible, radius, weightAlpha, visibleStatesPrev, targets, hiddenStatesPrev, weightsBack, weightsFront);
 				}
 				for (int hiddenPosition_y = y2; hiddenPosition_y < y3; ++hiddenPosition_y) {
-					updateWeights_plLearnPredWeights<true>(hiddenPosition_x, hiddenPosition_y, hiddenToVisible, radius, weightAlpha, visibleStatesPrev, targets, hiddenStatesPrev, weightsBack, weightsFront);
+					plLearnPredWeights_kernel<true>(hiddenPosition_x, hiddenPosition_y, hiddenToVisible, radius, weightAlpha, visibleStatesPrev, targets, hiddenStatesPrev, weightsBack, weightsFront);
 				}
 			}
 			for (int hiddenPosition_x = x2; hiddenPosition_x < x3; ++hiddenPosition_x) {
 				for (int hiddenPosition_y = y0; hiddenPosition_y < y3; ++hiddenPosition_y) {
-					updateWeights_plLearnPredWeights<true>(hiddenPosition_x, hiddenPosition_y, hiddenToVisible, radius, weightAlpha, visibleStatesPrev, targets, hiddenStatesPrev, weightsBack, weightsFront);
+					plLearnPredWeights_kernel<true>(hiddenPosition_x, hiddenPosition_y, hiddenToVisible, radius, weightAlpha, visibleStatesPrev, targets, hiddenStatesPrev, weightsBack, weightsFront);
 				}
 			}
 		}
@@ -479,14 +683,14 @@ namespace feynman {
 			const Image2D &hiddenStatesPrev,
 			const Image3D &weightsBack,
 			Image3D &weightsFront, //write only
-			const int2 visibleSize,
+			const int2 /*visibleSize*/,
 			const float2 hiddenToVisible,
 			const int radius,
 			const float weightAlpha)
 		{
 			for (int hiddenPosition_x = 0; hiddenPosition_x < hiddenStatesPrev._size.x; ++hiddenPosition_x) {
 				for (int hiddenPosition_y = 0; hiddenPosition_y < hiddenStatesPrev._size.y; ++hiddenPosition_y) {
-					updateWeights_plLearnPredWeights<true>(hiddenPosition_x, hiddenPosition_y, hiddenToVisible, radius, weightAlpha, visibleStatesPrev, targets, hiddenStatesPrev, weightsBack, weightsFront);
+					plLearnPredWeights_kernel<true>(hiddenPosition_x, hiddenPosition_y, hiddenToVisible, radius, weightAlpha, visibleStatesPrev, targets, hiddenStatesPrev, weightsBack, weightsFront);
 				}
 			}
 		}

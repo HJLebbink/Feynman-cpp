@@ -344,7 +344,7 @@ namespace feynman {
 					for (int dx = -radius; dx <= radius; dx++) {
 						for (int dy = -radius; dy <= radius; dy++) {
 							int2 hiddenPosition = hiddenPositionCenter + int2{ dx, dy };
-							if (inBounds0(hiddenPosition, hiddenSize)) {
+							if (inBounds(hiddenPosition, hiddenSize)) {
 								int2 offset = hiddenPosition - fieldLowerBound;
 								int wi = offset.y + offset.x * (radius * 2 + 1);
 								float weight = read_3D(weights, qPosition.x, qPosition.y, wi);
@@ -392,7 +392,7 @@ namespace feynman {
 						for (int dy = -radius; dy <= radius; dy++) {
 							int2 hiddenPosition = hiddenPositionCenter + int2{ dx, dy };
 
-							if (inBounds0(hiddenPosition, hiddenSize)) {
+							if (inBounds(hiddenPosition, hiddenSize)) {
 								int2 offset = hiddenPosition - fieldLowerBound;
 								int wi = offset.y + offset.x * (radius * 2 + 1);
 								float2 weightPrev = read_3D(weightsBack, qPosition.x, qPosition.y, wi);
