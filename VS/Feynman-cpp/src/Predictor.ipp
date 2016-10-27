@@ -11,6 +11,7 @@
 #include <vector>
 #include <random>
 #include <cassert>
+#include <string>
 
 #include "Helpers.ipp"
 #include "FeatureHierarchy.ipp"

@@ -187,6 +187,7 @@
     <None Include="src\PlotDebug.ipp" />
     <None Include="src\Predictor.ipp" />
     <None Include="src\PredictorLayer.ipp" />
+    <None Include="src\RecallTests.ipp" />
     <None Include="src\ScalarEncoder.ipp" />
     <None Include="src\SequenceRecall.ipp" />
     <None Include="src\SparseCoder.ipp" />

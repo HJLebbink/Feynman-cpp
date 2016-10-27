@@ -4,6 +4,8 @@
 #include "Video_Prediction.ipp"
 #include "SequenceRecall.ipp"
 #include "SparseFeatures.ipp"
+#include "RecallTests.ipp"
+
 int main()
 {
 	//TEST
@@ -12,11 +14,12 @@ int main()
 		SparseFeatures::speedTest(100);
 		PredictorLayer::speedTest(100);
 	}
-	if (true) mnist::mnist_Anomaly_Detection();
-	if (false) video::video_Prediction();
+	if (false) mnist::mnist_Anomaly_Detection();
+	if (true) video::video_Prediction();
 	if (false) sequenceRecall();
+	if (false) recallTest_AAAX();
 
 	std::cout << "Press any key to close" << std::endl;
-	//getchar();
+	std::cin.ignore();
 	return 0;
 }
