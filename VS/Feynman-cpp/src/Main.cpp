@@ -8,15 +8,15 @@ int main()
 {
 	//TEST
 
-	if (true) {
+	if (false) {
 		SparseFeatures::speedTest(100);
 		PredictorLayer::speedTest(100);
 	}
-	if (false) mnist::mnist_Anomaly_Detection();
+	if (true) mnist::mnist_Anomaly_Detection();
 	if (false) video::video_Prediction();
 	if (false) sequenceRecall();
 
 	std::cout << "Press any key to close" << std::endl;
-	getchar();
+	//getchar();
 	return 0;
 }

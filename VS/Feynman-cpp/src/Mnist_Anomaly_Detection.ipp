@@ -301,7 +301,7 @@ namespace mnist {
 				}
 			}
 
-			//if (totalSamples == 2) quit = true;
+			if (totalSamples == 10) quit = true;
 
 			window.clear();
 

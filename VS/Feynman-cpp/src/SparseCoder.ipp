@@ -199,8 +199,7 @@ namespace feynman {
 					vld._size,
 					vl._hiddenToVisible,
 					vld._radius,
-					vld._ignoreMiddle,
-					_hiddenSize);
+					vld._ignoreMiddle);
 				//plots::plotImage(_hiddenStimulusSummationTemp[_front], 8.0f, true, "SparseCoder:_hiddenStimulusSummationTemp: out");
 
 				std::swap(_hiddenStimulusSummationTemp[_front], _hiddenStimulusSummationTemp[_back]);
@@ -362,9 +361,6 @@ namespace feynman {
 
 	private:
 
-		/**
-		Writes hiddenSummationTempFront
-		*/
 		static void scStimulus(
 			const Image2D &visibleStates, // was float2
 			const Image2D &hiddenSummationTempBack,
@@ -373,16 +369,34 @@ namespace feynman {
 			const int2 visibleSize,
 			const float2 hiddenToVisible,
 			const int radius,
-			const bool ignoreMiddle,
-			const int2 range)
+			const bool ignoreMiddle)
+		{
+			if (ignoreMiddle)
+				scStimulus<true>(visibleStates, hiddenSummationTempBack, hiddenSummationTempFront, weights, visibleSize, hiddenToVisible, radius);
+			else 
+				scStimulus<false>(visibleStates, hiddenSummationTempBack, hiddenSummationTempFront, weights, visibleSize, hiddenToVisible, radius);
+		}
+
+		/**
+		Writes hiddenSummationTempFront
+		*/
+		template <bool IGNORE_MIDDLE>
+		static void scStimulus(
+			const Image2D &visibleStates, // was float2
+			const Image2D &hiddenSummationTempBack,
+			Image2D &hiddenSummationTempFront, // write only
+			const Image3D &weights,
+			const int2 visibleSize,
+			const float2 hiddenToVisible,
+			const int radius)
 		{
 #			pragma ivdep
-			for (int x = 0; x < range.x; ++x) {
+			for (int x = 0; x < hiddenSummationTempBack._size.x; ++x) {
 				const int visiblePositionCenter_x = static_cast<int>(x * hiddenToVisible.x + 0.5f);
 				const int fieldLowerBound_x = visiblePositionCenter_x - radius;
 
 #				pragma ivdep
-				for (int y = 0; y < range.y; ++y) {
+				for (int y = 0; y < hiddenSummationTempBack._size.y; ++y) {
 					const int visiblePositionCenter_y = static_cast<int>(y * hiddenToVisible.y + 0.5f);
 					const int fieldLowerBound_y = visiblePositionCenter_y - radius;
 
@@ -401,19 +415,21 @@ namespace feynman {
 
 #							pragma ivdep
 							for (int dy = -radius; dy <= radius; dy++) {
-								if (ignoreMiddle && (dx == 0) && (dy == 0))
-									continue;
+								if (IGNORE_MIDDLE && (dx == 0) && (dy == 0)) {
+									//Do nothing
+								} else 
+								{
+									const int visiblePosition_y = visiblePositionCenter_y + dy;
 
-								const int visiblePosition_y = visiblePositionCenter_y + dy;
+									if (inBounds(visiblePosition_y, visibleSize.y)) {
+										const int offset_y = visiblePosition_y - fieldLowerBound_y;
 
-								if (inBounds(visiblePosition_y, visibleSize.y)) {
-									const int offset_y = visiblePosition_y - fieldLowerBound_y;
-
-									const int wi = offset_y + (offset_x * ((radius * 2) + 1));
-									const float weight = read_3D(weights, x, y, wi);
-									const float visibleState = read_2D(visibleStates, visiblePosition_x, visiblePosition_y);// .x;
-									subSum += visibleState * weight;
-									count++;
+										const int wi = offset_y + (offset_x * ((radius * 2) + 1));
+										const float weight = read_3D(weights, x, y, wi);
+										const float visibleState = read_2D(visibleStates, visiblePosition_x, visiblePosition_y);
+										subSum += visibleState * weight;
+										count++;
+									}
 								}
 							}
 						}
@@ -678,12 +694,12 @@ namespace feynman {
 			const int2 range)
 		{
 #			pragma ivdep
-			for (int x = 0; x < range.x; ++x) {
-				const int hiddenPositionCenter_x = static_cast<int>(x * visibleToHidden.x + 0.5f);
+			for (int visiblePosition_x = 0; visiblePosition_x < range.x; ++visiblePosition_x) {
+				const int hiddenPositionCenter_x = static_cast<int>(visiblePosition_x * visibleToHidden.x + 0.5f);
 				
 #				pragma ivdep
-				for (int y = 0; y < range.y; ++y) {
-					const int hiddenPositionCenter_y = static_cast<int>(y * visibleToHidden.y + 0.5f);
+				for (int visiblePosition_y = 0; visiblePosition_y < range.y; ++visiblePosition_y) {
+					const int hiddenPositionCenter_y = static_cast<int>(visiblePosition_y * visibleToHidden.y + 0.5f);
 
 					float recon = 0.0f;
 					//float div = 0.0f;
@@ -696,7 +712,7 @@ namespace feynman {
 							const int fieldCenter_x = static_cast<int>(hiddenPosition_x * hiddenToVisible.x + 0.5f);
 							const int fieldLowerBound_x = fieldCenter_x - radius;
 							const int fieldUpperBound_x = fieldCenter_x + radius + 1; // So is included in inBounds
-							const int offset_x = x - fieldLowerBound_x;
+							const int offset_x = visiblePosition_x - fieldLowerBound_x;
 
 #							pragma ivdep
 							for (int dy = -reverseRadii.y; dy <= reverseRadii.y; ++dy) {
@@ -709,8 +725,8 @@ namespace feynman {
 									const int fieldUpperBound_y = fieldCenter_y + radius + 1; // So is included in inBounds
 
 									// Check for containment
-									if (inBounds(x, fieldLowerBound_x, fieldUpperBound_x) && inBounds(y, fieldLowerBound_y, fieldUpperBound_y)) {
-										const int offset_y = y - fieldLowerBound_y;
+									if (inBounds(visiblePosition_x, fieldLowerBound_x, fieldUpperBound_x) && inBounds(visiblePosition_y, fieldLowerBound_y, fieldUpperBound_y)) {
+										const int offset_y = visiblePosition_y - fieldLowerBound_y;
 										const float hiddenState = read_2D(hiddenStates, hiddenPosition_x, hiddenPosition_y);
 										const int wi = offset_y + (offset_x * ((radius * 2) + 1));
 										const float weight = read_3D(weights, hiddenPosition_x, hiddenPosition_y, wi);
@@ -721,7 +737,7 @@ namespace feynman {
 							}
 						}
 					}
-					write_2D(reconstruction, x, y, recon);
+					write_2D(reconstruction, visiblePosition_x, visiblePosition_y, recon);
 				}
 			}
 		}
