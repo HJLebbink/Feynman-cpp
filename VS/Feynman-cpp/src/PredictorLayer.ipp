@@ -663,7 +663,7 @@ namespace feynman {
 
 			switch (radius) {
 			case 6: plLearnPredWeights_v1<6>(visibleStatesPrev, targets, hiddenStatesPrev, weightsBack, weightsFront, visibleSize, hiddenToVisible, weightAlpha); break;
-			case 8: plLearnPredWeights_v1<6>(visibleStatesPrev, targets, hiddenStatesPrev, weightsBack, weightsFront, visibleSize, hiddenToVisible, weightAlpha); break;
+			case 8: plLearnPredWeights_v1<8>(visibleStatesPrev, targets, hiddenStatesPrev, weightsBack, weightsFront, visibleSize, hiddenToVisible, weightAlpha); break;
 			default: printf("ERROR: PredictorLayer::plLearnPredWeights: provided radius %i is not implemented\n", radius); break;
 			}
 		}
