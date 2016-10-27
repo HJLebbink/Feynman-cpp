@@ -141,7 +141,7 @@ namespace feynman {
 			// Forward pass through predictor to get next prediction
 			for (int layer = (nLayers - 1); (layer >= 0); --layer) {
 
-				//plots::plotImage(_featureHierarchy.getLayer(layer)._sparseFeatures.getHiddenStates()[_back], 8.0f, false, "Hidden.Layer"+std::to_string(layer));
+				plots::plotImage(_featureHierarchy.getLayer(layer)._sparseFeatures.getHiddenStates()[_back], 8.0f, false, "Hidden.Layer"+std::to_string(layer));
 				//const float2 minmax = find_min_max(_featureHierarchy.getLayer(layer)._sparseFeatures.getHiddenStates()[_back]);
 				//printf("INFO: Predictor:simStep, min=%f; max=%f\n", minmax.x, minmax.y);
 

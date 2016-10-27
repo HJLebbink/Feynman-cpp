@@ -82,12 +82,12 @@ void recallTest_AAAX() {
 	}
 
 	// Create hierarchy structure
-	std::vector<FeatureHierarchy::LayerDesc> layerDescs(3);
-	std::vector<Predictor::PredLayerDesc> pLayerDescs(3);
+	std::vector<FeatureHierarchy::LayerDesc> layerDescs(1);
+	std::vector<Predictor::PredLayerDesc> pLayerDescs(1);
 	{
 		layerDescs[0]._size = { 48, 48 };
-		layerDescs[1]._size = { 32, 32 };
-		layerDescs[2]._size = { 24, 24 };
+		//layerDescs[1]._size = { 32, 32 };
+		//layerDescs[2]._size = { 24, 24 };
 
 		for (size_t layer = 0; layer < layerDescs.size(); layer++) {
 			layerDescs[layer]._recurrentRadius = 6;
@@ -108,7 +108,7 @@ void recallTest_AAAX() {
 
 
 	sf::RenderWindow window;
-	window.create(sf::VideoMode(10 * 32 * 2, 10 * 32 * 1), "Recall Test AAAX");
+	window.create(sf::VideoMode(3 * 10 * 32, 1 * 10 * 32), "Recall Test AAAX");
 
 
 	int counter = 0;
@@ -132,15 +132,14 @@ void recallTest_AAAX() {
 			}
 		}
 
-		const int inputIndex = counter % inputImages.size();
-		const Image2D &inputImage = inputImages[inputIndex];
+		const Image2D &inputImage = inputImages[counter % inputImages.size()];
 
 		// Activate sparse coder
 		{
-			sparseCoder.activate({ inputImage }, 0.9f, 0.01f, generator);
+			sparseCoder.activate({ inputImage }, 0.9f, 0.02f, generator);
 			if (trainMode) {
-				const float thresholdAlpha = 0.004f;// 0.00004f;
-				const float activeRatio = 0.01f;
+				const float thresholdAlpha = 0.0004f;// 0.00004f;
+				const float activeRatio = 0.02f;
 				sparseCoder.learn(thresholdAlpha, activeRatio);
 			}
 			sparseCoder.stepEnd();
@@ -150,26 +149,45 @@ void recallTest_AAAX() {
 		const Image2D &newSDR_image = sparseCoder.getHiddenStates()[_back];
 		const Image2D &predSDR_image = predictor.getPrediction();
 
-		// Hierarchy simulation step
-		predictor.simStep(newSDR_image, newSDR_image, generator, trainMode);
+		Image2D predictedImage;
+		{
+			Image2D image2 = Image2D(inputImage._size);
+			std::vector<Image2D> reconstructions = { image2 };
+			sparseCoder.reconstruct(predSDR_image, reconstructions);
+			predictedImage = reconstructions.front();
+		}
+
+		Image2D reconstructionErrorImage = Image2D(inputImage._size);
+		{	// calculate the prediction error
+			float pixelMissmatch = 0;
+			for (size_t i = 0; i < inputImage._data.size(); ++i) {
+				const float predictedPixel = std::min(1.0f, std::max(0.0f, predictedImage._data[i]));
+				const float errorPerPixel = abs(inputImage._data[i] - predictedPixel);
+				if (errorPerPixel > 1.0) {
+					printf("WARNING: errorPerPixel %f, input=%f, predicted=%f\n", errorPerPixel, inputImage._data[i], predictedImage._data[i]);
+				}
+
+				reconstructionErrorImage._data[i] = errorPerPixel;
+				pixelMissmatch += errorPerPixel;
+			}
+			pixelMissmatch = pixelMissmatch / inputImage._data.size();
+			printf("trainstep %i: pixelMissmatch %f\n", counter, pixelMissmatch);
+		}
 
 		// plot stuff
 		{
 			window.clear();
-			plots::plotImage(inputImage, float2{ 0.0f, 0.0f }, 32.0f, window);
-
-			if (true) {
-				Image2D image2 = Image2D(inputImage._size);
-				std::vector<Image2D> reconstructions = { image2 };
-				sparseCoder.reconstruct(predSDR_image, reconstructions);
-				plots::plotImage(reconstructions.front(), float2{ 10.0f * 32.0f, 0.0f }, 32.0f, window);
-			}
+			plots::plotImage(inputImage, float2{ 0 * 10.0f * 32.0f, 0.0f }, 32.0f, window);
+			plots::plotImage(predictedImage, float2{ 1 * 10.0f * 32.0f, 0.0f }, 32.0f, window);
+			plots::plotImage(reconstructionErrorImage, float2{ 2 * 10.0f * 32.0f, 0.0f }, 32.0f, window);
+			window.display();
 
 			plots::plotImage(newSDR_image, 8.0f, false, "Current SDR");
 			plots::plotImage(predSDR_image, 8.0f, false, "Predicted SDR");
-
-			window.display();
 		}
+
+		// Hierarchy simulation step
+		predictor.simStep(newSDR_image, newSDR_image, generator, trainMode);
 
 		//std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		counter++;
