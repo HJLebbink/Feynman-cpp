@@ -87,7 +87,11 @@ namespace video {
 				pLayerDescs[l]._beta = 0.16f;
 			}
 			predictor.createRandom({ static_cast<int>(rescaleRT.getSize().x), static_cast<int>(rescaleRT.getSize().y) }, pLayerDescs, layerDescs, { -0.01f, 0.01f }, generator);
+			if (true) predictor.getMemoryUsage(true);
 		}
+
+
+
 
 		// Host image buffer
 		std::vector<float> pred(rescaleRT.getSize().x * rescaleRT.getSize().y, 0.0f);

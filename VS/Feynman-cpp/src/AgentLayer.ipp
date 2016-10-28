@@ -84,8 +84,6 @@ namespace feynman {
 		/*!
 		\brief Create a predictive hierarchy with random initialization.
 		Requires the ComputeSystem, ComputeProgram with the OgmaNeo kernels, and initialization information.
-		\param cs is the ComputeSystem.
-		\param program is the ComputeProgram associated with the ComputeSystem and loaded with the main kernel code.
 		\param numActionTiles is the (2D) size of the action layer.
 		\param actionTileSize is the (2D) size of each action tile (square one-hot action region).
 		\param visibleLayerDescs is a vector of visible layer parameters.
@@ -123,9 +121,9 @@ namespace feynman {
 					static_cast<int>(std::ceil(vl._visibleToHidden.y * vld._radius) + 1)
 				};
 				{
-					int weightDiam = vld._radius * 2 + 1;
-					int numWeights = weightDiam * weightDiam;
-					int3 weightsSize = { _hiddenSize.x, _hiddenSize.y, numWeights };
+					const int weightDiam = vld._radius * 2 + 1;
+					const int numWeights = weightDiam * weightDiam;
+					const int3 weightsSize = { _hiddenSize.x, _hiddenSize.y, numWeights };
 					vl._weights = createDoubleBuffer3D(weightsSize);
 					randomUniform3D<(vl._weights[_back], weightsSize, initWeightRange, rng);
 				}
@@ -176,10 +174,10 @@ namespace feynman {
 				VisibleLayerDesc &vld = _visibleLayerDescs[vli];
 
 				alFindQ(
-					visibleStates[vli],
-					vl._weights[_back],
-					_hiddenSummationTemp[_back],
-					_hiddenSummationTemp[_front],
+					visibleStates[vli],				// in
+					vl._weights[_back],				// in
+					_hiddenSummationTemp[_back],	// in
+					_hiddenSummationTemp[_front],	// out
 					vld._size,
 					vl._hiddenToVisible,
 					vld._radius,
@@ -194,8 +192,8 @@ namespace feynman {
 
 			// Get newest actions
 			alGetAction(
-				_qStates[_front],
-				_action[_front],
+				_qStates[_front],		// in
+				_action[_front],		// out
 				_actionTileSize,
 				_numActionTiles);
 
@@ -204,11 +202,11 @@ namespace feynman {
 			// Exploration
 			{
 				std::uniform_int_distribution<int> seedDist(0, 9999);
-				uint2 seed = { static_cast<uint>(seedDist(rng)),static_cast<uint>(seedDist(rng)) };
+				uint2 seed = { static_cast<unsigned int>(seedDist(rng)),static_cast<unsigned int>(seedDist(rng)) };
 
 				alActionExploration(
-					_action[_back],
-					_actionTaken[_front],
+					_action[_back],			// in
+					_actionTaken[_front],	// out
 					epsilon,
 					_actionTileSize.x * _actionTileSize.y,
 					seed,
@@ -219,16 +217,16 @@ namespace feynman {
 
 			// Compute TD errors
 			alSetAction(
-				modulator,
-				_action[_back],
-				_action[_front],
-				_actionTaken[_back],
-				_actionTaken[_front],
-				_qStates[_front],
-				_qStates[_back],
-				_tdError,
-				_oneHotAction,
-				_actionTileSize,
+				modulator,				// in
+				_action[_back],			// in
+				_action[_front],		// in
+				_actionTaken[_back],	// in
+				_actionTaken[_front],	// in
+				_qStates[_front],		// in
+				_qStates[_back],		// in
+				_tdError,				// in
+				_oneHotAction,			// out
+				_actionTileSize,		// out
 				reward,
 				qGamma,
 				_numActionTiles);
@@ -242,13 +240,13 @@ namespace feynman {
 
 					// Learn Q
 					alLearnQ(
-						visibleStates[vli],
-						_qStates[_back],
-						_qStates[_front],
-						_tdError,
-						_oneHotAction,
-						vl._weights[_back],
-						vl._weights[_front],
+						visibleStates[vli],		// in
+						//_qStates[_back],		// in // unused
+						//_qStates[_front],		// in // unused
+						_tdError,				// in
+						_oneHotAction,			// in
+						vl._weights[_back],		// in
+						vl._weights[_front],	// out
 						vld._size,
 						vl._hiddenToVisible,
 						vld._radius,
@@ -360,12 +358,12 @@ namespace feynman {
 
 		static void alLearnQ(
 			const Image2D &hiddenStates,
-			const Image2D<float2> &qStates,
-			const Image2D<float2> &qStatesPrev,
+			//const Image2D<float2> &qStates,	// unused
+			//const Image2D<float2> &qStatesPrev,	//unused
 			const Image2D &tdErrors,
 			const Image2D &oneHotActions,
-			const Image3D<float2> &weightsBack,
-			Image3D<float2> &weightsFront,
+			const Image3D &weightsBack,
+			Image3D &weightsFront,
 			const int2 hiddenSize,
 			const float2 qToHidden,
 			const int radius,
@@ -373,32 +371,41 @@ namespace feynman {
 			const float lambda,
 			const int2 range)
 		{
-			int2 qPosition;
 			for (int x = 0; x < range.x; ++x) {
-				qPosition.x = x;
 				for (int y = 0; y < range.y; ++y) {
-					qPosition.y = y;
 
-					int2 hiddenPositionCenter = project(qPosition, qToHidden);
+					const int hiddenPositionCenter_x = project(x, qToHidden.x);
+					const int hiddenPositionCenter_y = project(y, qToHidden.y);
 
-					float tdError = read_2D(tdErrors, qPosition);
-					float oneHotAction = read_2D(oneHotActions, qPosition);
+					const float tdError = read_2D(tdErrors, x, y);
+					const float oneHotAction = read_2D(oneHotActions, x, y);
+
 					//float2 qState = read_imagef_2D_2x(qStates, qPosition); //TODO: investigate
 					//float2 qStatePrev = read_imagef_2D_2x(qStatesPrev, qPosition); //TODO: investigate
 
-					int2 fieldLowerBound = hiddenPositionCenter - int2{ radius };
+					const int fieldLowerBound_x = hiddenPositionCenter_x - radius;
+					const int fieldLowerBound_y = hiddenPositionCenter_y - radius;
 
-					for (int dx = -radius; dx <= radius; dx++) {
-						for (int dy = -radius; dy <= radius; dy++) {
-							int2 hiddenPosition = hiddenPositionCenter + int2{ dx, dy };
+					for (int dx = -radius; dx <= radius; ++dx) {
+						const int hiddenPosition_x = hiddenPositionCenter_x + dx;
+						const int offset_x = hiddenPosition_x - fieldLowerBound_x;
 
-							if (inBounds(hiddenPosition, hiddenSize)) {
-								int2 offset = hiddenPosition - fieldLowerBound;
-								int wi = offset.y + offset.x * (radius * 2 + 1);
-								float2 weightPrev = read_3D(weightsBack, qPosition.x, qPosition.y, wi);
-								float state = read_2D(hiddenStates, hiddenPosition);
-								float2 weight = float2{ weightPrev.x + alpha * tdError * weightPrev.y, lambda * weightPrev.y + (1.0f - lambda) * oneHotAction * state };
-								write_3D(weightsFront, qPosition.x, qPosition.y, wi, weight);
+						for (int dy = -radius; dy <= radius; ++dy) {
+							const int hiddenPosition_y = hiddenPositionCenter_y + dy;
+
+							if (inBounds(hiddenPosition_x, hiddenSize.x) && inBounds(hiddenPosition_y, hiddenSize.y)) {
+								const int offset_y = hiddenPosition_y - fieldLowerBound_y;
+
+								const int wi = offset_y + (offset_x * ((radius * 2) + 1));
+
+								const float weightPrev1 = read_3D(weightsBack, x, y, wi);
+								const float weightPrev2 = 0;// TODO read_3D(weightsBack, x, y, wi);
+								printf("AgentLayer::TODO");
+
+								const float state = read_2D(hiddenStates, hiddenPosition_x, hiddenPosition_y);
+								const float weight1 = weightPrev1 + alpha * tdError * weightPrev2;
+								const float weight2 = lambda * weightPrev2 + (1.0f - lambda) * oneHotAction * state;
+								write_3D(weightsFront, x, y, wi, weight1);
 							}
 						}
 					}
@@ -411,24 +418,25 @@ namespace feynman {
 			const Image2D &actions,
 			Image2D &oneHotActions,
 			const int2 subActionDims,
-			const uchar modulate,
+			const bool modulate,
 			const int2 range)
 		{
-			int2 position;
 			for (int x = 0; x < range.x; ++x) {
-				position.x = x;
 				for (int y = 0; y < range.y; ++y) {
-					position.y = y;
 
-					float hiddenState = modulate ? read_2D(hiddenStates, x, y): 1.0f;
-					float action = read_2D(actions, x, y);
-					int actioni = (int)(round(action));
-					int2 actionPosition = position * subActionDims + int2{ actioni % subActionDims.x, actioni / subActionDims.x };
+					const float hiddenState = modulate ? read_2D(hiddenStates, x, y): 1.0f;
+					const float action = read_2D(actions, x, y);
+					const int actioni = static_cast<int>(round(action));
+
+					const int actionPosition_x = x * subActionDims.x + actioni % subActionDims.x;
+					const int actionPosition_y = y * subActionDims.y + actioni / subActionDims.x;
+					
 					for (int x = 0; x < subActionDims.x; x++) {
 						for (int y = 0; y < subActionDims.y; y++) {
-							int index = x + y * subActionDims.x;
-							int2 subPosition = position * subActionDims + int2{ x, y };
-							write_2D(oneHotActions, subPosition, (index == actioni) ? hiddenState : 0.0f);
+							const int index = x + (y * subActionDims.x);
+							const int subPosition_x = x * subActionDims.x + x;
+							const int subPosition_y = y * subActionDims.y + y;
+							write_2D(oneHotActions, subPosition_x, subPosition_y, (index == actioni) ? hiddenState : 0.0f);
 						}
 					}
 				}
@@ -441,25 +449,22 @@ namespace feynman {
 			const int2 subActionDims,
 			const int2 range)
 		{
-			int2 position;
 			for (int x = 0; x < range.x; ++x) {
-				position.x = x;
 				for (int y = 0; y < range.y; ++y) {
-					position.y = y;
+
 					int maxIndex = 0;
 					float maxValue = -99999.0f;
 
 					for (int x = 0; x < subActionDims.x; x++) {
 						for (int y = 0; y < subActionDims.y; y++) {
-							float value = read_2D(predictions, position * subActionDims + int2{ x, y });
-
+							const float value = read_2D(predictions, x * subActionDims.x + x, y * subActionDims.y + y);
 							if (value > maxValue) {
 								maxValue = value;
 								maxIndex = x + y * subActionDims.x;
 							}
 						}
 					}
-					write_2D(actions, x, y, float4{ maxIndex });
+					write_2D(actions, x, y, maxIndex);
 				}
 			}
 		}
@@ -479,42 +484,42 @@ namespace feynman {
 			const float gamma,
 			const int2 range)
 		{
-			int2 position;
 			for (int x = 0; x < range.x; ++x) {
-				position.x = x;
 				for (int y = 0; y < range.y; ++y) {
-					position.y = y;
-					float modulate = read_2D(modulator, x, y);
+					const float modulate = read_2D(modulator, x, y);
 
-					float action = read_2D(actions, x, y);
-					float actionPrev = read_2D(actionsPrev, x, y);
-					float actionTaken = read_2D(actionsTaken, x, y);
-					float actionTakenPrev = read_2D(actionsTakenPrev, x, y);
+					const float action = read_2D(actions, x, y);
+					const float actionPrev = read_2D(actionsPrev, x, y);
+					const float actionTaken = read_2D(actionsTaken, x, y);
+					const float actionTakenPrev = read_2D(actionsTakenPrev, x, y);
 
-					int actioni = (int)(round(action));
-					int actionPrevi = (int)(round(actionPrev));
-					int actionTakeni = (int)(round(actionTaken));
-					int actionTakenPrevi = (int)(round(actionTakenPrev));
+					const int actioni = static_cast<int>(round(action));
+					const int actionPrevi = static_cast<int>(round(actionPrev));
+					const int actionTakeni = static_cast<int>(round(actionTaken));
+					const int actionTakenPrevi = static_cast<int>(round(actionTakenPrev));
 
-					int2 actionPosition = position * subActionDims + int2{ actioni % subActionDims.x, actioni / subActionDims.x };
-					int2 actionPrevPosition = position * subActionDims + int2{ actionPrevi % subActionDims.x, actionPrevi / subActionDims.x };
-					int2 actionTakenPosition = position * subActionDims + int2{ actionTakeni % subActionDims.x, actionTakeni / subActionDims.x };
-					int2 actionTakenPrevPosition = position * subActionDims + int2{ actionTakenPrevi % subActionDims.x, actionTakenPrevi / subActionDims.x };
+					const int actionPosition_x = x * subActionDims.x + actioni % subActionDims.x;
+					const int actionPosition_y = y * subActionDims.y + actioni / subActionDims.x;
+					const int actionPrevPosition_x = x * subActionDims.x + actionPrevi % subActionDims.x;
+					const int actionPrevPosition_y = y * subActionDims.y + actionPrevi / subActionDims.x;
+					const int actionTakenPosition_x = x * subActionDims.x + actionTakeni % subActionDims.x;
+					const int actionTakenPosition_y = y * subActionDims.y + actionTakeni / subActionDims.x;
+					const int actionTakenPrevPosition_x = x * subActionDims.x + actionTakenPrevi % subActionDims.x;
+					const int actionTakenPrevPosition_y = y * subActionDims.y + actionTakenPrevi / subActionDims.x;
 
-					float pred = read_2D(predictions, actionTakenPosition);
-					float predPrev = read_2D(predictionsPrev, actionTakenPrevPosition);
+					const float pred = read_2D(predictions, actionTakenPosition_x, actionTakenPosition_y);
+					const float predPrev = read_2D(predictionsPrev, actionTakenPrevPosition_x, actionTakenPrevPosition_y);
+					const float tdError = reward + gamma * pred - predPrev;
 
-					float tdError = reward + gamma * pred - predPrev;
-
-					for (int x = 0; x < subActionDims.x; x++)
+					for (int x = 0; x < subActionDims.x; x++) {
 						for (int y = 0; y < subActionDims.y; y++) {
-							int index = x + y * subActionDims.x;
-
-							int2 subPosition = position * subActionDims + int2{ x, y };
-
-							write_2D(tdErrorsTrain, subPosition, float4{ tdError });
-							write_2D(oneHotActions, subPosition, float4{ index == actionTakeni ? modulate : 0.0f });
+							const int index = x + y * subActionDims.x;
+							const int subPosition_x = x * subActionDims.x + x;
+							const int subPosition_y = y * subActionDims.y + y;
+							write_2D(tdErrorsTrain, subPosition_x, subPosition_y, tdError);
+							write_2D(oneHotActions, subPosition_x, subPosition_y, (index == actionTakeni) ? modulate : 0.0f);
 						}
+					}
 				}
 			}
 		}

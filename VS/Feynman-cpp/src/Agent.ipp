@@ -22,7 +22,7 @@ namespace feynman {
 	private:
 
 		//Internal OgmaNeo agent
-		AgentSwarm _as;
+		AgentSwarm _agentSwarm;
 
 		int _inputWidth, _inputHeight;
 		int _actionWidth, _actionHeight;
@@ -75,24 +75,24 @@ namespace feynman {
 			std::vector<AgentSwarm::AgentLayerDesc> aLayerDescs(layerDescs.size());
 			std::vector<FeatureHierarchy::LayerDesc> hLayerDescs(layerDescs.size());
 
-			for (int l = 0; l < layerDescs.size(); l++) {
-				hLayerDescs[l]._size = int2{ layerDescs[l]._width, layerDescs[l]._height };
-				hLayerDescs[l]._inputDescs = { FeatureHierarchy::InputDesc(inputSize, layerDescs[l]._feedForwardRadius) };
-				hLayerDescs[l]._inhibitionRadius = layerDescs[l]._inhibitionRadius;
-				hLayerDescs[l]._recurrentRadius = layerDescs[l]._recurrentRadius;
-				hLayerDescs[l]._spFeedForwardWeightAlpha = layerDescs[l]._spFeedForwardWeightAlpha;
-				hLayerDescs[l]._spRecurrentWeightAlpha = layerDescs[l]._spRecurrentWeightAlpha;
-				hLayerDescs[l]._spBiasAlpha = layerDescs[l]._spBiasAlpha;
-				hLayerDescs[l]._spActiveRatio = layerDescs[l]._spActiveRatio;
+			for (size_t layer = 0; layer < layerDescs.size(); layer++) {
+				hLayerDescs[layer]._size = int2{ layerDescs[layer]._width, layerDescs[layer]._height };
+				hLayerDescs[layer]._inputDescs = { FeatureHierarchy::InputDesc(inputSize, layerDescs[layer]._feedForwardRadius) };
+				hLayerDescs[layer]._inhibitionRadius = layerDescs[layer]._inhibitionRadius;
+				hLayerDescs[layer]._recurrentRadius = layerDescs[layer]._recurrentRadius;
+				hLayerDescs[layer]._spFeedForwardWeightAlpha = layerDescs[layer]._spFeedForwardWeightAlpha;
+				hLayerDescs[layer]._spRecurrentWeightAlpha = layerDescs[layer]._spRecurrentWeightAlpha;
+				hLayerDescs[layer]._spBiasAlpha = layerDescs[layer]._spBiasAlpha;
+				hLayerDescs[layer]._spActiveRatio = layerDescs[layer]._spActiveRatio;
 
-				aLayerDescs[l]._radius = layerDescs[l]._qRadius;
-				aLayerDescs[l]._qAlpha = layerDescs[l]._qAlpha;
-				aLayerDescs[l]._qGamma = layerDescs[l]._qGamma;
-				aLayerDescs[l]._qLambda = layerDescs[l]._qLambda;
-				aLayerDescs[l]._epsilon = layerDescs[l]._epsilon;
+				aLayerDescs[layer]._radius = layerDescs[layer]._qRadius;
+				aLayerDescs[layer]._qAlpha = layerDescs[layer]._qAlpha;
+				aLayerDescs[layer]._qGamma = layerDescs[layer]._qGamma;
+				aLayerDescs[layer]._qLambda = layerDescs[layer]._qLambda;
+				aLayerDescs[layer]._epsilon = layerDescs[layer]._epsilon;
 			}
 
-			_as.createRandom(inputSize, actionSize, { actionTileWidth, actionTileHeight }, actionRadius, aLayerDescs, hLayerDescs, float2{ initMinWeight, initMaxWeight }, _rng);
+			_agentSwarm.createRandom(inputSize, actionSize, { actionTileWidth, actionTileHeight }, actionRadius, aLayerDescs, hLayerDescs, float2{ initMinWeight, initMaxWeight }, _rng);
 
 			// Create temporary buffers
 			_inputImage = Image2D(int2{ inputWidth, inputHeight });
@@ -114,11 +114,11 @@ namespace feynman {
 			//_pCs->getQueue().enqueueWriteImage(_inputImage, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(_inputWidth), static_cast<cl::size_type>(_inputHeight), 1 }, 0, 0, inputsf.data());
 			copy(inputs, _inputImage);
 
-			_as.simStep(reward, _inputImage, _rng, learn);
+			_agentSwarm.simStep(reward, _inputImage, _rng, learn);
 
 			// Get action
-			//_pCs->getQueue().enqueueReadImage(_as.getAction(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(_actionWidth), static_cast<cl::size_type>(_actionHeight), 1 }, 0, 0, _action.data());
-			copy(_as.getAction(), _action);
+			//_pCs->getQueue().enqueueReadImage(_agentSwarm.getAction(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(_actionWidth), static_cast<cl::size_type>(_actionHeight), 1 }, 0, 0, _action.data());
+			copy(_agentSwarm.getAction(), _action);
 		}
 
 		//Get the action vector
@@ -128,12 +128,12 @@ namespace feynman {
 
 		/*!
 		\brief Get the hidden states for a layer
-		\param[in] li Layer index.
+		\param[in] layerIndex Layer index.
 		*/
-		std::vector<float> getStates(int li) {
-			std::vector<float> states(_as.getHierarchy().getLayerDesc(li)._size.x * _as.getHierarchy().getLayerDesc(li)._size.y * 2);
-			//_pCs->getQueue().enqueueReadImage(_as.getHierarchy().getLayer(li)._sp.getHiddenStates()[_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(_as.getHierarchy().getLayerDesc(li)._size.x), static_cast<cl::size_type>(_as.getHierarchy().getLayerDesc(li)._size.y), 1 }, 0, 0, states.data());
-			Image2D src = _as.getHierarchy().getLayer(li)._sparseFeatures.getHiddenStates()[_back];
+		std::vector<float> getStates(int layerIndex) {
+			std::vector<float> states(_agentSwarm.getHierarchy().getLayerDesc(layerIndex)._size.x * _agentSwarm.getHierarchy().getLayerDesc(layerIndex)._size.y * 2);
+			//_pCs->getQueue().enqueueReadImage(_agentSwarm.getHierarchy().getLayer(layerIndex)._sp.getHiddenStates()[_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(_agentSwarm.getHierarchy().getLayerDesc(layerIndex)._size.x), static_cast<cl::size_type>(_agentSwarm.getHierarchy().getLayerDesc(layerIndex)._size.y), 1 }, 0, 0, states.data());
+			Image2D src = _agentSwarm.getHierarchy().getLayer(layerIndex)._sparseFeatures.getHiddenStates()[_back];
 			return src._data;
 		}
 	};

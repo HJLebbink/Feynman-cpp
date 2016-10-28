@@ -10,9 +10,9 @@
 
 #include <cassert>
 
+#include "Helpers.ipp"
 #include "FeatureHierarchy.ipp"
 #include "AgentLayer.ipp"
-#include "Helpers.ipp"
 
 namespace feynman {
 
@@ -41,7 +41,7 @@ namespace feynman {
 
 	private:
 		//Feature hierarchy with same dimensions as swarm layer
-		FeatureHierarchy _h;
+		FeatureHierarchy _featureHierarchy;
 
 		//Layers and descs
 		std::vector<AgentLayer> _aLayers;
@@ -59,8 +59,6 @@ namespace feynman {
 		/*!
 		\brief Create a predictive hierarchy with random initialization.
 		Requires the ComputeSystem, ComputeProgram with the OgmaNeo kernels, and initialization information.
-		\param cs is the ComputeSystem.
-		\param program is the ComputeProgram associated with the ComputeSystem and loaded with the main kernel code.
 		\param inputSize is the (2D) size of the input layer.
 		\param actionSize is the (2D) size of the action layer.
 		\param actionTileSize is the (2D) size of each action tile (square one-hot action region).
@@ -84,19 +82,33 @@ namespace feynman {
 			assert(aLayerDescs.size() == hLayerDescs.size());
 
 			// Create underlying hierarchy
-			_h.createRandom(std::vector<FeatureHierarchy::InputDesc>{ FeatureHierarchy::InputDesc(inputSize, hLayerDescs.front()._inputDescs.front()._radius), FeatureHierarchy::InputDesc(actionSize, actionRadius) }, hLayerDescs, initWeightRange, rng);
+			const std::vector<FeatureHierarchy::InputDesc> inputDescs = { 
+				FeatureHierarchy::InputDesc(inputSize, hLayerDescs.front()._inputDescs.front()._radius), 
+				FeatureHierarchy::InputDesc(actionSize, actionRadius) 
+			};
+			_featureHierarchy.createRandom(inputDescs, hLayerDescs, initWeightRange, rng);
 
 			_aLayerDescs = aLayerDescs;
 			_aLayers.resize(_aLayerDescs.size());
 
-			for (int l = 0; l < _aLayers.size(); l++) {
+			for (size_t layer = 0; layer < _aLayers.size(); layer++) {
 				std::vector<AgentLayer::VisibleLayerDesc> agentVisibleLayerDescs(1);
 
-				agentVisibleLayerDescs[0]._radius = aLayerDescs[l]._radius;
-				agentVisibleLayerDescs[0]._alpha = aLayerDescs[l]._qAlpha;
-				agentVisibleLayerDescs[0]._size = (l == 0) ? hLayerDescs[l]._size : int2{ hLayerDescs[l]._size.x * 2, hLayerDescs[l]._size.y * 2 };
+				agentVisibleLayerDescs[0]._radius = aLayerDescs[layer]._radius;
+				agentVisibleLayerDescs[0]._alpha = aLayerDescs[layer]._qAlpha;
+				agentVisibleLayerDescs[0]._size = (layer == 0) 
+					? hLayerDescs[layer]._size :
+					int2{ hLayerDescs[layer]._size.x * 2, hLayerDescs[layer]._size.y * 2 };
 
-				_aLayers[l].createRandom((l == _aLayerDescs.size() - 1) ? actionSize : hLayerDescs[l + 1]._size, (l == _aLayerDescs.size() - 1) ? actionTileSize : int2{ 2, 2 }, agentVisibleLayerDescs, initWeightRange, rng);
+				const int2 numActionTiles = (layer == _aLayerDescs.size() - 1)
+					? actionSize
+					: hLayerDescs[layer + 1]._size;
+
+				const int2 actionTileSize = (layer == _aLayerDescs.size() - 1) 
+					? actionTileSize 
+					: int2{ 2, 2 };
+
+				_aLayers[layer].createRandom(numActionTiles, actionTileSize, agentVisibleLayerDescs, initWeightRange, rng);
 			}
 
 			_ones = Image2D(actionSize);
@@ -118,16 +130,16 @@ namespace feynman {
 			std::mt19937 &rng,
 			const bool learn) 
 		{
-			_h.simStep({ input, _aLayers.back().getOneHotActions() }, rng, learn);
+			_featureHierarchy.simStep({ input, _aLayers.back().getOneHotActions() }, rng, learn);
 
 			// Update agent layers
-			for (int l = 0; l < _aLayers.size(); l++) {
-				Image2D feedBack = (l == 0) ? _h.getLayer(l)._sparseFeatures.getHiddenStates()[_back] : _aLayers[l - 1].getOneHotActions();
+			for (int layer = 0; layer < _aLayers.size(); layer++) {
+				Image2D feedBack = (layer == 0) ? _featureHierarchy.getLayer(layer)._sparseFeatures.getHiddenStates()[_back] : _aLayers[layer - 1].getOneHotActions();
 
-				if (l == _aLayers.size() - 1)
-					_aLayers[l].simStep(reward, std::vector<Image2D>(1, feedBack), _ones, _aLayerDescs[l]._qGamma, _aLayerDescs[l]._qLambda, _aLayerDescs[l]._epsilon, rng, learn);
+				if (layer == _aLayers.size() - 1)
+					_aLayers[layer].simStep(reward, std::vector<Image2D>(1, feedBack), _ones, _aLayerDescs[layer]._qGamma, _aLayerDescs[layer]._qLambda, _aLayerDescs[layer]._epsilon, rng, learn);
 				else
-					_aLayers[l].simStep(reward, std::vector<Image2D>(1, feedBack), _h.getLayer(l + 1)._sparseFeatures.getHiddenStates()[_back], _aLayerDescs[l]._qGamma, _aLayerDescs[l]._qLambda, _aLayerDescs[l]._epsilon, rng, learn);
+					_aLayers[layer].simStep(reward, std::vector<Image2D>(1, feedBack), _featureHierarchy.getLayer(layer + 1)._sparseFeatures.getHiddenStates()[_back], _aLayerDescs[layer]._qGamma, _aLayerDescs[layer]._qLambda, _aLayerDescs[layer]._epsilon, rng, learn);
 			}
 
 		}
@@ -167,7 +179,7 @@ namespace feynman {
 		\brief Get the underlying feature hierarchy
 		*/
 		FeatureHierarchy &getHierarchy() {
-			return _h;
+			return _featureHierarchy;
 		}
 	};
 }

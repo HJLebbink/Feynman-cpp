@@ -15,6 +15,46 @@
 using namespace feynman;
 
 
+const std::vector<std::string> data_A = {
+	"....xx....",
+	"....xx....",
+	"...xxxx...",
+	"...xxxx...",
+	"..xx..xx..",
+	"..xx..xx..",
+	".xxxxxxxx.",
+	".xxxxxxxx.",
+	"xxx....xxx",
+	"xx......xx"
+};
+
+const std::vector<std::string> data_X = {
+	".x......x.",
+	"xxx....xxx",
+	".xxx..xxx.",
+	"..xxxxxx..",
+	"...xxxx...",
+	"...xxxx...",
+	"..xxxxxx..",
+	".xxx..xxx.",
+	"xxx....xxx",
+	".x......x."
+};
+
+const std::vector<std::string> data_Y = {
+	"xx......xx",
+	"xxx....xxx",
+	".xxx..xxx.",
+	"..xxxxxx..",
+	"...xxxx...",
+	"...xxxx...",
+	"....xx....",
+	"....xx....",
+	"....xx....",
+	"....xx...."
+};
+
+
 Image2D convert(const std::vector<std::string> &data) {
 	Image2D result = Image2D(int2{ static_cast<int>(data[0].length()), static_cast<int>(data.size())});
 	for (size_t x = 0; x < data.size(); ++x) {
@@ -30,40 +70,30 @@ void recallTest_AAAX() {
 
 	std::mt19937 generator(static_cast<unsigned int>(time(nullptr)));
 
+
 	// Create input images
-	std::vector<Image2D> inputImages = std::vector<Image2D>(4);
+	std::vector<Image2D> inputImages = std::vector<Image2D>();
 	{
-		const std::vector<std::string> data_A = {
-			"....xx....",
-			"....xx....",
-			"...xxxx...",
-			"...xxxx...",
-			"..xx..xx..",
-			"..xx..xx..",
-			".xxxxxxxx.",
-			".xxxxxxxx.",
-			"xxx....xxx",
-			"xx......xx"
-		};
+		if (true) {
+			inputImages.push_back(convert(data_A));
+			inputImages.push_back(convert(data_A));
+			inputImages.push_back(convert(data_A));
+			inputImages.push_back(convert(data_A)); // confused with Y
+			inputImages.push_back(convert(data_A));
+			inputImages.push_back(convert(data_A));
+			inputImages.push_back(convert(data_X));
+			inputImages.push_back(convert(data_A));
+			inputImages.push_back(convert(data_A));
+			inputImages.push_back(convert(data_A));
+			inputImages.push_back(convert(data_Y));
+		}
+		if (true) {
 
-		const std::vector<std::string> data_X = {
-			".x......x.",
-			"xxx....xxx",
-			".xxx..xxx.",
-			"..xxxxxx..",
-			"...xxxx...",
-			"...xxxx...",
-			"..xxxxxx..",
-			".xxx..xxx.",
-			"xxx....xxx",
-			".x......x."
-		};
+		}
 
-		inputImages[0] = convert(data_A);
-		inputImages[1] = convert(data_A);
-		inputImages[2] = convert(data_A);
-		inputImages[3] = convert(data_X);
+
 	}
+
 
 	// Create the Sparse Coder
 	SparseCoder sparseCoder;
@@ -82,20 +112,22 @@ void recallTest_AAAX() {
 	}
 
 	// Create hierarchy structure
-	std::vector<FeatureHierarchy::LayerDesc> layerDescs(1);
-	std::vector<Predictor::PredLayerDesc> pLayerDescs(1);
+	std::vector<FeatureHierarchy::LayerDesc> layerDescs(3);
+	std::vector<Predictor::PredLayerDesc> pLayerDescs(3);
 	{
-		layerDescs[0]._size = { 48, 48 };
-		//layerDescs[1]._size = { 32, 32 };
-		//layerDescs[2]._size = { 24, 24 };
+		const int c = 8;
+
+		layerDescs[0]._size = { 3*c, 3*c };
+		layerDescs[1]._size = { 2*c, 2*c };
+		layerDescs[2]._size = { c, c };
 
 		for (size_t layer = 0; layer < layerDescs.size(); layer++) {
 			layerDescs[layer]._recurrentRadius = 6;
-			layerDescs[layer]._spActiveRatio = 0.02f;
+			layerDescs[layer]._spActiveRatio = 0.04f;
 			layerDescs[layer]._spBiasAlpha = 0.01f;
 
-			pLayerDescs[layer]._alpha = 0.04f;
-			pLayerDescs[layer]._beta = 0.04f;
+			pLayerDescs[layer]._alpha = 0.08f;
+			pLayerDescs[layer]._beta = 0.16f;
 		}
 	}
 

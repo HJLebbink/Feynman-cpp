@@ -15,9 +15,9 @@ int main()
 		PredictorLayer::speedTest(100);
 	}
 	if (false) mnist::mnist_Anomaly_Detection();
-	if (false) video::video_Prediction();
+	if (true) video::video_Prediction();
 	if (false) sequenceRecall();
-	if (true) recallTest_AAAX();
+	if (false) recallTest_AAAX();
 
 	std::cout << "Press any key to close" << std::endl;
 	std::cin.ignore();

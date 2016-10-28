@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <iostream>		// for cerr and cout
 #include <tuple>
 #include <vector>
 #include <random>
@@ -292,6 +293,41 @@ namespace feynman {
 			}
 		}
 		
+		// approx memory usage in bytes;
+		size_t getMemoryUsage(bool plot) const {
+			size_t nBytes = 0;
+			size_t bytes;
+
+			bytes = _hiddenActivations[0]._data.size() * 4 * 2;
+			if (plot) std::cout << "SparseFeatures:_hiddenActivations:   " << bytes << " bytes" << std::endl;
+			nBytes += bytes;
+
+			bytes = _hiddenStates[0]._data.size() * 4 * 2;
+			if (plot) std::cout << "SparseFeatures:_hiddenStates:        " << bytes << " bytes" << std::endl;
+			nBytes += bytes;
+
+			bytes = _hiddenBiases[0]._data.size() * 4 * 2;
+			if (plot) std::cout << "SparseFeatures:_hiddenBiases:        " << bytes << " bytes" << std::endl;
+			nBytes += bytes;
+
+			bytes = _hiddenSummationTemp[0]._data.size() * 4 * 2;
+			if (plot) std::cout << "SparseFeatures:_hiddenSummationTemp: " << bytes << " bytes" << std::endl;
+			nBytes += bytes;
+
+			for (size_t layer = 0; layer < _visibleLayers.size(); ++layer) 
+			{
+				bytes = _visibleLayers[layer]._derivedInput[0]._data.size() * 4 * 2;
+				if (plot) std::cout << "SparseFeatures:_visibleLayers[" << layer << "]:_derivedInput: " << bytes << " bytes" << std::endl;
+				nBytes += bytes;
+
+				bytes = _visibleLayers[layer]._weights[0]._data.size() * 4 * 2;
+				if (plot) std::cout << "SparseFeatures:_visibleLayers[" << layer << "]:_weights:      " << bytes << " bytes" << std::endl;
+				nBytes += bytes;
+			}
+			return nBytes;
+		}
+
+
 		static void speedTest(const size_t nExperiments = 1) {
 			speedTest_spLearnWeights(nExperiments);
 			speedTest_spStimulus(nExperiments);

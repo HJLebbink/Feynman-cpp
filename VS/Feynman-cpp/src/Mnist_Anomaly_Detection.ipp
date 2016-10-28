@@ -121,6 +121,9 @@ namespace mnist {
 
 			predictor.createRandom(inputSize, predictiveLayerDescs, layerDescs, initWeightRange, generator);
 		}
+
+		if (true) predictor.getMemoryUsage(true);
+
 		// --------------------------- Create the Windows ---------------------------
 
 		sf::RenderWindow window;
