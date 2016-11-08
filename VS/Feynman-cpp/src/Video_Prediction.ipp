@@ -27,8 +27,9 @@ using namespace cv;
 namespace video {
 
 	void video_Prediction() {
+
 		// Initialize a random number generator
-		std::mt19937 generator(time(nullptr));
+		std::mt19937 generator(static_cast<unsigned int>(time(nullptr)));
 
 		// Uniform distribution in [0, 1]
 		std::uniform_real_distribution<float> dist01(0.0f, 1.0f);
@@ -119,7 +120,7 @@ namespace video {
 				std::cerr << "Could not open capture: " << fileName << std::endl;
 			}
 			std::cout << "Running through capture: " << fileName << std::endl;
-			const int captureLength = capture.get(CV_CAP_PROP_FRAME_COUNT);
+			const int captureLength = static_cast<int>(capture.get(CV_CAP_PROP_FRAME_COUNT));
 			int currentFrame = 0;
 
 			// Run through video
@@ -140,8 +141,8 @@ namespace video {
 				{
 					img.create(frame.cols, frame.rows);
 
-					for (size_t x = 0; x < img.getSize().x; x++) {
-						for (size_t y = 0; y < img.getSize().y; y++) {
+					for (unsigned int x = 0; x < img.getSize().x; x++) {
+						for (unsigned int y = 0; y < img.getSize().y; y++) {
 							sf::Uint8 r = frame.data[(x + y * img.getSize().x) * 3 + 0];
 							sf::Uint8 g = frame.data[(x + y * img.getSize().x) * 3 + 1];
 							sf::Uint8 b = frame.data[(x + y * img.getSize().x) * 3 + 2];
@@ -176,8 +177,8 @@ namespace video {
 				{
 					sf::Image reImg = rescaleRT.getTexture().copyToImage();
 					// Get input buffers
-					for (size_t x = 0; x < reImg.getSize().x; x++) {
-						for (size_t y = 0; y < reImg.getSize().y; y++) {
+					for (unsigned int x = 0; x < reImg.getSize().x; x++) {
+						for (unsigned int y = 0; y < reImg.getSize().y; y++) {
 							sf::Color c = reImg.getPixel(x, y);
 							const float mono = (c.r / 255.0f + c.g / 255.0f + c.b / 255.0f) * 0.3333f;
 							inputImage._data[x + y * reImg.getSize().x] = mono;
@@ -298,10 +299,10 @@ namespace video {
 			sf::Image img;
 			img.create(rescaleRT.getSize().x, rescaleRT.getSize().y);
 
-			for (size_t x = 0; x < rescaleRT.getSize().x; x++) {
-				for (size_t y = 0; y < rescaleRT.getSize().y; y++) {
+			for (unsigned int x = 0; x < rescaleRT.getSize().x; x++) {
+				for (unsigned int y = 0; y < rescaleRT.getSize().y; y++) {
 					sf::Color c;
-					c.r = c.g = c.b = 255.0f * std::min(1.0f, std::max(0.0f, pred[x + y * img.getSize().x]));
+					c.r = c.g = c.b = static_cast<sf::Uint8>(255.0f * std::min(1.0f, std::max(0.0f, pred[x + y * img.getSize().x])));
 					img.setPixel(x, y, c);
 				}
 			}

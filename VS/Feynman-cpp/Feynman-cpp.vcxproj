@@ -91,6 +91,7 @@
       <AdditionalIncludeDirectories>C:\Dev\opencv-2.4.13\build\include;C:\Dev\SFML-2.4.0\include</AdditionalIncludeDirectories>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions3</EnableEnhancedInstructionSet>
       <UseProcessorExtensions>SSE41</UseProcessorExtensions>
+      <DisableSpecificWarnings>4710;4820;4711;4062;4068;4625;4626;4365</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -109,6 +110,7 @@
       <AdditionalIncludeDirectories>C:\Dev\opencv-2.4.13\build\include;C:\Dev\SFML-2.4.0\include</AdditionalIncludeDirectories>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
       <UseProcessorExtensions>SSE41</UseProcessorExtensions>
+      <DisableSpecificWarnings>4710;4820;4711;4062;4068;4625;4626;4365</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -129,6 +131,7 @@
       <AdditionalIncludeDirectories>C:\Dev\opencv-2.4.13\build\include;C:\Dev\SFML-2.4.0\include</AdditionalIncludeDirectories>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions3</EnableEnhancedInstructionSet>
       <UseProcessorExtensions>SSE41</UseProcessorExtensions>
+      <DisableSpecificWarnings>4710;4820;4711;4062;4068;4625;4626;4365</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -149,20 +152,26 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>_WINDOWS;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>C:\Dev\opencv-2.4.13\build\include;C:\Dev\SFML-2.4.0\include</AdditionalIncludeDirectories>
-      <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
+      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <Parallelization>false</Parallelization>
-      <FloatingPointModel>Fast2</FloatingPointModel>
+      <FloatingPointModel>Fast</FloatingPointModel>
       <FlushDenormalResultsToZero>true</FlushDenormalResultsToZero>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <EnableAnsiAliasing>true</EnableAnsiAliasing>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
-      <UseProcessorExtensions>AVX</UseProcessorExtensions>
+      <UseProcessorExtensions>SSE42</UseProcessorExtensions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <GenerateAlternateCodePaths>None</GenerateAlternateCodePaths>
       <OpenMP>None</OpenMP>
       <LoopUnrolling>0</LoopUnrolling>
       <UseIntelOptimizedHeaders>false</UseIntelOptimizedHeaders>
+      <EmitDiagnosticsToFile>true</EmitDiagnosticsToFile>
+      <OptimizationDiagnosticLevel>Level5</OptimizationDiagnosticLevel>
+      <EmitOptimizationDiagnosticsToFile>true</EmitOptimizationDiagnosticsToFile>
+      <EnableGapAnalysis>Extreme</EnableGapAnalysis>
+      <EmitGAPDiagnosticsToFile>true</EmitGAPDiagnosticsToFile>
+      <DisableSpecificWarnings>4710;4820;4711;4062;4068;4625;4626;4365</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -177,6 +186,7 @@
     <None Include="src\Agent.ipp" />
     <None Include="src\AgentLayer.ipp" />
     <None Include="src\AgentSwarm.ipp" />
+    <None Include="src\AgentTests.ipp" />
     <None Include="src\FeatureHierarchy.ipp" />
     <None Include="src\Helpers.ipp" />
     <None Include="src\Hierarchy.ipp" />

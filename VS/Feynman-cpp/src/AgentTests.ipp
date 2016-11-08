@@ -5,12 +5,13 @@
 #include <chrono>
 #include <thread>
 
-#include "Plot.ipp"
 #include "PlotDebug.ipp"
 
 #include "Helpers.ipp"
 #include "SparseCoder.ipp"
 #include "Predictor.ipp"
+#include "Agent.ipp"
+
 
 using namespace feynman;
 
@@ -57,9 +58,9 @@ const std::vector<std::string> data_Y = {
 
 Image2D convert(const std::vector<std::string> &data) {
 	Image2D result = Image2D(int2{ static_cast<int>(data[0].length()), static_cast<int>(data.size())});
-	for (int x = 0; x < static_cast<int>(data.size()); ++x) {
+	for (size_t x = 0; x < data.size(); ++x) {
 		const std::string str = data[x];
-		for (int y = 0; y < static_cast<int>(str.length()); ++y) {
+		for (size_t y = 0; y < str.length(); ++y) {
 			write_2D(result, x, y, (str[y] == 'x') ? 1.0f : 0.0f);
 		}
 	}
@@ -138,6 +139,22 @@ void recallTest_AAAX() {
 		const float2 initWeightRange = { -0.01f, 0.01f };
 		predictor.createRandom(hiddenSize, pLayerDescs, layerDescs, initWeightRange, generator);
 	}
+
+
+	std::vector<LayerDescs> aLayerDescs(1);
+	{
+		aLayerDescs[1]._width = 32;
+		aLayerDescs[1]._height = 32;
+
+		for (size_t layer = 0; layer < aLayerDescs.size(); layer++) {
+			aLayerDescs[layer]._recurrentRadius = 6;
+			aLayerDescs[layer]._spActiveRatio = 0.04f;
+			aLayerDescs[layer]._spBiasAlpha = 0.01f;
+
+		}
+	}
+
+	Agent agent = Agent(hiddenSize.x, hiddenSize.y, 20, 20, 10, 10, 6, aLayerDescs, -0.01f, 0.01f, 123456);
 
 
 	sf::RenderWindow window;
@@ -221,6 +238,11 @@ void recallTest_AAAX() {
 
 		// Hierarchy simulation step
 		predictor.simStep(newSDR_image, newSDR_image, generator, trainMode);
+		
+		const float reward = 1;
+		
+		
+		agent.simStep(reward, newSDR_image._data, trainMode);
 
 		//std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		counter++;

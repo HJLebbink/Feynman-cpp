@@ -141,7 +141,7 @@ namespace feynman {
 		const size_t nBytes = src._size.x * src._size.y * 4;
 		memcpy(&dst[0], &src._data[0], nBytes);
 	}
-	static void copy(std::vector<float> &src, Image2D &dst) {
+	static void copy(const std::vector<float> &src, Image2D &dst) {
 		const size_t nBytes = dst._size.x * dst._size.y * 4;
 		memcpy(&dst._data[0], &src[0], nBytes);
 	}

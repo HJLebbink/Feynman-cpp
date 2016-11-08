@@ -104,11 +104,11 @@ namespace feynman {
 					? actionSize
 					: hLayerDescs[layer + 1]._size;
 
-				const int2 actionTileSize = (layer == _aLayerDescs.size() - 1) 
+				const int2 actionTileSize2 = (layer == _aLayerDescs.size() - 1) 
 					? actionTileSize 
 					: int2{ 2, 2 };
 
-				_aLayers[layer].createRandom(numActionTiles, actionTileSize, agentVisibleLayerDescs, initWeightRange, rng);
+				_aLayers[layer].createRandom(numActionTiles, actionTileSize2, agentVisibleLayerDescs, initWeightRange, rng);
 			}
 
 			_ones = Image2D(actionSize);
@@ -118,7 +118,6 @@ namespace feynman {
 		/*!
 		\brief Simulation step of hierarchy
 		Takes reward and inputs, optionally disable learning.
-		\param cs is the ComputeSystem.
 		\param reward the reinforcement learning signal.
 		\param input the input layer state.
 		\param rng a random number generator.
@@ -134,7 +133,9 @@ namespace feynman {
 
 			// Update agent layers
 			for (int layer = 0; layer < _aLayers.size(); layer++) {
-				Image2D feedBack = (layer == 0) ? _featureHierarchy.getLayer(layer)._sparseFeatures.getHiddenStates()[_back] : _aLayers[layer - 1].getOneHotActions();
+				const Image2D feedBack = (layer == 0) 
+				? _featureHierarchy.getLayer(layer)._sparseFeatures.getHiddenStates()[_back] 
+				: _aLayers[layer - 1].getOneHotActions();
 
 				if (layer == _aLayers.size() - 1)
 					_aLayers[layer].simStep(reward, std::vector<Image2D>(1, feedBack), _ones, _aLayerDescs[layer]._qGamma, _aLayerDescs[layer]._qLambda, _aLayerDescs[layer]._epsilon, rng, learn);

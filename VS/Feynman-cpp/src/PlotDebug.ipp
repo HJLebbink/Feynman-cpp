@@ -54,7 +54,7 @@ namespace plots {
 		sf::RenderWindow * window = new sf::RenderWindow();
 
 		if (all_windows.find(name) == all_windows.end()) {
-			window->create(sf::VideoMode(image._size.x * scale2, image._size.y * scale2), name);
+			window->create(sf::VideoMode(static_cast<unsigned int>(image._size.x * scale2), static_cast<unsigned int>(image._size.y * scale2)), name);
 			all_windows[name] = window;
 		}
 		else {

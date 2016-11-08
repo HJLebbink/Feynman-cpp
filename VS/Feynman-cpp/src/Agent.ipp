@@ -110,14 +110,12 @@ namespace feynman {
 			assert(inputs.size() == _inputWidth * _inputHeight);
 
 			// Write input
-			//std::vector<float> inputsf = inputs;
-			//_pCs->getQueue().enqueueWriteImage(_inputImage, CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(_inputWidth), static_cast<cl::size_type>(_inputHeight), 1 }, 0, 0, inputsf.data());
 			copy(inputs, _inputImage);
 
+			// Do the sim step
 			_agentSwarm.simStep(reward, _inputImage, _rng, learn);
 
 			// Get action
-			//_pCs->getQueue().enqueueReadImage(_agentSwarm.getAction(), CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(_actionWidth), static_cast<cl::size_type>(_actionHeight), 1 }, 0, 0, _action.data());
 			copy(_agentSwarm.getAction(), _action);
 		}
 

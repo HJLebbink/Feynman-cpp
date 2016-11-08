@@ -72,6 +72,9 @@
     <None Include="src\RecallTests.ipp">
       <Filter>Source Files</Filter>
     </None>
+    <None Include="src\AgentTests.ipp">
+      <Filter>Source Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Main.cpp">

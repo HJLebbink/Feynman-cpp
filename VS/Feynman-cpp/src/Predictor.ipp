@@ -216,7 +216,7 @@ namespace feynman {
 		// approx memory usage in bytes;
 		size_t getMemoryUsage(bool plot) const {
 			size_t nBytes = 0;
-			for (size_t layer = 0; layer < _featureHierarchy.getNumLayers(); ++layer) {
+			for (int layer = 0; layer < static_cast<int>(_featureHierarchy.getNumLayers()); ++layer) {
 				if (plot) std::cout << "Predictor: layer" << layer << std::endl;
 				nBytes += _featureHierarchy.getLayer(layer)._sparseFeatures.getMemoryUsage(plot);
 			}
