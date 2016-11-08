@@ -80,8 +80,8 @@ namespace video {
 			layerDescs[2]._size = { 64, 64 };
 
 			for (size_t l = 0; l < layerDescs.size(); l++) {
-				layerDescs[l]._recurrentRadius = 6;
-				layerDescs[l]._spActiveRatio = 0.04f;
+				layerDescs[l]._recurrentRadius = 20;
+				layerDescs[l]._spActiveRatio = 0.02f;
 				layerDescs[l]._spBiasAlpha = 0.01f;
 
 				pLayerDescs[l]._alpha = 0.08f;
@@ -91,9 +91,6 @@ namespace video {
 			if (true) predictor.getMemoryUsage(true);
 		}
 
-
-
-
 		// Host image buffer
 		std::vector<float> pred(rescaleRT.getSize().x * rescaleRT.getSize().y, 0.0f);
 
@@ -101,7 +98,7 @@ namespace video {
 		std::normal_distribution<float> noiseDist(0.0f, 1.0f);
 
 		// Training time
-		const int numIter = 4;
+		const int numIter = 10;
 
 		// UI update resolution
 		const int progressBarLength = 40;
@@ -253,6 +250,13 @@ namespace video {
 					window.draw(t);
 					window.display();
 				}
+
+				// plot visual prediction
+				if (true) {
+					plots::plotImage(predictor.getPrediction(), 4.0f, false, "Visual Prediction");
+				}
+
+
 			
 			} while (!frame.empty() && !quit);
 

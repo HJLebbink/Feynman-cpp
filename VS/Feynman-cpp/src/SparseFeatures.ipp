@@ -337,7 +337,7 @@ namespace feynman {
 			printf("Running SparseFeatures::speedTest_spLearnWeights\n");
 			std::mt19937 generator(static_cast<unsigned int>(time(nullptr)));
 
-			const int RADIUS = 8;
+			const int RADIUS = 20;
 			const float weightAlpha = 0.002;
 			const int2 visibleSize = { 128, 128 };
 			const int2 hiddenSize = { 96, 96 };
@@ -417,7 +417,7 @@ namespace feynman {
 			printf("Running SparseFeatures::speedTest_spStimulus\n");
 			std::mt19937 generator(static_cast<unsigned int>(time(nullptr)));
 
-			const int RADIUS = 8;
+			const int RADIUS = 20;
 			const int ignoreMiddle = false;
 			const float weightAlpha = 0.002;
 			const int2 visibleSize = { 128, 128 };
@@ -460,7 +460,7 @@ namespace feynman {
 				const double dt = ::tools::get_elapsed_mcycles();
 				min0 = std::min(min0, dt);
 			}
-			printf("[spLearnWeights_v0]: %2.5f Mcycles\n", min0);
+			printf("[spStimulus_v0]: %2.5f Mcycles\n", min0);
 
 			//----------------------------------------------------------------------------------
 			double min1 = std::numeric_limits<double>::max();
@@ -479,7 +479,7 @@ namespace feynman {
 				const double dt = ::tools::get_elapsed_mcycles();
 				min1 = std::min(min1, dt);
 			}
-			printf("[spLearnWeights_v1]: %2.5f Mcycles\n", min1);
+			printf("[spStimulus_v1]: %2.5f Mcycles\n", min1);
 			printf("\t\t\t\t\t(%.2fx speedup from reference)\n", min0 / min1);
 
 			for (int x = 0; x < hiddenSummationTempFront1._size.x; ++x) {
@@ -632,6 +632,7 @@ namespace feynman {
 			switch (radius) {
 			case 6: spStimulus_v1<6>(visibleStates, hiddenSummationTempBack, hiddenSummationTempFront, weights, visibleSize, hiddenToVisible, ignoreMiddle); break;
 			case 8: spStimulus_v1<8>(visibleStates, hiddenSummationTempBack, hiddenSummationTempFront, weights, visibleSize, hiddenToVisible, ignoreMiddle); break;
+			case 20: spStimulus_v1<20>(visibleStates, hiddenSummationTempBack, hiddenSummationTempFront, weights, visibleSize, hiddenToVisible, ignoreMiddle); break;
 			default: printf("ERROR: SparseFeatures::spStimulus: provided radius %i is not implemented\n", radius); break;
 			}
 		}
@@ -839,6 +840,7 @@ namespace feynman {
 			switch (radius) {
 				case 6: spLearnWeights_v1<6>(hiddenStates, visibleStates, weightsBack, weightsFront, visibleSize, hiddenToVisible, weightAlpha); break;
 				case 8: spLearnWeights_v1<8>(hiddenStates, visibleStates, weightsBack, weightsFront, visibleSize, hiddenToVisible, weightAlpha); break;
+				case 20: spLearnWeights_v1<20>(hiddenStates, visibleStates, weightsBack, weightsFront, visibleSize, hiddenToVisible, weightAlpha); break;
 				default: printf("ERROR: SparseFeatures::spLearnWeights: provided radius %i is not implemented\n", radius); break;
 			}
 		}

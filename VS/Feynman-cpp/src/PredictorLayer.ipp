@@ -231,7 +231,7 @@ namespace feynman {
 			printf("Running PredictorLayer::speedTest\n");
 			std::mt19937 generator(static_cast<unsigned int>(time(nullptr)));
 
-			const int RADIUS = 8;
+			const int RADIUS = 20;
 			const float weightAlpha = 0.002;
 			const int2 visibleSize = { 128, 128 };
 			const int2 hiddenSize = { 96, 96 };
@@ -315,7 +315,7 @@ namespace feynman {
 			printf("Running PredictorLayer::speedTest\n");
 			std::mt19937 generator(static_cast<unsigned int>(time(nullptr)));
 
-			const int RADIUS = 8;
+			const int RADIUS = 20;
 			const int2 visibleSize = { 128, 128 };
 			const int2 hiddenSize = { 96, 96 };
 

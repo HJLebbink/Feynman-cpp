@@ -28,26 +28,26 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>Intel C++ Compiler 16.0</PlatformToolset>
+    <PlatformToolset>v140</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>Intel C++ Compiler 16.0</PlatformToolset>
+    <PlatformToolset>v140</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>Intel C++ Compiler 16.0</PlatformToolset>
+    <PlatformToolset>v140</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>Intel C++ Compiler 16.0</PlatformToolset>
+    <PlatformToolset>v140</PlatformToolset>
     <WholeProgramOptimization>false</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -79,7 +79,8 @@
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <LinkIncremental>false</LinkIncremental>
+    <LinkIncremental>true</LinkIncremental>
+    <GenerateManifest>false</GenerateManifest>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -160,18 +161,19 @@
       <EnableAnsiAliasing>true</EnableAnsiAliasing>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
-      <UseProcessorExtensions>SSE42</UseProcessorExtensions>
+      <UseProcessorExtensions>None</UseProcessorExtensions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <GenerateAlternateCodePaths>None</GenerateAlternateCodePaths>
       <OpenMP>None</OpenMP>
       <LoopUnrolling>0</LoopUnrolling>
       <UseIntelOptimizedHeaders>false</UseIntelOptimizedHeaders>
-      <EmitDiagnosticsToFile>true</EmitDiagnosticsToFile>
-      <OptimizationDiagnosticLevel>Level5</OptimizationDiagnosticLevel>
-      <EmitOptimizationDiagnosticsToFile>true</EmitOptimizationDiagnosticsToFile>
+      <EmitDiagnosticsToFile>false</EmitDiagnosticsToFile>
+      <OptimizationDiagnosticLevel>Disable</OptimizationDiagnosticLevel>
+      <EmitOptimizationDiagnosticsToFile>false</EmitOptimizationDiagnosticsToFile>
       <EnableGapAnalysis>Extreme</EnableGapAnalysis>
       <EmitGAPDiagnosticsToFile>true</EmitGAPDiagnosticsToFile>
       <DisableSpecificWarnings>4710;4820;4711;4062;4068;4625;4626;4365</DisableSpecificWarnings>
+      <SuppressStartupBanner>false</SuppressStartupBanner>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -180,7 +182,12 @@
       <GenerateDebugInformation>Debug</GenerateDebugInformation>
       <AdditionalDependencies>opencv_core2413.lib;opencv_video2413.lib;opencv_superres2413.lib;opencv_highgui2413.lib;sfml-graphics.lib;sfml-window.lib;sfml-system.lib;freetype.lib;jpeg.lib</AdditionalDependencies>
       <AdditionalLibraryDirectories>C:\Dev\SFML-2.4.0\lib;C:\Dev\opencv-2.4.13\build\x64\vc12\lib</AdditionalLibraryDirectories>
+      <SuppressStartupBanner>false</SuppressStartupBanner>
+      <LinkStatus>true</LinkStatus>
     </Link>
+    <ProjectReference>
+      <UseLibraryDependencyInputs>true</UseLibraryDependencyInputs>
+    </ProjectReference>
   </ItemDefinitionGroup>
   <ItemGroup>
     <None Include="src\Agent.ipp" />

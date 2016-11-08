@@ -141,9 +141,14 @@ namespace feynman {
 			// Forward pass through predictor to get next prediction
 			for (int layer = (nLayers - 1); (layer >= 0); --layer) {
 
-				plots::plotImage(_featureHierarchy.getLayer(layer)._sparseFeatures.getHiddenStates()[_back], 8.0f, false, "Hidden.Layer"+std::to_string(layer));
-				//const float2 minmax = find_min_max(_featureHierarchy.getLayer(layer)._sparseFeatures.getHiddenStates()[_back]);
-				//printf("INFO: Predictor:simStep, min=%f; max=%f\n", minmax.x, minmax.y);
+				if (true) { // display hidden layer
+					const Image2D &layerData = _featureHierarchy.getLayer(layer)._sparseFeatures.getHiddenStates()[_back];
+					const float desiredSize = 400.0f;
+					const float rescaleSize = desiredSize / layerData._size.x;
+					plots::plotImage(layerData, rescaleSize, false, "Hidden.Layer" + std::to_string(layer) + " ("+std::to_string(layerData._size.x) + "x" + std::to_string(layerData._size.y) +")");
+					//const float2 minmax = find_min_max(_featureHierarchy.getLayer(layer)._sparseFeatures.getHiddenStates()[_back]);
+					//printf("INFO: Predictor:simStep, min=%f; max=%f\n", minmax.x, minmax.y);
+				}
 
 				const std::vector<Image2D> visibleStates =
 					(layer == (nLayers - 1))
