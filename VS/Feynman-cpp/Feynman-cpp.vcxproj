@@ -109,7 +109,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_WINDOWS;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>C:\Dev\opencv-2.4.13\build\include;C:\Dev\SFML-2.4.0\include</AdditionalIncludeDirectories>
-      <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
+      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <UseProcessorExtensions>SSE41</UseProcessorExtensions>
       <DisableSpecificWarnings>4710;4820;4711;4062;4068;4625;4626;4365</DisableSpecificWarnings>
     </ClCompile>
@@ -146,8 +146,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
       <WarningLevel>EnableAllWarnings</WarningLevel>
-      <PrecompiledHeader>
-      </PrecompiledHeader>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <Optimization>Full</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
@@ -158,11 +157,11 @@
       <FloatingPointModel>Fast</FloatingPointModel>
       <FlushDenormalResultsToZero>true</FlushDenormalResultsToZero>
       <BufferSecurityCheck>false</BufferSecurityCheck>
-      <EnableAnsiAliasing>true</EnableAnsiAliasing>
+      <EnableAnsiAliasing>false</EnableAnsiAliasing>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <UseProcessorExtensions>None</UseProcessorExtensions>
-      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <MultiProcessorCompilation>false</MultiProcessorCompilation>
       <GenerateAlternateCodePaths>None</GenerateAlternateCodePaths>
       <OpenMP>None</OpenMP>
       <LoopUnrolling>0</LoopUnrolling>
@@ -170,10 +169,11 @@
       <EmitDiagnosticsToFile>false</EmitDiagnosticsToFile>
       <OptimizationDiagnosticLevel>Disable</OptimizationDiagnosticLevel>
       <EmitOptimizationDiagnosticsToFile>false</EmitOptimizationDiagnosticsToFile>
-      <EnableGapAnalysis>Extreme</EnableGapAnalysis>
+      <EnableGapAnalysis>Disable</EnableGapAnalysis>
       <EmitGAPDiagnosticsToFile>true</EmitGAPDiagnosticsToFile>
       <DisableSpecificWarnings>4710;4820;4711;4062;4068;4625;4626;4365</DisableSpecificWarnings>
       <SuppressStartupBanner>false</SuppressStartupBanner>
+      <DisablePrecompiledHeaderMessages>true</DisablePrecompiledHeaderMessages>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -195,6 +195,7 @@
     <None Include="src\AgentSwarm.ipp" />
     <None Include="src\AgentTests.ipp" />
     <None Include="src\FeatureHierarchy.ipp" />
+    <None Include="src\FixedPoint.ipp" />
     <None Include="src\Helpers.ipp" />
     <None Include="src\Hierarchy.ipp" />
     <None Include="src\ImageWhitener.ipp" />

@@ -11,8 +11,11 @@
 #include <array>
 #include <vector>
 #include <random>
+#include "FixedPoint.ipp"
+
 
 namespace feynman {
+
 
 	struct int2 { int x, y; };
 	struct int3 { int x, y, z; };
@@ -85,18 +88,43 @@ namespace feynman {
 		return image._data[idx];
 	}
 
+	FixPoint inline read_2D_fixp(const Image2D &image, const int coord_x, const int coord_y)
+	{
+		const int idx = pos(coord_x, coord_y, image._size.y);
+		const float org = image._data[idx];
+		//std::cout << "read_imagef_2D: idx=" << idx << "; x=" << coord_x << "; y=" << coord_y << std::endl;
+		return toFixPoint(org);
+	}
+
 	float inline read_3D(const Image3D &image, const int coord_x, const int coord_y, const int coord_z) {
 		const int idx = pos(coord_x, coord_y, coord_z, image._size.y, image._size.z);
+		//std::cout << "read_3D: idx=" << idx << "; x=" << coord_x << "; y=" << coord_y << "; z=" << coord_z << std::endl;
+		const float value = image._data[idx];
+		if ((value < 0.0f) || (value > 1.0f)) {
+			printf("WARNING: Helpers::read_3D: value (%f) is not in range [0..1]\n", value);
+		}
+		return value;
+	}
+
+	FixPoint inline read_3D_fixp(const Image3D &image, const int coord_x, const int coord_y, const int coord_z) {
+		const int idx = pos(coord_x, coord_y, coord_z, image._size.y, image._size.z);
 		//std::cout << "read_imagef_3D: idx=" << idx << "; x=" << coord_x << "; y=" << coord_y << "; z=" << coord_z << std::endl;
-		return image._data[idx];
+		const float org = image._data[idx];
+		return toFixPoint(org);
 	}
 
-	void inline write_2D(Image2D &image, const int coord_x, const int coord_y, const float v) {
-		image._data[pos(coord_x, coord_y, image._size.y)] = v;
+	void inline write_2D(Image2D &image, const int coord_x, const int coord_y, const float value) {
+		if ((value < 0.0f) || (value > 1.0f)) {
+			printf("WARNING: Helpers::write_2D: value (%f) is not in range [0..1]\n", value);
+		}
+		image._data[pos(coord_x, coord_y, image._size.y)] = value;
 	}
 
-	void inline write_3D(Image3D &image, const int coord_x, const int coord_y, const int coord_z, const float v) {
-		image._data[pos(coord_x, coord_y, coord_z, image._size.y, image._size.z)] = v;
+	void inline write_3D(Image3D &image, const int coord_x, const int coord_y, const int coord_z, const float value) {
+		if ((value < 0.0f) || (value > 1.0f)) {
+			printf("WARNING: Helpers::write_3D: value (%f) is not in range [0..1]\n", value);
+		}
+		image._data[pos(coord_x, coord_y, coord_z, image._size.y, image._size.z)] = value;
 	}
 
 	float randFloat(uint2* state) {
@@ -129,9 +157,6 @@ namespace feynman {
 		const size_t nBytes = image._size.x * image._size.y * 4;
 		memset(&image._data[0], 0, nBytes);
 	}
-//	static void clear(Image2D<float2> &image) {
-//		fill(image, { 0.0f, 0.0f });
-//	}
 
 	static void copy(const Image2D &src, Image2D &dst) {
 		const size_t nBytes = src._size.x * src._size.y * 4;
@@ -218,11 +243,7 @@ namespace feynman {
 		x += 0.5f;
 		return x > 0.0f && x < 1.0f ? 1.0f : leak;
 	}
-	/*
-	inline bool inBounds(int2 position, int2 upperBound) {
-		return (position.x >= 0) && (position.x < upperBound.x) && (position.y >= 0) && (position.y < upperBound.y);
-	}
-	*/
+
 	inline bool inBounds(int pos_x, int pos_y, int max_x, int max_y) {
 		return (pos_x >= 0) && (pos_x < max_x) && (pos_y >= 0) && (pos_y < max_y);
 	}

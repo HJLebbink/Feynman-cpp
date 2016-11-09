@@ -13,6 +13,7 @@
 #include <vector>
 #include <random>
 #include <algorithm> // for std::min
+#include <ctime>
 
 #include "timing.h"
 #include "Helpers.ipp"
@@ -330,7 +331,7 @@ namespace feynman {
 
 		static void speedTest(const size_t nExperiments = 1) {
 			speedTest_spLearnWeights(nExperiments);
-			speedTest_spStimulus(nExperiments);
+			//speedTest_spStimulus(nExperiments);
 		}
 
 		static void speedTest_spLearnWeights(const size_t nExperiments = 1) {
@@ -494,7 +495,31 @@ namespace feynman {
 		private:
 
 		template <bool CORNER, int RADIUS>
-		static inline void spStimulus_kernel(
+		static void spStimulus_kernel(
+			const int hiddenPosition_x,
+			const int hiddenPosition_y,
+			const Image2D &visibleStates,
+			const Image2D &hiddenSummationTempBack,
+			Image2D &hiddenSummationTempFront, // write only
+			const Image3D &weights,
+			const int2 visibleSize,
+			const float2 hiddenToVisible,
+			const bool ignoreMiddle)
+		{
+			spStimulus_floatp_kernel<CORNER, RADIUS>(
+				hiddenPosition_x,
+				hiddenPosition_y,
+				visibleStates,
+				hiddenSummationTempBack,
+				hiddenSummationTempFront,
+				weights,
+				visibleSize,
+				hiddenToVisible,
+				ignoreMiddle);
+		}
+
+		template <bool CORNER, int RADIUS>
+		static void spStimulus_floatp_kernel(
 			const int hiddenPosition_x,
 			const int hiddenPosition_y,
 			const Image2D &visibleStates,
@@ -530,6 +555,7 @@ namespace feynman {
 							const int wi = offset_y + (offset_x * ((RADIUS * 2) + 1));
 							const float weight = read_3D(weights, hiddenPosition_x, hiddenPosition_y, wi);
 							const float visibleState = read_2D(visibleStates, visiblePosition_x, visiblePosition_y);
+
 							subSum += visibleState * weight;
 							stateSum += visibleState;
 						}
@@ -555,9 +581,112 @@ namespace feynman {
 				stateSum -= visibleState;
 			}
 
+			const float stimulusAddition = subSum / std::max(0.0001f, stateSum);
+			//std::cout << "SparseFeatures::spStimulus_float_kernel: floatp=" << stimulusAddition << std::endl;
 			const float sum = read_2D(hiddenSummationTempBack, hiddenPosition_x, hiddenPosition_y);
-			write_2D(hiddenSummationTempFront, hiddenPosition_x, hiddenPosition_y, sum + subSum / std::max(0.0001f, stateSum));
+			write_2D(hiddenSummationTempFront, hiddenPosition_x, hiddenPosition_y, sum + stimulusAddition);
 		}
+
+
+		template <bool CORNER, int RADIUS>
+		static void spStimulus_fixp_kernel(
+			const int hiddenPosition_x,
+			const int hiddenPosition_y,
+			const Image2D &visibleStates,
+			const Image2D &hiddenSummationTempBack,
+			Image2D &hiddenSummationTempFront, // write only
+			const Image3D &weights,
+			const int2 visibleSize,
+			const float2 hiddenToVisible,
+			const bool ignoreMiddle)
+		{
+			const int visiblePositionCenter_x = project(hiddenPosition_x, hiddenToVisible.x);
+			const int fieldLowerBound_x = visiblePositionCenter_x - RADIUS;
+
+			const int visiblePositionCenter_y = project(hiddenPosition_y, hiddenToVisible.y);
+			const int fieldLowerBound_y = visiblePositionCenter_y - RADIUS;
+
+			float subSum_old = 0.0f;
+			float stateSum_old = 0.0f;
+
+			unsigned __int64 subSum = 0;
+			unsigned __int64 stateSum = 0;
+			int counter = 0;
+
+#			pragma ivdep
+			for (int dx = -RADIUS; dx <= RADIUS; ++dx) {
+				const int visiblePosition_x = visiblePositionCenter_x + dx;
+
+				if (!CORNER || inBounds(visiblePosition_x, visibleSize.x)) {
+					const int offset_x = visiblePosition_x - fieldLowerBound_x;
+
+#					pragma ivdep
+					for (int dy = -RADIUS; dy <= RADIUS; ++dy) { // loop peeling is inefficient 
+						const int visiblePosition_y = visiblePositionCenter_y + dy;
+						if (!CORNER || inBounds(visiblePosition_y, visibleSize.y)) {
+							const int offset_y = visiblePosition_y - fieldLowerBound_y;
+
+							const int wi = offset_y + (offset_x * ((RADIUS * 2) + 1));
+							const FixPoint weight = read_3D_fixp(weights, hiddenPosition_x, hiddenPosition_y, wi);
+							const float weight_old = read_3D(weights, hiddenPosition_x, hiddenPosition_y, wi);
+							assert(weight_old >= 0.0f);
+							assert(weight_old <= 1.0f);
+
+							const FixPoint visibleState = read_2D_fixp(visibleStates, visiblePosition_x, visiblePosition_y);
+							const float visibleState_old = read_2D(visibleStates, visiblePosition_x, visiblePosition_y);
+							assert(visibleState_old >= 0.0f);
+							assert(visibleState_old <= 1.0f);
+
+							subSum += static_cast<unsigned __int64>(visibleState) * static_cast<unsigned __int64>(weight);
+							stateSum += static_cast<unsigned __int64>(visibleState);
+							counter++;
+
+							subSum_old += visibleState_old * weight_old;
+							stateSum_old += visibleState_old;
+						}
+					}
+				}
+			}
+
+			if (ignoreMiddle) { // substract the visible state that corresponds to dx=dy=0
+				const int dx = 0;
+				const int dy = 0;
+
+				const int visiblePosition_x = visiblePositionCenter_x + dx;
+				const int visiblePosition_y = visiblePositionCenter_y + dy;
+
+				const int offset_x = visiblePosition_x - fieldLowerBound_x;
+				const int offset_y = visiblePosition_y - fieldLowerBound_y;
+
+				const int wi = offset_y + (offset_x * ((RADIUS * 2) + 1));
+				const FixPoint weight = read_3D_fixp(weights, hiddenPosition_x, hiddenPosition_y, wi);
+				const float weight_old = read_3D(weights, hiddenPosition_x, hiddenPosition_y, wi);
+				const FixPoint visibleState = read_2D_fixp(visibleStates, visiblePosition_x, visiblePosition_y);
+				const float visibleState_old = read_2D(visibleStates, visiblePosition_x, visiblePosition_y);
+
+				subSum -= static_cast<unsigned __int64>(visibleState) * static_cast<unsigned __int64>(weight);
+				stateSum -= static_cast<unsigned __int64>(visibleState);
+				counter--;
+
+				subSum_old -= visibleState_old * weight_old;
+				stateSum_old -= visibleState_old;
+			}
+
+			const double subSumF = static_cast<double>(subSum) / DENOMINATOR_POW2;
+			const double stateSumF = static_cast<double>(stateSum) / DENOMINATOR;
+
+			//std::cout << "SparseFeatures::spStimulus_fixp_kernel: subSum_old=" << subSum_old << "; subSumF=" << subSumF << std::endl;
+			//std::cout << "SparseFeatures::spStimulus_fixp_kernel: stateSum_old=" << stateSum_old << "; stateSumF=" << stateSumF << std::endl;
+
+			const float stimulusAdditionF = static_cast<float>(subSumF / std::max(0.0001, stateSumF));
+			const float stimulusAddition_old = subSum_old / std::max(0.0001f, stateSum_old);
+
+			//std::cout << "SparseFeatures::spStimulus_fixp_kernel: floatp=" << stimulusAddition_old << "; fixp=" << stimulusAdditionF << "; error=" << (stimulusAddition_old - stimulusAdditionF) << std::endl;
+
+			const float sum = read_2D(hiddenSummationTempBack, hiddenPosition_x, hiddenPosition_y);
+			write_2D(hiddenSummationTempFront, hiddenPosition_x, hiddenPosition_y, sum + stimulusAdditionF);
+		}
+
 
 		template <int RADIUS>
 		static void spStimulus_v0(
@@ -714,7 +843,7 @@ namespace feynman {
 		}
 
 		template <bool CORNER, int RADIUS>
-		static inline void spLearnWeights_kernel(
+		static void spLearnWeights_kernel(
 			const int hiddenPosition_x,
 			const int hiddenPosition_y,
 			const int2 visibleSize,
@@ -727,24 +856,71 @@ namespace feynman {
 		{
 			const int visiblePositionCenter_x = project(hiddenPosition_x, hiddenToVisible.x);
 			const int fieldLowerBound_x = visiblePositionCenter_x - RADIUS;
+			const int fieldUpperBound_x = visiblePositionCenter_x + RADIUS;
 
 			const int visiblePositionCenter_y = project(hiddenPosition_y, hiddenToVisible.y);
 			const int fieldLowerBound_y = visiblePositionCenter_y - RADIUS;
-			
+			const int filedUpperBound_y = visiblePositionCenter_y + RADIUS;
+
 			const float hiddenState = read_2D(hiddenStates, hiddenPosition_x, hiddenPosition_y);
 
 #			pragma ivdep 
-			for (int dx = -RADIUS; dx <= RADIUS; ++dx) {
-				const int visiblePosition_x = visiblePositionCenter_x + dx;
+			for (int visiblePosition_x = fieldLowerBound_x; visiblePosition_x <= fieldUpperBound_x; ++visiblePosition_x) {
 
 				if (!CORNER || inBounds(visiblePosition_x, visibleSize.x)) {
 					const int offset_x = visiblePosition_x - fieldLowerBound_x;
 
 #					pragma ivdep 
-					for (int dy = -RADIUS; dy <= RADIUS; ++dy) {
-						const int visiblePosition_y = visiblePositionCenter_y + dy;
+					for (int visiblePosition_y = fieldLowerBound_y; visiblePosition_y <= filedUpperBound_y; ++visiblePosition_y) {
 
 						if (!CORNER || inBounds(visiblePosition_y, visibleSize.y)) {
+							const int offset_y = visiblePosition_y - fieldLowerBound_y;
+
+							const int wi = offset_y + (offset_x * ((RADIUS * 2) + 1));
+							const float weightPrev = read_3D(weightsBack, hiddenPosition_x, hiddenPosition_y, wi);
+							const float visibleState = read_2D(visibleStates, visiblePosition_x, visiblePosition_y);
+							const float learn = hiddenState * (visibleState - weightPrev);
+							float weight = weightPrev + weightAlpha * learn;
+							weight = (weight > 1.0f) ? 1.0f : ((weight < 0.0f) ? 0.0f : weight);
+							write_3D(weightsFront, hiddenPosition_x, hiddenPosition_y, wi, weight);
+						}
+					}
+				}
+			}
+		}
+
+		template <int RADIUS>
+		static void spLearnWeights_kernel1(
+			const int hiddenPosition_x,
+			const int hiddenPosition_y,
+			const int2 visibleSize,
+			const float2 hiddenToVisible,
+			const float weightAlpha,
+			const Image2D &hiddenStates,
+			const Image2D &visibleStates,
+			const Image3D &weightsBack,
+			Image3D &weightsFront)
+		{
+			const int visiblePositionCenter_x = project(hiddenPosition_x, hiddenToVisible.x);
+			const int fieldLowerBound_x = visiblePositionCenter_x - RADIUS;
+			const int fieldUpperBound_x = visiblePositionCenter_x + RADIUS;
+
+			const int visiblePositionCenter_y = project(hiddenPosition_y, hiddenToVisible.y);
+			const int fieldLowerBound_y = visiblePositionCenter_y - RADIUS;
+			const int filedUpperBound_y = visiblePositionCenter_y + RADIUS;
+
+			const float hiddenState = read_2D(hiddenStates, hiddenPosition_x, hiddenPosition_y);
+
+#			pragma ivdep 
+			for (int visiblePosition_x = fieldLowerBound_x; visiblePosition_x <= fieldUpperBound_x; ++visiblePosition_x) {
+
+				if (inBounds(visiblePosition_x, visibleSize.x)) {
+					const int offset_x = visiblePosition_x - fieldLowerBound_x;
+
+#					pragma ivdep 
+					for (int visiblePosition_y = fieldLowerBound_y; visiblePosition_y <= filedUpperBound_y; ++visiblePosition_y) {
+
+						if (inBounds(visiblePosition_y, visibleSize.y)) {
 							const int offset_y = visiblePosition_y - fieldLowerBound_y;
 							const int wi = offset_y + (offset_x * ((RADIUS * 2) + 1));
 							const float weightPrev = read_3D(weightsBack, hiddenPosition_x, hiddenPosition_y, wi);
@@ -755,6 +931,47 @@ namespace feynman {
 							write_3D(weightsFront, hiddenPosition_x, hiddenPosition_y, wi, weight);
 						}
 					}
+				}
+			}
+		}
+
+		template <int RADIUS>
+		static void spLearnWeights_kernel2(
+			const int hiddenPosition_x,
+			const int hiddenPosition_y,
+			const int2 /*visibleSize*/,
+			const float2 hiddenToVisible,
+			const float weightAlpha,
+			const Image2D &hiddenStates,
+			const Image2D &visibleStates,
+			const Image3D &weightsBack,
+			Image3D &weightsFront)
+		{
+			const int visiblePositionCenter_x = project(hiddenPosition_x, hiddenToVisible.x);
+			const int fieldLowerBound_x = visiblePositionCenter_x - RADIUS;
+			const int fieldUpperBound_x = visiblePositionCenter_x + RADIUS;
+
+			const int visiblePositionCenter_y = project(hiddenPosition_y, hiddenToVisible.y);
+			const int fieldLowerBound_y = visiblePositionCenter_y - RADIUS;
+			const int filedUpperBound_y = visiblePositionCenter_y + RADIUS;
+
+			const float hiddenState = read_2D(hiddenStates, hiddenPosition_x, hiddenPosition_y);
+
+#			pragma ivdep 
+			for (int visiblePosition_x = fieldLowerBound_x; visiblePosition_x <= fieldUpperBound_x; ++visiblePosition_x) {
+				const int offset_x = visiblePosition_x - fieldLowerBound_x;
+
+#				pragma ivdep 
+				for (int visiblePosition_y = fieldLowerBound_y; visiblePosition_y <= filedUpperBound_y; ++visiblePosition_y) {
+					const int offset_y = visiblePosition_y - fieldLowerBound_y;
+
+					const float visibleState = read_2D(visibleStates, visiblePosition_x, visiblePosition_y);
+					const int wi = offset_y + (offset_x * ((RADIUS * 2) + 1));
+					const float weightPrev = read_3D(weightsBack, hiddenPosition_x, hiddenPosition_y, wi);
+					const float learn = hiddenState * (visibleState - weightPrev);
+					float weight = weightPrev + weightAlpha * learn;
+					weight = (weight > 1.0f) ? 1.0f : ((weight < 0.0f) ? 0.0f : weight);
+					write_3D(weightsFront, hiddenPosition_x, hiddenPosition_y, wi, weight);
 				}
 			}
 		}
@@ -782,23 +999,28 @@ namespace feynman {
 
 			for (int hiddenPosition_x = x0; hiddenPosition_x < x1; ++hiddenPosition_x) {
 				for (int hiddenPosition_y = y0; hiddenPosition_y < y3; ++hiddenPosition_y) {
-					spLearnWeights_kernel<true, RADIUS>(hiddenPosition_x, hiddenPosition_y, visibleSize, hiddenToVisible, weightAlpha, hiddenStates, visibleStates, weightsBack, weightsFront);
+					spLearnWeights_kernel1<RADIUS>(hiddenPosition_x, hiddenPosition_y, visibleSize, hiddenToVisible, weightAlpha, hiddenStates, visibleStates, weightsBack, weightsFront);
+					//spLearnWeights_kernel<true, RADIUS>(hiddenPosition_x, hiddenPosition_y, visibleSize, hiddenToVisible, weightAlpha, hiddenStates, visibleStates, weightsBack, weightsFront);
 				}
 			}
 			for (int hiddenPosition_x = x1; hiddenPosition_x < x2; ++hiddenPosition_x) {
 				for (int hiddenPosition_y = y0; hiddenPosition_y < y1; ++hiddenPosition_y) {
-					spLearnWeights_kernel<true, RADIUS>(hiddenPosition_x, hiddenPosition_y, visibleSize, hiddenToVisible, weightAlpha, hiddenStates, visibleStates, weightsBack, weightsFront);
+					spLearnWeights_kernel1<RADIUS>(hiddenPosition_x, hiddenPosition_y, visibleSize, hiddenToVisible, weightAlpha, hiddenStates, visibleStates, weightsBack, weightsFront);
+					//spLearnWeights_kernel<true, RADIUS>(hiddenPosition_x, hiddenPosition_y, visibleSize, hiddenToVisible, weightAlpha, hiddenStates, visibleStates, weightsBack, weightsFront);
 				}
 				for (int hiddenPosition_y = y1; hiddenPosition_y < y2; ++hiddenPosition_y) {
-					spLearnWeights_kernel<false, RADIUS>(hiddenPosition_x, hiddenPosition_y, visibleSize, hiddenToVisible, weightAlpha, hiddenStates, visibleStates, weightsBack, weightsFront);
+					spLearnWeights_kernel2<RADIUS>(hiddenPosition_x, hiddenPosition_y, visibleSize, hiddenToVisible, weightAlpha, hiddenStates, visibleStates, weightsBack, weightsFront);
+					//spLearnWeights_kernel<false, RADIUS>(hiddenPosition_x, hiddenPosition_y, visibleSize, hiddenToVisible, weightAlpha, hiddenStates, visibleStates, weightsBack, weightsFront);
 				}
 				for (int hiddenPosition_y = y2; hiddenPosition_y < y3; ++hiddenPosition_y) {
-					spLearnWeights_kernel<true, RADIUS>(hiddenPosition_x, hiddenPosition_y, visibleSize, hiddenToVisible, weightAlpha, hiddenStates, visibleStates, weightsBack, weightsFront);
+					spLearnWeights_kernel1<RADIUS>(hiddenPosition_x, hiddenPosition_y, visibleSize, hiddenToVisible, weightAlpha, hiddenStates, visibleStates, weightsBack, weightsFront);
+					//spLearnWeights_kernel<true, RADIUS>(hiddenPosition_x, hiddenPosition_y, visibleSize, hiddenToVisible, weightAlpha, hiddenStates, visibleStates, weightsBack, weightsFront);
 				}
 			}
 			for (int hiddenPosition_x = x2; hiddenPosition_x < x3; ++hiddenPosition_x) {
 				for (int hiddenPosition_y = y0; hiddenPosition_y < y3; ++hiddenPosition_y) {
-					spLearnWeights_kernel<true, RADIUS>(hiddenPosition_x, hiddenPosition_y, visibleSize, hiddenToVisible, weightAlpha, hiddenStates, visibleStates, weightsBack, weightsFront);
+					spLearnWeights_kernel1<RADIUS>(hiddenPosition_x, hiddenPosition_y, visibleSize, hiddenToVisible, weightAlpha, hiddenStates, visibleStates, weightsBack, weightsFront);
+					//spLearnWeights_kernel<true, RADIUS>(hiddenPosition_x, hiddenPosition_y, visibleSize, hiddenToVisible, weightAlpha, hiddenStates, visibleStates, weightsBack, weightsFront);
 				}
 			}
 		}

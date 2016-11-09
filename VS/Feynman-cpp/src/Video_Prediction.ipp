@@ -80,7 +80,7 @@ namespace video {
 			layerDescs[2]._size = { 64, 64 };
 
 			for (size_t l = 0; l < layerDescs.size(); l++) {
-				layerDescs[l]._recurrentRadius = 20;
+				layerDescs[l]._recurrentRadius = 6;
 				layerDescs[l]._spActiveRatio = 0.02f;
 				layerDescs[l]._spBiasAlpha = 0.01f;
 
@@ -98,7 +98,7 @@ namespace video {
 		std::normal_distribution<float> noiseDist(0.0f, 1.0f);
 
 		// Training time
-		const int numIter = 10;
+		const int numIter = 4;
 
 		// UI update resolution
 		const int progressBarLength = 40;

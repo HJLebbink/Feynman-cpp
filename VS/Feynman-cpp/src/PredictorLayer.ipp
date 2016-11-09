@@ -10,7 +10,9 @@
 
 #include <iostream>		// for cerr and cout
 
+
 #include "Helpers.ipp"
+#include "FixedPoint.ipp"
 
 namespace feynman {
 
@@ -220,11 +222,11 @@ namespace feynman {
 
 		static void speedTest(size_t nExperiments = 1)
 		{
-#ifdef _DEBUG
+#			ifdef _DEBUG
 			nExperiments = 1;
-#endif
+#			endif
 			speedTest_plLearnPredWeights(nExperiments);
-			speedTest_plStimulus(nExperiments);
+			//speedTest_plStimulus(nExperiments);
 		}
 
 		static void speedTest_plLearnPredWeights(const size_t nExperiments = 1) {
