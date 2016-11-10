@@ -81,7 +81,7 @@ namespace video {
 
 			for (size_t l = 0; l < layerDescs.size(); l++) {
 				layerDescs[l]._recurrentRadius = 6;
-				layerDescs[l]._spActiveRatio = 0.02f;
+				layerDescs[l]._spActiveRatio = 0.04f;
 				layerDescs[l]._spBiasAlpha = 0.01f;
 
 				pLayerDescs[l]._alpha = 0.08f;
@@ -92,7 +92,7 @@ namespace video {
 		}
 
 		// Host image buffer
-		std::vector<float> pred(rescaleRT.getSize().x * rescaleRT.getSize().y, 0.0f);
+		std::vector<float> pred(rescaleRT.getSize().x * rescaleRT.getSize().y, 0.0f); // init with content equal to zero
 
 		// Unit Gaussian noise for input corruption
 		std::normal_distribution<float> noiseDist(0.0f, 1.0f);

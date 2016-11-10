@@ -152,7 +152,21 @@ namespace feynman {
 			}
 			else {
 				// Copy to hidden states
-				copy(_hiddenSummationTemp[_back], _hiddenStates[_front]);
+				if (true) //TODO ask whether forcing the hidden state to be in range [0..1] has known side effects
+				{
+					std::vector<float> &src = _hiddenSummationTemp[_back]._data;
+					std::vector<float> &dst = _hiddenStates[_front]._data;
+
+					const int nElements = _hiddenSummationTemp[_back]._size.x * _hiddenSummationTemp[_back]._size.y;
+#					pragma ivdep
+					for (int i = 0; i < nElements; ++i) {
+						const float stimulus = src[i];
+						dst[i] = (stimulus < 0.0f) ? 0.0f : ((stimulus > 1.0f) ? 1.0f : stimulus);
+					}
+				} else
+				{
+					copy(_hiddenSummationTemp[_back], _hiddenStates[_front]);
+				}
 			}
 		}
 
@@ -171,11 +185,11 @@ namespace feynman {
 				VisibleLayerDesc &vld = _visibleLayerDescs[vli];
 
 				plLearnPredWeights(
-					visibleStatesPrev[vli],
-					targets,
-					_hiddenStates[_back],
-					vl._weights[_back],
-					vl._weights[_front],
+					visibleStatesPrev[vli],	// in
+					targets,				// in
+					_hiddenStates[_back],	// in
+					vl._weights[_back],		// in
+					vl._weights[_front],	// out
 					vld._size,
 					vl._hiddenToVisible,
 					vld._radius,

@@ -6,9 +6,10 @@
 
 namespace feynman {
 
-	using FixPoint = unsigned __int32;
-	const unsigned __int64 DENOMINATOR = 0xFFFFF;
+	using FixPoint = unsigned __int8;
+	const unsigned __int64 DENOMINATOR = 0xFF;
 	const unsigned __int64 DENOMINATOR_POW2 = DENOMINATOR * DENOMINATOR;
+	const unsigned __int64 DENOMINATOR_POW3 = DENOMINATOR * DENOMINATOR * DENOMINATOR;
 
 	float toFloat(const FixPoint fixPoint)
 	{
@@ -24,10 +25,13 @@ namespace feynman {
 		if (f < 0.0f) std::cout << "WARNING: toFixPoint: f=" << f << " is smaller than 0." << std::endl;
 		if (f > 1.0f) std::cout << "WARNING: toFixPoint: f=" << f << " is larger than 1." << std::endl;
 
-		const float error = std::abs(f - toFloat(result));
-		if (error > 0.00001)
+		if (false)
 		{
-			std::cout << "WARNING: toFixPoint: f=" << f << "; result=" << result << "; error=" << error << std::endl;
+			const float error = std::abs(f - toFloat(result));
+			if (error > 0.002)
+			{
+				std::cout << "WARNING: toFixPoint: f=" << f << "; result=" << static_cast<unsigned long long>(result) << "; error=" << error << std::endl;
+			}
 		}
 //#		endif
 		return result;
