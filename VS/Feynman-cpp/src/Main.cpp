@@ -11,7 +11,7 @@ int main()
 	//TEST
 
 	if (false) {
-		SparseFeatures::speedTest(100);
+		SparseFeatures::speedTest(50);
 		//PredictorLayer::speedTest(20);
 	}
 	if (false) mnist::mnist_Anomaly_Detection();

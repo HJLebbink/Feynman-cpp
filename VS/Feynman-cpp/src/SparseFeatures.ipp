@@ -328,7 +328,6 @@ namespace feynman {
 			return nBytes;
 		}
 
-
 		static void speedTest(const size_t nExperiments = 1) {
 			speedTest_spLearnWeights(nExperiments);
 			//speedTest_spStimulus(nExperiments);
@@ -357,7 +356,7 @@ namespace feynman {
 			};
 
 			//----------------------------------------------------------------------------------
-			const float2 initRange = { -0.001f, 0.001f };
+			const float2 initRange = { 0.0f, 1.0f };
 			randomUniform2D(derivedInput, visibleSize, initRange, generator);
 			randomUniform2D(hiddenStates, hiddenSize, initRange, generator);
 			randomUniform3D(weightsBack, weightsSize, initRange, generator);
@@ -438,7 +437,7 @@ namespace feynman {
 			};
 
 			//----------------------------------------------------------------------------------
-			const float2 initRange = { -0.001f, 0.001f };
+			const float2 initRange = { 0.0f, 1.0f };
 			randomUniform2D(visibleStates, visibleSize, initRange, generator);
 			randomUniform2D(hiddenSummationTempBack, hiddenSize, initRange, generator);
 			randomUniform3D(weights, weightsSize, initRange, generator);
@@ -887,7 +886,6 @@ namespace feynman {
 					visibleStates,
 					weightsBack,
 					weightsFront);
-
 			}
 		}
 
@@ -906,34 +904,32 @@ namespace feynman {
 			const int visiblePositionCenter_x = project(hiddenPosition_x, hiddenToVisible.x);
 			const int fieldLowerBound_x = visiblePositionCenter_x - RADIUS;
 			const int fieldUpperBound_x = visiblePositionCenter_x + RADIUS;
+			const int visiblePosStart_x = (CORNER) ? std::max(0, fieldLowerBound_x) : fieldLowerBound_x;
+			const int visiblePosEnd_x = (CORNER) ? std::min(visibleSize.x, fieldUpperBound_x + 1) : fieldUpperBound_x + 1;
 
 			const int visiblePositionCenter_y = project(hiddenPosition_y, hiddenToVisible.y);
 			const int fieldLowerBound_y = visiblePositionCenter_y - RADIUS;
-			const int filedUpperBound_y = visiblePositionCenter_y + RADIUS;
+			const int fieldUpperBound_y = visiblePositionCenter_y + RADIUS;
+			const int visiblePosStart_y = (CORNER) ? std::max(0, fieldLowerBound_y) : fieldLowerBound_y;
+			const int visiblePosEnd_y = (CORNER) ? std::min(visibleSize.y, fieldUpperBound_y + 1) : fieldUpperBound_y + 1;
 
 			const float hiddenState = read_2D(hiddenStates, hiddenPosition_x, hiddenPosition_y, true);
 
-#			pragma ivdep 
-			for (int visiblePosition_x = fieldLowerBound_x; visiblePosition_x <= fieldUpperBound_x; ++visiblePosition_x) {
+#			pragma ivdep
+			for (int visiblePosition_x = visiblePosStart_x; visiblePosition_x < visiblePosEnd_x; ++visiblePosition_x) {
+				const int offset_x = visiblePosition_x - fieldLowerBound_x;
 
-				if (!CORNER || inBounds(visiblePosition_x, visibleSize.x)) {
-					const int offset_x = visiblePosition_x - fieldLowerBound_x;
+#				pragma ivdep
+				for (int visiblePosition_y = visiblePosStart_y; visiblePosition_y < visiblePosEnd_y; ++visiblePosition_y) {
+					const int offset_y = visiblePosition_y - fieldLowerBound_y;
 
-#					pragma ivdep 
-					for (int visiblePosition_y = fieldLowerBound_y; visiblePosition_y <= filedUpperBound_y; ++visiblePosition_y) {
-
-						if (!CORNER || inBounds(visiblePosition_y, visibleSize.y)) {
-							const int offset_y = visiblePosition_y - fieldLowerBound_y;
-
-							const int wi = offset_y + (offset_x * ((RADIUS * 2) + 1));
-							const float weightPrev = read_3D(weightsBack, hiddenPosition_x, hiddenPosition_y, wi, true);
-							const float visibleState = read_2D(visibleStates, visiblePosition_x, visiblePosition_y, true);
-							const float learn = hiddenState * (visibleState - weightPrev);
-							float weight = weightPrev + weightAlpha * learn;
-							weight = (weight > 1.0f) ? 1.0f : ((weight < 0.0f) ? 0.0f : weight);
-							write_3D(weightsFront, hiddenPosition_x, hiddenPosition_y, wi, weight, true);
-						}
-					}
+					const int wi = offset_y + (offset_x * ((RADIUS * 2) + 1));
+					const float weightPrev = read_3D(weightsBack, hiddenPosition_x, hiddenPosition_y, wi, true);
+					const float visibleState = read_2D(visibleStates, visiblePosition_x, visiblePosition_y, true);
+					const float learn = hiddenState * (visibleState - weightPrev);
+					float weight = weightPrev + (weightAlpha * learn);
+					weight = (weight > 1.0f) ? 1.0f : ((weight < 0.0f) ? 0.0f : weight);
+					write_3D(weightsFront, hiddenPosition_x, hiddenPosition_y, wi, weight, true);
 				}
 			}
 		}
@@ -953,54 +949,54 @@ namespace feynman {
 			const int visiblePositionCenter_x = project(hiddenPosition_x, hiddenToVisible.x);
 			const int fieldLowerBound_x = visiblePositionCenter_x - RADIUS;
 			const int fieldUpperBound_x = visiblePositionCenter_x + RADIUS;
+			const int visiblePosStart_x = (CORNER) ? std::max(0, fieldLowerBound_x) : fieldLowerBound_x;
+			const int visiblePosEnd_x = (CORNER) ? std::min(visibleSize.x, fieldUpperBound_x + 1) : fieldUpperBound_x + 1;
 
 			const int visiblePositionCenter_y = project(hiddenPosition_y, hiddenToVisible.y);
 			const int fieldLowerBound_y = visiblePositionCenter_y - RADIUS;
-			const int filedUpperBound_y = visiblePositionCenter_y + RADIUS;
+			const int fieldUpperBound_y = visiblePositionCenter_y + RADIUS;
+			const int visiblePosStart_y = (CORNER) ? std::max(0, fieldLowerBound_y) : fieldLowerBound_y;
+			const int visiblePosEnd_y = (CORNER) ? std::min(visibleSize.y, fieldUpperBound_y + 1) : fieldUpperBound_y + 1;
 
-			const FixPoint hiddenState = read_2D_fixp(hiddenStates, hiddenPosition_x, hiddenPosition_y);
+			const float hiddenState_old = read_2D(hiddenStates, hiddenPosition_x, hiddenPosition_y, true);
+			const float hiddenStateWeightDelta_old = hiddenState_old * weightDelta;
+
 
 			const FixPoint weightAlphaFixP = toFixPoint(weightAlpha);
+			const FixPoint hiddenState = read_2D_fixp(hiddenStates, hiddenPosition_x, hiddenPosition_y);
+			const FixPoint hiddenStateWeightDelta = reducePower1(static_cast<unsigned int>(hiddenState) * static_cast<unsigned int>(weightAlphaFixP));
+
+#			pragma ivdep
+			for (int visiblePosition_x = visiblePosStart_x; visiblePosition_x < visiblePosEnd_x; ++visiblePosition_x) {
+				const int offset_x = visiblePosition_x - fieldLowerBound_x;
+
+#				pragma ivdep
+				for (int visiblePosition_y = visiblePosStart_y; visiblePosition_y < visiblePosEnd_y; ++visiblePosition_y) {
+					const int offset_y = visiblePosition_y - fieldLowerBound_y;
+					
+					const int wi = offset_y + (offset_x * ((RADIUS * 2) + 1));
+
+					const float weightPrev_old = read_3D(weightsBack, hiddenPosition_x, hiddenPosition_y, wi, true);
+					const float visibleState_old = read_2D(visibleStates, visiblePosition_x, visiblePosition_y, true);
+					const float learn_old = hiddenState_old * (visibleState_old - weightPrev_old);
+					float weight_old = weightPrev_old + (weightAlpha * learn_old);
+					weight_old = (weight_old > 1.0f) ? 1.0f : ((weight_old < 0.0f) ? 0.0f : weight_old);
 
 
-#			pragma ivdep 
-			for (int visiblePosition_x = fieldLowerBound_x; visiblePosition_x <= fieldUpperBound_x; ++visiblePosition_x) {
-
-				if (!CORNER || inBounds(visiblePosition_x, visibleSize.x)) {
-					const int offset_x = visiblePosition_x - fieldLowerBound_x;
-
-#					pragma ivdep 
-					for (int visiblePosition_y = fieldLowerBound_y; visiblePosition_y <= filedUpperBound_y; ++visiblePosition_y) {
-
-						if (!CORNER || inBounds(visiblePosition_y, visibleSize.y)) {
-							const int offset_y = visiblePosition_y - fieldLowerBound_y;
-
-							const int wi = offset_y + (offset_x * ((RADIUS * 2) + 1));
-							const FixPoint weightPrev = read_3D_fixp(weightsBack, hiddenPosition_x, hiddenPosition_y, wi);
-							const FixPoint visibleState = read_2D_fixp(visibleStates, visiblePosition_x, visiblePosition_y);
-
-							if (weightPrev > visibleState)
-							{
-								const unsigned int learn = static_cast<unsigned int>(hiddenState) * (visibleState - weightPrev);
-								const unsigned int weightDelta = (weightAlphaFixP * learn)>>16;
-								const unsigned int weight = weightPrev + weightDelta;
-								const FixPoint weightFixP = (weight > 0xFF) ? 0xFF : static_cast<FixPoint>(weight);
-								write_3D_fixp(weightsFront, hiddenPosition_x, hiddenPosition_y, wi, weightFixP);
-							} else
-							{
-								const unsigned int learn = static_cast<unsigned int>(hiddenState) * (weightPrev - visibleState);
-								const unsigned int weightDelta = (weightAlphaFixP * learn) >> 16;
-								const int weight = weightPrev - weightDelta;
-								const FixPoint weightFixP = (weight < 0) ? 0 : static_cast<FixPoint>(weight);
-								write_3D_fixp(weightsFront, hiddenPosition_x, hiddenPosition_y, wi, weightFixP);
-							}
-
-							//const float learn = hiddenState * (visibleState - weightPrev);
-							//float weight = weightPrev + weightAlpha * learn;
-							//weight = (weight > 1.0f) ? 1.0f : ((weight < 0.0f) ? 0.0f : weight);
-							//write_3D(weightsFront, hiddenPosition_x, hiddenPosition_y, wi, weight);
-						}
+					const FixPoint weightPrev = read_3D_fixp(weightsBack, hiddenPosition_x, hiddenPosition_y, wi);
+					const FixPoint visibleState = read_2D_fixp(visibleStates, visiblePosition_x, visiblePosition_y);
+					if (weightPrev > visibleState)
+					{
+						const unsigned int learn = reducePower1(static_cast<unsigned int>(hiddenStateWeightDelta) * static_cast<unsigned int>(visibleState - weightPrev)));
+						const FixPoint weightFixP = addSaturate(weightPrev, learn);
+						write_3D_fixp(weightsFront, hiddenPosition_x, hiddenPosition_y, wi, weightFixP);
+					} else
+					{
+						const unsigned int learn = reducePower1(static_cast<unsigned int>(hiddenStateWeightDelta) * static_cast<unsigned int>(weightPrev - visibleState)));
+						const FixPoint weightFixP = addSaturate(weightPrev, learn);
+						write_3D_fixp(weightsFront, hiddenPosition_x, hiddenPosition_y, wi, weightFixP);
 					}
+					//write_3D(weightsFront, hiddenPosition_x, hiddenPosition_y, wi, weight);
 				}
 			}
 		}
