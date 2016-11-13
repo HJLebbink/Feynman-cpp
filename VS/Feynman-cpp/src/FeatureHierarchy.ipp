@@ -8,7 +8,6 @@
 
 #pragma once
 
-#include <tuple>
 #include <vector>
 #include <random>
 
@@ -31,7 +30,7 @@ namespace feynman {
 			int _radius;
 
 			//Initialize defaults
-			InputDesc()
+			InputDesc() : _size({ 8, 8 }), _radius(0)
 			{}
 
 			//brief Initialize from values

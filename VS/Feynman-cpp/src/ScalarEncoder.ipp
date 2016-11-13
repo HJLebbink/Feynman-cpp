@@ -147,7 +147,7 @@ namespace feynman {
 		{
 			assert(outputs.size() == _encoderOutputs.size());
 
-			for (int i = 0; i < _decoderOutputs.size(); i++) {
+			for (size_t i = 0; i < _decoderOutputs.size(); i++) {
 				float sum = 0.0f;
 				float count = 0.0f;
 
@@ -160,12 +160,12 @@ namespace feynman {
 		}
 
 		//Get resulting encoding
-		const std::vector<float> &getEncoderOutputs() {
+		const std::vector<float> &getEncoderOutputs() const {
 			return _encoderOutputs;
 		}
 
 		//Get resulting decoding
-		const std::vector<float> &getDecoderOutputs() {
+		const std::vector<float> &getDecoderOutputs() const {
 			return _decoderOutputs;
 		}
 	};

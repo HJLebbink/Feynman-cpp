@@ -11,8 +11,8 @@ int main()
 	//TEST
 
 	if (false) {
-		SparseFeatures::speedTest(50);
-		//PredictorLayer::speedTest(20);
+		SparseFeatures::speedTest(100);
+		PredictorLayer::speedTest(100);
 	}
 	if (false) mnist::mnist_Anomaly_Detection();
 	if (true) video::video_Prediction();

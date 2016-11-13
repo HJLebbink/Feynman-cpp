@@ -11,12 +11,16 @@
 #include <array>
 #include <vector>
 #include <random>
+#include <ctime>
 #include "FixedPoint.ipp"
 
 
 namespace feynman {
 
-	const bool useFixPoint = true;
+
+	std::mt19937 generator_test(static_cast<unsigned int>(time(nullptr)));
+
+	const bool useFixPoint = false;
 
 
 	struct int2 { int x, y; };
@@ -88,12 +92,13 @@ namespace feynman {
 		const int idx = pos(coord_x, coord_y, image._size.y);
 		//std::cout << "read_imagef_2D: idx=" << idx << "; x=" << coord_x << "; y=" << coord_y << std::endl;
 		const float value = image._data[idx];
-		/*
+		
+#ifdef _DEBUG
 		if (range01 && ((value < 0.0f) || (value > 1.0f))) {
 			printf("WARNING: Helpers::read_2D: value (%f) is not in range [0..1]\n", value);
-			throw 1;
+			//throw 1;
 		}
-		*/
+#endif		
 		return value;
 	}
 
@@ -109,12 +114,13 @@ namespace feynman {
 		const int idx = pos(coord_x, coord_y, coord_z, image._size.y, image._size.z);
 		//std::cout << "read_3D: idx=" << idx << "; x=" << coord_x << "; y=" << coord_y << "; z=" << coord_z << std::endl;
 		const float value = image._data[idx];
-		/*
+		
+#ifdef _DEBUG
 		if (range01 && ((value < 0.0f) || (value > 1.0f))) {
 			printf("WARNING: Helpers::read_3D: value (%f) is not in range [0..1]\n", value);
-			throw 1;
+			//throw 1;
 		}
-		*/
+#endif		
 		return value;
 	}
 
@@ -126,12 +132,12 @@ namespace feynman {
 	}
 
 	void inline write_2D(Image2D &image, const int coord_x, const int coord_y, const float value, const bool range01 = false) {
-		/*
+#ifdef _DEBUG
 		if (range01 && ((value < 0.0f) || (value > 1.0f))) {
 			printf("WARNING: Helpers::write_2D: value (%f) is not in range [0..1]\n", value);
-			throw 1;
+			//throw 1;
 		}
-		*/
+#endif
 		image._data[pos(coord_x, coord_y, image._size.y)] = value;
 	}
 
@@ -140,12 +146,13 @@ namespace feynman {
 	}
 
 	void inline write_3D(Image3D &image, const int coord_x, const int coord_y, const int coord_z, const float value, const bool range01 = false) {
-		/*
+		
+#ifdef _DEBUG
 		if (range01 && ((value < 0.0f) || (value > 1.0f))) {
 			printf("WARNING: Helpers::write_3D: value (%f) is not in range [0..1]\n", value);
-			throw 1;
+			//throw 1;
 		}
-		*/
+#endif		
 		image._data[pos(coord_x, coord_y, coord_z, image._size.y, image._size.z)] = value;
 	}
 

@@ -446,7 +446,7 @@ namespace feynman {
 		static void scReverse(
 			const Image2D &hiddenStates,
 			const Image2D &visibleStates, // was float2
-			Image2D &reconErrors, // write only
+			Image2D &reconErrors,		// write only
 			const Image3D &weights,
 			//const int2 /*visibleSize*/, // unused
 			const int2 hiddenSize,

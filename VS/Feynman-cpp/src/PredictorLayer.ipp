@@ -240,7 +240,7 @@ namespace feynman {
 			nExperiments = 1;
 #			endif
 			speedTest_plLearnPredWeights(nExperiments);
-			//speedTest_plStimulus(nExperiments);
+			speedTest_plStimulus(nExperiments);
 		}
 
 		static void speedTest_plLearnPredWeights(const size_t nExperiments = 1) {
@@ -350,7 +350,7 @@ namespace feynman {
 			};
 
 			//----------------------------------------------------------------------------------
-			const float2 initRange = { -0.001f, 0.001f };
+			const float2 initRange = { 0.0f, 0.001f };
 			randomUniform2D(visibleStates, visibleSize, initRange, generator);
 			randomUniform2D(hiddenSummationTempBack, hiddenSize, initRange, generator);
 			randomUniform2D(hiddenSummationTempFront, hiddenSize, initRange, generator);
@@ -418,31 +418,30 @@ namespace feynman {
 		{
 			const int visiblePositionCenter_x = project(hiddenPosition_x, hiddenToVisible.x);
 			const int fieldLowerBound_x = visiblePositionCenter_x - RADIUS;
+			const int fieldUpperBound_x = visiblePositionCenter_x + RADIUS;
+			const int visiblePosStart_x = (CORNER) ? std::max(0, fieldLowerBound_x) : fieldLowerBound_x;
+			const int visiblePosEnd_x = (CORNER) ? std::min(visibleSize.x, fieldUpperBound_x + 1) : fieldUpperBound_x + 1;
 
 			const int visiblePositionCenter_y = project(hiddenPosition_y, hiddenToVisible.y);
 			const int fieldLowerBound_y = visiblePositionCenter_y - RADIUS;
+			const int fieldUpperBound_y = visiblePositionCenter_y + RADIUS;
+			const int visiblePosStart_y = (CORNER) ? std::max(0, fieldLowerBound_y) : fieldLowerBound_y;
+			const int visiblePosEnd_y = (CORNER) ? std::min(visibleSize.y, fieldUpperBound_y + 1) : fieldUpperBound_y + 1;
 
 			float subSum = 0.0f;
 
-#			pragma ivdep 
-			for (int dx = -RADIUS; dx <= RADIUS; ++dx) {
-				const int visiblePosition_x = visiblePositionCenter_x + dx;
+#			pragma ivdep
+			for (int visiblePosition_x = visiblePosStart_x; visiblePosition_x < visiblePosEnd_x; ++visiblePosition_x) {
+				const int offset_x = visiblePosition_x - fieldLowerBound_x;
 
-				if (!CORNER || inBounds(visiblePosition_x, visibleSize.x)) {
-					const int offset_x = visiblePosition_x - fieldLowerBound_x;
+#				pragma ivdep
+				for (int visiblePosition_y = visiblePosStart_y; visiblePosition_y < visiblePosEnd_y; ++visiblePosition_y) {
+					const int offset_y = visiblePosition_y - fieldLowerBound_y;
 
-#					pragma ivdep
-					for (int dy = -RADIUS; dy <= RADIUS; ++dy) {
-						const int visiblePosition_y = visiblePositionCenter_y + dy;
-
-						if (!CORNER || inBounds(visiblePosition_y, visibleSize.y)) {
-							const int offset_y = visiblePosition_y - fieldLowerBound_y;
-							const int wi = offset_y + (offset_x * ((RADIUS * 2) + 1));
-							const float weight = read_3D(weights, hiddenPosition_x, hiddenPosition_y, wi);
-							const float visibleState = read_2D(visibleStates, visiblePosition_x, visiblePosition_y);
-							subSum += visibleState * weight;
-						}
-					}
+					const int wi = offset_y + (offset_x * ((RADIUS * 2) + 1));
+					const float weight = read_3D(weights, hiddenPosition_x, hiddenPosition_y, wi);
+					const float visibleState = read_2D(visibleStates, visiblePosition_x, visiblePosition_y);
+					subSum += visibleState * weight;
 				}
 			}
 			const float sum = read_2D(hiddenSummationTempBack, hiddenPosition_x, hiddenPosition_y);
@@ -523,8 +522,9 @@ namespace feynman {
 			//printf("hiddenToVisible=(%f,%f)\n", hiddenToVisible.x, hiddenToVisible.y);
 
 			switch (radius) {
-			case 6: plStimulus_v1<6>(visibleStates, hiddenSummationTempBack, hiddenSummationTempFront, weights, visibleSize, hiddenToVisible); break;
-			case 8: plStimulus_v1<8>(visibleStates, hiddenSummationTempBack, hiddenSummationTempFront, weights, visibleSize, hiddenToVisible); break;
+			case 6: plStimulus_v0<6>(visibleStates, hiddenSummationTempBack, hiddenSummationTempFront, weights, visibleSize, hiddenToVisible); break;
+			case 8: plStimulus_v0<8>(visibleStates, hiddenSummationTempBack, hiddenSummationTempFront, weights, visibleSize, hiddenToVisible); break;
+			case 20: plStimulus_v0<20>(visibleStates, hiddenSummationTempBack, hiddenSummationTempFront, weights, visibleSize, hiddenToVisible); break;
 			default: printf("ERROR: SparseFeatures::plStimulus: provided radius %i is not implemented\n", radius); break;
 			}
 		}
@@ -568,32 +568,31 @@ namespace feynman {
 		{
 			const int visiblePositionCenter_x = project(hiddenPosition_x, hiddenToVisible.x);
 			const int fieldLowerBound_x = visiblePositionCenter_x - RADIUS;
+			const int fieldUpperBound_x = visiblePositionCenter_x + RADIUS;
+			const int visiblePosStart_x = (CORNER) ? std::max(0, fieldLowerBound_x) : fieldLowerBound_x;
+			const int visiblePosEnd_x = (CORNER) ? std::min(visibleStatesPrev._size.x, fieldUpperBound_x + 1) : fieldUpperBound_x + 1;
 
 			const int visiblePositionCenter_y = project(hiddenPosition_y, hiddenToVisible.y);
 			const int fieldLowerBound_y = visiblePositionCenter_y - RADIUS;
-			const float error = read_2D(targets, hiddenPosition_x, hiddenPosition_y) - read_2D(hiddenStatesPrev, hiddenPosition_x, hiddenPosition_y);
+			const int fieldUpperBound_y = visiblePositionCenter_y + RADIUS;
+			const int visiblePosStart_y = (CORNER) ? std::max(0, fieldLowerBound_y) : fieldLowerBound_y;
+			const int visiblePosEnd_y = (CORNER) ? std::min(visibleStatesPrev._size.y, fieldUpperBound_y + 1) : fieldUpperBound_y + 1;
 
-#			pragma ivdep 
-			for (int dx = -RADIUS; dx <= RADIUS; ++dx) {
-				const int visiblePosition_x = visiblePositionCenter_x + dx;
+			const float error = weightAlpha * (read_2D(targets, hiddenPosition_x, hiddenPosition_y) - read_2D(hiddenStatesPrev, hiddenPosition_x, hiddenPosition_y));
 
-				if (!CORNER || inBounds(visiblePosition_x, visibleStatesPrev._size.x)) {
-					const int offset_x = visiblePosition_x - fieldLowerBound_x;
+#			pragma ivdep
+			for (int visiblePosition_x = visiblePosStart_x; visiblePosition_x < visiblePosEnd_x; ++visiblePosition_x) {
+				const int offset_x = visiblePosition_x - fieldLowerBound_x;
 
-#					pragma ivdep 
-					for (int dy = -RADIUS; dy <= RADIUS; ++dy) {
-						const int visiblePosition_y = visiblePositionCenter_y + dy;
+#				pragma ivdep
+				for (int visiblePosition_y = visiblePosStart_y; visiblePosition_y < visiblePosEnd_y; ++visiblePosition_y) {
+					const int offset_y = visiblePosition_y - fieldLowerBound_y;
 
-						if (!CORNER || inBounds(visiblePosition_y, visibleStatesPrev._size.y)) {
-
-							const int offset_y = visiblePosition_y - fieldLowerBound_y;
-							const int wi = offset_y + (offset_x * ((RADIUS * 2) + 1));
-							const float weightPrev = read_3D(weightsBack, hiddenPosition_x, hiddenPosition_y, wi);
-							const float visibleStatePrev = read_2D(visibleStatesPrev, visiblePosition_x, visiblePosition_y);
-							const float weight = weightPrev + (weightAlpha * error * visibleStatePrev);
-							write_3D(weightsFront, hiddenPosition_x, hiddenPosition_y, wi, weight);
-						}
-					}
+					const int wi = offset_y + (offset_x * ((RADIUS * 2) + 1));
+					const float weightPrev = read_3D(weightsBack, hiddenPosition_x, hiddenPosition_y, wi);
+					const float visibleStatePrev = read_2D(visibleStatesPrev, visiblePosition_x, visiblePosition_y);
+					const float weight = weightPrev + (error * visibleStatePrev);
+					write_3D(weightsFront, hiddenPosition_x, hiddenPosition_y, wi, weight);
 				}
 			}
 		}

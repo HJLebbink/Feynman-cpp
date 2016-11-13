@@ -7,9 +7,9 @@
 namespace feynman {
 
 
-	using FixPoint = unsigned __int8;
-	const unsigned __int64 DENOMINATOR = 0xFF;
-	const unsigned int nBits = 8;
+	using FixPoint = unsigned __int16;
+	const unsigned __int64 DENOMINATOR = 0xFFFF;
+	const unsigned int nBits = 16;
 
 
 
@@ -25,7 +25,12 @@ namespace feynman {
 
 	FixPoint addSaturate(FixPoint a, FixPoint b) {
 		unsigned int tmp = static_cast<unsigned int>(a) + static_cast<unsigned int>(b);
-		if (tmp & )
+		return (tmp > DENOMINATOR) ? DENOMINATOR : static_cast<FixPoint>(tmp);
+	}
+
+	FixPoint substractSaturate(FixPoint a, FixPoint b)
+	{
+		return (b > a) ? 0 : a - b;
 	}
 
 

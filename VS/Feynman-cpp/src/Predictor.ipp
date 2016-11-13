@@ -64,8 +64,11 @@ namespace feynman {
 			std::mt19937 &rng, 
 			float firstLearningRateScalar = 0.1f)
 		{
-			assert(pLayerDescs.size() > 0);
-			assert(pLayerDescs.size() == hLayerDescs.size());
+			if ((pLayerDescs.size() != hLayerDescs.size()) | pLayerDescs.empty())
+			{
+				std::cout << "WARNING: Predictor:createRandom: pLayerDescs.size()" << pLayerDescs.size() << "; hLayerDescs.size()=" << hLayerDescs.size() << std::endl;
+				throw 1;
+			}
 
 			_inputSize = inputSize;
 			// Create underlying hierarchy

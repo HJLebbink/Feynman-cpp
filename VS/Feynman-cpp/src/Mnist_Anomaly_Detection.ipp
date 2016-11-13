@@ -95,8 +95,8 @@ namespace mnist {
 
 			const int2 hiddenSize = { hInWidth, hInHeight };
 			const int inhibitionRadius = 6;
-			const float2 initWeightRange = { -0.001f, 0.001f };
-			const float2 initThresholdRange = { -0.001f, 0.001f };
+			const float2 initWeightRange = { 0.0f, 0.001f };
+			const float2 initThresholdRange = { 0.0f, 0.001f };
 
 			sparseCoder.createRandom(scLayerDescs, hiddenSize, inhibitionRadius, initWeightRange, initThresholdRange, generator);
 		}
@@ -105,7 +105,7 @@ namespace mnist {
 		Predictor predictor;
 		{
 			std::vector<Predictor::PredLayerDesc> predictiveLayerDescs(4); // Predictor layer descriptors
-			std::vector<FeatureHierarchy::LayerDesc> layerDescs(5); // Matching feature layer descriptors
+			std::vector<FeatureHierarchy::LayerDesc> layerDescs(4); // Matching feature layer descriptors
 
 			// Sizes
 			layerDescs[0]._size = { 64, 64 };
@@ -117,7 +117,7 @@ namespace mnist {
 				layerDescs[l]._spActiveRatio = 0.02f;
 			}
 			const int2 inputSize = { hInWidth, hInHeight };
-			const float2 initWeightRange = { -0.01f, 0.01f };
+			const float2 initWeightRange = { 0.0f, 0.01f };
 
 			predictor.createRandom(inputSize, predictiveLayerDescs, layerDescs, initWeightRange, generator);
 		}
