@@ -154,14 +154,18 @@ namespace feynman {
 				// Copy to hidden states
 				if (true) //TODO ask whether forcing the hidden state to be in range [0..1] has known side effects
 				{
-					std::vector<float> &src = _hiddenSummationTemp[_back]._data;
-					std::vector<float> &dst = _hiddenStates[_front]._data;
+					std::vector<float> &src = _hiddenSummationTemp[_back]._data_float;
+					std::vector<float> &dst = _hiddenStates[_front]._data_float;
+
+					std::vector<FixPoint> &src2 = _hiddenSummationTemp[_back]._data_fixP;
+					std::vector<FixPoint> &dst2 = _hiddenStates[_front]._data_fixP;
 
 					const int nElements = _hiddenSummationTemp[_back]._size.x * _hiddenSummationTemp[_back]._size.y;
 #					pragma ivdep
 					for (int i = 0; i < nElements; ++i) {
 						const float stimulus = src[i];
 						dst[i] = (stimulus < 0.0f) ? 0.0f : ((stimulus > 1.0f) ? 1.0f : stimulus);
+						dst2[i] = src2[i];
 					}
 				} else
 				{
@@ -444,8 +448,10 @@ namespace feynman {
 					subSum += visibleState * weight;
 				}
 			}
-			const float sum = read_2D(hiddenSummationTempBack, hiddenPosition_x, hiddenPosition_y);
-			write_2D(hiddenSummationTempFront, hiddenPosition_x, hiddenPosition_y, sum + subSum);
+			const float sumCurrent = read_2D(hiddenSummationTempBack, hiddenPosition_x, hiddenPosition_y);
+			float sumNew = sumCurrent + subSum;
+			if (sumNew < 0.0f) sumNew = 0.0; else if (sumNew > 1.0f) sumNew = 1.0f;
+			write_2D(hiddenSummationTempFront, hiddenPosition_x, hiddenPosition_y, sumNew);
 		}
 
 		template <int RADIUS>
@@ -538,8 +544,8 @@ namespace feynman {
 				const int nElements = range.x * range.y;
 #				pragma ivdep
 				for (int i = 0; i < nElements; ++i) {
-					const float stimulus = stimuli._data[i];
-					thresholded._data[i] = (stimulus > 0.5f) ? 1.0f : 0.0f;
+					const float stimulus = stimuli._data_float[i];
+					thresholded._data_float[i] = (stimulus > 0.5f) ? 1.0f : 0.0f;
 				}
 			}
 			else {
@@ -591,7 +597,8 @@ namespace feynman {
 					const int wi = offset_y + (offset_x * ((RADIUS * 2) + 1));
 					const float weightPrev = read_3D(weightsBack, hiddenPosition_x, hiddenPosition_y, wi);
 					const float visibleStatePrev = read_2D(visibleStatesPrev, visiblePosition_x, visiblePosition_y);
-					const float weight = weightPrev + (error * visibleStatePrev);
+					float weight = weightPrev + (error * visibleStatePrev);
+					if (weight < 0.0f) weight = 0.0; else if (weight > 1.0f) weight = 1.0f;
 					write_3D(weightsFront, hiddenPosition_x, hiddenPosition_y, wi, weight);
 				}
 			}

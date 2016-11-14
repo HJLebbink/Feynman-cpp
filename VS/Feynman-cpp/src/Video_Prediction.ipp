@@ -98,7 +98,7 @@ namespace video {
 		std::normal_distribution<float> noiseDist(0.0f, 1.0f);
 
 		// Training time
-		const int numIter = 4;
+		const int numIter = 10;
 
 		// UI update resolution
 		const int progressBarLength = 40;
@@ -178,8 +178,11 @@ namespace video {
 						for (unsigned int y = 0; y < reImg.getSize().y; y++) {
 							sf::Color c = reImg.getPixel(x, y);
 							const float mono = (c.r / 255.0f + c.g / 255.0f + c.b / 255.0f) * 0.3333f;
-							inputImage._data[x + y * reImg.getSize().x] = mono;
-							inputImageCorrupted._data[x + y * reImg.getSize().x] = blendPred * pred[x + y * reImg.getSize().x] + (1.0f - blendPred) * mono;
+							const float blend = blendPred * pred[x + y * reImg.getSize().x] + (1.0f - blendPred) * mono;
+							//inputImage._data[x + y * reImg.getSize().x] = mono;
+							write_2D(inputImage, y, x, mono);
+							//inputImageCorrupted._data[x + y * reImg.getSize().x] = blend;
+							write_2D(inputImageCorrupted, y, x, blend);
 						}
 					}
 				}
@@ -253,7 +256,7 @@ namespace video {
 
 				// plot visual prediction
 				if (true) {
-					plots::plotImage(predictor.getPrediction(), 4.0f, false, "Visual Prediction");
+					plots::plotImage(predictor.getPrediction(), 4.0f, "Visual Prediction");
 				}
 
 

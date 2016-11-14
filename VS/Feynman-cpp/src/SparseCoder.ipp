@@ -632,9 +632,9 @@ namespace feynman {
 				const int nElements = range.x * range.y;
 #				pragma ivdep
 				for (int i = 0; i < nElements; ++i) {
-					const float hiddenState = hiddenStates._data[i];
-					const float hiddenThresholdPrev = hiddenThresholdsBack._data[i];
-					hiddenThresholdsFront._data[i] = hiddenThresholdPrev + thresholdAlpha * (activeRatio - hiddenState);
+					const float hiddenState = hiddenStates._data_float[i];
+					const float hiddenThresholdPrev = hiddenThresholdsBack._data_float[i];
+					hiddenThresholdsFront._data_float[i] = hiddenThresholdPrev + thresholdAlpha * (activeRatio - hiddenState);
 				}
 			}
 			else {

@@ -148,7 +148,7 @@ namespace feynman {
 					const Image2D &layerData = _featureHierarchy.getLayer(layer)._sparseFeatures.getHiddenStates()[_back];
 					const float desiredSize = 400.0f;
 					const float rescaleSize = desiredSize / layerData._size.x;
-					plots::plotImage(layerData, rescaleSize, false, "Hidden.Layer" + std::to_string(layer) + " ("+std::to_string(layerData._size.x) + "x" + std::to_string(layerData._size.y) +")");
+					plots::plotImage(layerData, rescaleSize, "Hidden.Layer" + std::to_string(layer) + " ("+std::to_string(layerData._size.x) + "x" + std::to_string(layerData._size.y) +")");
 					//const float2 minmax = find_min_max(_featureHierarchy.getLayer(layer)._sparseFeatures.getHiddenStates()[_back]);
 					//printf("INFO: Predictor:simStep, min=%f; max=%f\n", minmax.x, minmax.y);
 				}

@@ -20,8 +20,6 @@ namespace feynman {
 
 	std::mt19937 generator_test(static_cast<unsigned int>(time(nullptr)));
 
-	const bool useFixPoint = false;
-
 
 	struct int2 { int x, y; };
 	struct int3 { int x, y, z; };
@@ -29,7 +27,8 @@ namespace feynman {
 	struct float2 { float x, y; };
 
 	struct Image2D {
-		std::vector<float> _data;
+		std::vector<float> _data_float;
+		std::vector<FixPoint> _data_fixP;
 		int2 _size;
 
 		// default constructor
@@ -38,10 +37,12 @@ namespace feynman {
 		Image2D(int2 size) : _size(size)
 		{
 			const int nElements = size.x * size.y;
-			_data.resize(nElements);
+			_data_float.resize(nElements);
+			_data_fixP.resize(nElements);
 		}
 		void swap(Image2D& other) {
-			_data.swap(other._data);
+			_data_float.swap(other._data_float);
+			_data_fixP.swap(other._data_fixP);
 			const int2 tmp = this->_size;
 			this->_size = other._size;
 			other._size = tmp;
@@ -50,15 +51,18 @@ namespace feynman {
 
 	struct Image3D {
 		std::vector<float> _data;
+		std::vector<FixPoint> _data_fixP;
 		int3 _size;
 
 		Image3D(int3 size) : _size(size)
 		{
 			const int nElements = size.x * size.y * size.z;
 			_data.resize(nElements);
+			_data_fixP.resize(nElements);
 		}
 		void swap(Image3D& other) {
 			_data.swap(other._data);
+			_data_fixP.swap(other._data_fixP);
 			const int3 tmp = this->_size;
 			this->_size = other._size;
 			other._size = tmp;
@@ -82,81 +86,97 @@ namespace feynman {
 	}
 
 
-	float inline read_2D(const Image2D &image, const int2 coord)
-	{
-		return image._data[pos(coord, image._size)];
-	}
-
-	float inline read_2D(const Image2D &image, const int coord_x, const int coord_y, const bool range01 = false)
+	float inline read_2D(const Image2D &image, const int coord_x, const int coord_y)
 	{
 		const int idx = pos(coord_x, coord_y, image._size.y);
 		//std::cout << "read_imagef_2D: idx=" << idx << "; x=" << coord_x << "; y=" << coord_y << std::endl;
-		const float value = image._data[idx];
-		
-#ifdef _DEBUG
-		if (range01 && ((value < 0.0f) || (value > 1.0f))) {
-			printf("WARNING: Helpers::read_2D: value (%f) is not in range [0..1]\n", value);
+		const float value = image._data_float[idx];
+//#		ifdef _DEBUG
+		if ((value < 0.0f) || (value > 1.0f)) {
+			//printf("WARNING: Helpers::read_2D: value (%f) is not in range [0..1]\n", value);
 			//throw 1;
 		}
-#endif		
+//		#endif
 		return value;
+	}
+
+	float inline read_2D(const Image2D &image, const int2 coord)
+	{
+		return read_2D(image, coord.x, coord.y);
 	}
 
 	FixPoint inline read_2D_fixp(const Image2D &image, const int coord_x, const int coord_y)
 	{
 		const int idx = pos(coord_x, coord_y, image._size.y);
-		const float org = image._data[idx];
-		//std::cout << "read_imagef_2D: idx=" << idx << "; x=" << coord_x << "; y=" << coord_y << std::endl;
-		return toFixPoint(org);
+		FixPoint value = image._data_fixP[idx];
+//#		ifdef _DEBUG
+		const FixPoint value2 = toFixPoint(image._data_float[idx]);
+		if (value != value2) {
+			printf("WARNING: read_2D_fixp: idx=%i; x=%i; y=%i; value=%llu; value2=%llu\n", idx, coord_x, coord_y, static_cast<unsigned long long>(value), static_cast<unsigned long long>(value2));
+			//throw 1;
+		}
+//		#endif
+		return value;
 	}
 
-	float inline read_3D(const Image3D &image, const int coord_x, const int coord_y, const int coord_z, const bool range01 = false) {
+	float inline read_3D(const Image3D &image, const int coord_x, const int coord_y, const int coord_z) {
 		const int idx = pos(coord_x, coord_y, coord_z, image._size.y, image._size.z);
 		//std::cout << "read_3D: idx=" << idx << "; x=" << coord_x << "; y=" << coord_y << "; z=" << coord_z << std::endl;
 		const float value = image._data[idx];
 		
-#ifdef _DEBUG
-		if (range01 && ((value < 0.0f) || (value > 1.0f))) {
-			printf("WARNING: Helpers::read_3D: value (%f) is not in range [0..1]\n", value);
+//#		ifdef _DEBUG
+		if ((value < 0.0f) || (value > 1.0f)) {
+			//printf("WARNING: Helpers::read_3D: value (%f) is not in range [0..1]\n", value);
 			//throw 1;
 		}
-#endif		
+//#		endif
 		return value;
 	}
 
 	FixPoint inline read_3D_fixp(const Image3D &image, const int coord_x, const int coord_y, const int coord_z) {
 		const int idx = pos(coord_x, coord_y, coord_z, image._size.y, image._size.z);
-		//std::cout << "read_imagef_3D: idx=" << idx << "; x=" << coord_x << "; y=" << coord_y << "; z=" << coord_z << std::endl;
-		const float org = image._data[idx];
-		return toFixPoint(org);
+		FixPoint value = image._data_fixP[idx];
+//#		ifdef _DEBUG
+		const FixPoint value2 = toFixPoint(image._data[idx]);
+		if (value != value2) {
+			std::cout << "WARNING: read_3D_fixp: idx=" << idx << "; x=" << coord_x << "; y=" << coord_y << "; value=" << static_cast<unsigned long long>(value) << "; value2=" << static_cast<unsigned long long>(value2) << std::endl;
+			throw 1;
+		}
+//#		endif
+		return value;
 	}
 
-	void inline write_2D(Image2D &image, const int coord_x, const int coord_y, const float value, const bool range01 = false) {
-#ifdef _DEBUG
-		if (range01 && ((value < 0.0f) || (value > 1.0f))) {
+	void inline write_2D(Image2D &image, const int coord_x, const int coord_y, float value) {
+//#		ifdef _DEBUG
+		if ((value < 0.0f) || (value > 1.0f)) {
 			printf("WARNING: Helpers::write_2D: value (%f) is not in range [0..1]\n", value);
-			//throw 1;
+			if (value < 0.0) value = 0.0; else if (value > 1.0f) value = 1.0f;
+			throw 1;
 		}
-#endif
-		image._data[pos(coord_x, coord_y, image._size.y)] = value;
+//#		endif
+		image._data_float[pos(coord_x, coord_y, image._size.y)] = value;
+		image._data_fixP[pos(coord_x, coord_y, image._size.y)] = toFixPoint(value);
 	}
 
 	void inline write_2D_fixp(Image2D &image, const int coord_x, const int coord_y, const FixPoint value) {
-		image._data[pos(coord_x, coord_y, image._size.y)] = toFloat(value);
+		image._data_fixP[pos(coord_x, coord_y, image._size.y)] = value;
+		image._data_float[pos(coord_x, coord_y, image._size.y)] = toFloat(value);
 	}
 
-	void inline write_3D(Image3D &image, const int coord_x, const int coord_y, const int coord_z, const float value, const bool range01 = false) {
-		
-#ifdef _DEBUG
-		if (range01 && ((value < 0.0f) || (value > 1.0f))) {
+	void inline write_3D(Image3D &image, const int coord_x, const int coord_y, const int coord_z, float value) {
+//#		ifdef _DEBUG
+		if ((value < 0.0f) || (value > 1.0f)) {
 			printf("WARNING: Helpers::write_3D: value (%f) is not in range [0..1]\n", value);
-			//throw 1;
+			if (value < 0.0) value = 0.0; else if (value > 1.0f) value = 1.0f;
+			throw 1;
 		}
-#endif		
+//#		endif
 		image._data[pos(coord_x, coord_y, coord_z, image._size.y, image._size.z)] = value;
+		image._data_fixP[pos(coord_x, coord_y, coord_z, image._size.y, image._size.z)] = toFixPoint(value);
 	}
 
 	void inline write_3D_fixp(Image3D &image, const int coord_x, const int coord_y, const int coord_z, const FixPoint value) {
+		image._data_fixP[pos(coord_x, coord_y, coord_z, image._size.y, image._size.z)] = value;
 		image._data[pos(coord_x, coord_y, coord_z, image._size.y, image._size.z)] = toFloat(value);
 	}
 
@@ -187,23 +207,29 @@ namespace feynman {
 	}
 
 	static void clear(Image2D &image) {
-		const size_t nBytes = image._size.x * image._size.y * 4;
-		memset(&image._data[0], 0, nBytes);
+		const size_t nBytes = image._size.x * image._size.y * sizeof(float);
+		memset(&image._data_float[0], 0, nBytes);
+		const size_t nBytesFixPoint = image._size.x * image._size.y * sizeof(FixPoint);
+		memset(&image._data_fixP[0], 0, nBytesFixPoint);
 	}
 
 	static void copy(const Image2D &src, Image2D &dst) {
-		const size_t nBytes = src._size.x * src._size.y * 4;
-		memcpy(&dst._data[0], &src._data[0], nBytes);
+		const size_t nBytes = src._size.x * src._size.y * sizeof(float);
+		memcpy(&dst._data_float[0], &src._data_float[0], nBytes);
+		const size_t nBytesFixP = src._size.x * src._size.y * sizeof(FixPoint);
+		memcpy(&dst._data_fixP[0], &src._data_fixP[0], nBytesFixP);
 	}
 	static void copy(const Image2D &src, std::vector<float> &dst) {
-		const size_t nBytes = src._size.x * src._size.y * 4;
-		memcpy(&dst[0], &src._data[0], nBytes);
+		const size_t nBytes = src._size.x * src._size.y * sizeof(float);
+		memcpy(&dst[0], &src._data_float[0], nBytes);
 	}
 	static void copy(const std::vector<float> &src, Image2D &dst) {
-		const size_t nBytes = dst._size.x * dst._size.y * 4;
-		memcpy(&dst._data[0], &src[0], nBytes);
+		const size_t nBytes = dst._size.x * dst._size.y * sizeof(float);
+		memcpy(&dst._data_float[0], &src[0], nBytes);
+		for (int i = 0; i < dst._size.x * dst._size.y; ++i) {
+			dst._data_fixP[i] = toFixPoint(src[i]);
+		}
 	}
-
 
 	// Initialize a random uniform 2D image (X field)
 	void randomUniform2D(
@@ -304,16 +330,6 @@ namespace feynman {
 
 	inline int project(const int position, const float toScalars) {
 		return static_cast<int>((position * toScalars) + 0.5f);
-	}
-
-	inline float2 find_min_max(const Image2D &image) {
-		float minimum = 1000000;
-		float maximum = -1000000;
-		for (int i = 0; i < image._size.x * image._size.y; ++i) {
-			minimum = std::min(minimum, image._data[i]);
-			maximum = std::max(maximum, image._data[i]);
-		}
-		return{ minimum, maximum };
 	}
 
 	static std::tuple<int2, int2> cornerCaseRange(

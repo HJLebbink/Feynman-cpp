@@ -299,29 +299,29 @@ namespace feynman {
 			size_t nBytes = 0;
 			size_t bytes;
 
-			bytes = _hiddenActivations[0]._data.size() * 4 * 2;
+			bytes = _hiddenActivations[0]._data_fixP.size() * sizeof(FixPoint) * 2;
 			if (plot) std::cout << "SparseFeatures:_hiddenActivations:   " << bytes << " bytes" << std::endl;
 			nBytes += bytes;
 
-			bytes = _hiddenStates[0]._data.size() * 4 * 2;
+			bytes = _hiddenStates[0]._data_fixP.size() * sizeof(FixPoint) * 2;
 			if (plot) std::cout << "SparseFeatures:_hiddenStates:        " << bytes << " bytes" << std::endl;
 			nBytes += bytes;
 
-			bytes = _hiddenBiases[0]._data.size() * 4 * 2;
+			bytes = _hiddenBiases[0]._data_fixP.size() * sizeof(FixPoint) * 2;
 			if (plot) std::cout << "SparseFeatures:_hiddenBiases:        " << bytes << " bytes" << std::endl;
 			nBytes += bytes;
 
-			bytes = _hiddenSummationTemp[0]._data.size() * 4 * 2;
+			bytes = _hiddenSummationTemp[0]._data_fixP.size() * sizeof(FixPoint) * 2;
 			if (plot) std::cout << "SparseFeatures:_hiddenSummationTemp: " << bytes << " bytes" << std::endl;
 			nBytes += bytes;
 
 			for (size_t layer = 0; layer < _visibleLayers.size(); ++layer) 
 			{
-				bytes = _visibleLayers[layer]._derivedInput[0]._data.size() * 4 * 2;
+				bytes = _visibleLayers[layer]._derivedInput[0]._data_fixP.size() * sizeof(FixPoint) * 2;
 				if (plot) std::cout << "SparseFeatures:_visibleLayers[" << layer << "]:_derivedInput: " << bytes << " bytes" << std::endl;
 				nBytes += bytes;
 
-				bytes = _visibleLayers[layer]._weights[0]._data.size() * 4 * 2;
+				bytes = _visibleLayers[layer]._weights[0]._data_fixP.size() * sizeof(FixPoint) * 2;
 				if (plot) std::cout << "SparseFeatures:_visibleLayers[" << layer << "]:_weights:      " << bytes << " bytes" << std::endl;
 				nBytes += bytes;
 			}
@@ -574,8 +574,8 @@ namespace feynman {
 					const int offset_y = visiblePosition_y - fieldLowerBound_y;
 
 					const int wi = offset_y + (offset_x * ((RADIUS * 2) + 1));
-					const float weight = read_3D(weights, hiddenPosition_x, hiddenPosition_y, wi, true);
-					const float visibleState = read_2D(visibleStates, visiblePosition_x, visiblePosition_y, true);
+					const float weight = read_3D(weights, hiddenPosition_x, hiddenPosition_y, wi);
+					const float visibleState = read_2D(visibleStates, visiblePosition_x, visiblePosition_y);
 
 					subSum += visibleState * weight;
 					stateSum += visibleState;
@@ -591,8 +591,8 @@ namespace feynman {
 				const int offset_y = visiblePositionCenter_y - fieldLowerBound_y;
 
 				const int wi = offset_y + (offset_x * ((RADIUS * 2) + 1));
-				const float weight = read_3D(weights, hiddenPosition_x, hiddenPosition_y, wi, true);
-				const float visibleState = read_2D(visibleStates, visiblePosition_x, visiblePosition_y, true);
+				const float weight = read_3D(weights, hiddenPosition_x, hiddenPosition_y, wi);
+				const float visibleState = read_2D(visibleStates, visiblePosition_x, visiblePosition_y);
 
 				subSum -= visibleState * weight;
 				stateSum -= visibleState;
@@ -601,7 +601,9 @@ namespace feynman {
 			const float stimulusAddition = subSum / std::max(0.0001f, stateSum);
 			//std::cout << "SparseFeatures::spStimulus_float_kernel: floatp=" << stimulusAddition << std::endl;
 			const float sum = read_2D(hiddenSummationTempBack, hiddenPosition_x, hiddenPosition_y);
-			write_2D(hiddenSummationTempFront, hiddenPosition_x, hiddenPosition_y, sum + stimulusAddition);
+			float sumTemp = sum + stimulusAddition;
+			if (sumTemp < 0.0) sumTemp = 0.0; else if (sumTemp > 1.0) sumTemp = 1.0;
+			write_2D(hiddenSummationTempFront, hiddenPosition_x, hiddenPosition_y, sumTemp);
 		}
 
 		template <bool CORNER, int RADIUS>
@@ -628,13 +630,8 @@ namespace feynman {
 			const int visiblePosStart_y = (CORNER) ? std::max(0, fieldLowerBound_y) : fieldLowerBound_y;
 			const int visiblePosEnd_y = (CORNER) ? std::min(visibleSize.y, fieldUpperBound_y + 1) : fieldUpperBound_y + 1;
 
-			float subSum_old = 0.0f;
-			float stateSum_old = 0.0f;
-
-			unsigned __int64 subSum = 0;
-			unsigned __int64 stateSum = 0;
-
-			double errorSum = 0;
+			FixPoint3 subSum = 0;
+			FixPoint3 stateSum = 0; // FixPoint2 should also provide sufficient room
 
 #			pragma ivdep
 			for (int visiblePosition_x = visiblePosStart_x; visiblePosition_x < visiblePosEnd_x; ++visiblePosition_x) {
@@ -646,15 +643,10 @@ namespace feynman {
 					
 					const int wi = offset_y + (offset_x * ((RADIUS * 2) + 1));
 					const FixPoint weight = read_3D_fixp(weights, hiddenPosition_x, hiddenPosition_y, wi);
-					const float weight_old = read_3D(weights, hiddenPosition_x, hiddenPosition_y, wi, true);
 					const FixPoint visibleState = read_2D_fixp(visibleStates, visiblePosition_x, visiblePosition_y);
-					const float visibleState_old = read_2D(visibleStates, visiblePosition_x, visiblePosition_y, true);
 
-					subSum += static_cast<unsigned __int64>(visibleState) * static_cast<unsigned __int64>(weight);
-					stateSum += static_cast<unsigned __int64>(visibleState);
-
-					subSum_old += visibleState_old * weight_old;
-					stateSum_old += visibleState_old;
+					subSum += static_cast<FixPoint3>(visibleState) * static_cast<FixPoint3>(weight);
+					stateSum += static_cast<FixPoint3>(visibleState);
 				}
 			}
 
@@ -668,61 +660,27 @@ namespace feynman {
 
 				const int wi = offset_y + (offset_x * ((RADIUS * 2) + 1));
 				const FixPoint weight = read_3D_fixp(weights, hiddenPosition_x, hiddenPosition_y, wi);
-				const float weight_old = read_3D(weights, hiddenPosition_x, hiddenPosition_y, wi, true);
 				const FixPoint visibleState = read_2D_fixp(visibleStates, visiblePosition_x, visiblePosition_y);
-				const float visibleState_old = read_2D(visibleStates, visiblePosition_x, visiblePosition_y, true);
 
-				subSum -= static_cast<unsigned __int64>(visibleState) * static_cast<unsigned __int64>(weight);
-				stateSum -= static_cast<unsigned __int64>(visibleState);
-
-				subSum_old -= visibleState_old * weight_old;
-				stateSum_old -= visibleState_old;
+				subSum -= static_cast<FixPoint3>(visibleState) * static_cast<FixPoint3>(weight);
+				stateSum -= static_cast<FixPoint3>(visibleState);
 			}
 
-			const double subSumF = static_cast<double>(subSum) / DENOMINATOR_POW2;
-			const double stateSumF = static_cast<double>(stateSum) / DENOMINATOR;
+			const float subSumF = static_cast<float>(subSum) / DENOMINATOR_POW2;
+			const float stateSumF = static_cast<float>(stateSum) / DENOMINATOR;
 
 			//std::cout << "SparseFeatures::spStimulus_fixp_kernel: subSum_old=" << subSum_old << "; subSumF=" << subSumF << std::endl;
 			//std::cout << "SparseFeatures::spStimulus_fixp_kernel: stateSum_old=" << stateSum_old << "; stateSumF=" << stateSumF << std::endl;
 
-			const float stimulusAdditionF = static_cast<float>(subSumF / std::max(0.0001, stateSumF));
-			float stimulusAddition_old = subSum_old / std::max(0.0001f, stateSum_old);
+			const float stimulusAdditionF = subSumF / std::max(0.0001f, stateSumF);
+			const FixPoint sumFixP = read_2D_fixp(hiddenSummationTempBack, hiddenPosition_x, hiddenPosition_y);
+			//const float error = (stimulusAddition_old - stimulusAdditionF);
+			//if (std::abs(error) > 0.001) std::cout << "SparseFeatures::spStimulus_fixp_kernel: stimulusAddition_old=" << stimulusAddition_old << "; stimulusAdditionF=" << stimulusAdditionF << "; error=" << error << std::endl;
 
-			if (false) // add noise to stimulus
-			{
-				std::uniform_int_distribution<int> seedDist(-100, 100);
-				const int randInt = static_cast<unsigned int>(seedDist(generator_test));
-				const float noise = static_cast<float>(randInt) / 2000;
-				//std::cout << "SparseFeatures::spStimulus_fixp_kernel: noise=" << noise << std::endl;
-				stimulusAddition_old += noise;
-			}
+			//WARNING: hiddenSummationTempFront is not bound to range [0..1]!
 
-			//errorSum += error;
-			//std::cout << "SparseFeatures::spStimulus_fixp_kernel: errorSum=" << errorSum << std::endl;
-
-			if (false) // use fixpoint
-			{
-				const float sum_old = read_2D(hiddenSummationTempBack, hiddenPosition_x, hiddenPosition_y);
-				const FixPoint sumFixP = read_2D_fixp(hiddenSummationTempBack, hiddenPosition_x, hiddenPosition_y);
-
-				const float error = (stimulusAddition_old - stimulusAdditionF);
-				//if (std::abs(error) > 0.001) std::cout << "SparseFeatures::spStimulus_fixp_kernel: stimulusAddition_old=" << stimulusAddition_old << "; stimulusAdditionF=" << stimulusAdditionF << "; error=" << error << std::endl;
-
-				if (sum_old > 0)
-					std::cout << "SparseFeatures::spStimulus_fixp_kernel: sum_old=" << sum_old << "; sumF=" << toFloat(sumFixP) << "; stimulusAddition_old=" << stimulusAddition_old << "; stimulusAdditionF=" << stimulusAdditionF << "; error=" << error << std::endl;
-
-				//write_2D_fixp(hiddenSummationTempFront, hiddenPosition_x, hiddenPosition_y, sumF + stimulusAdditionF);
-				write_2D(hiddenSummationTempFront, hiddenPosition_x, hiddenPosition_y, toFloat(sumFixP) + stimulusAdditionF);
-			} else
-			{
-				const float sum_old = read_2D(hiddenSummationTempBack, hiddenPosition_x, hiddenPosition_y);
-				const FixPoint sumFixP = read_2D_fixp(hiddenSummationTempBack, hiddenPosition_x, hiddenPosition_y);
-				const float error = (stimulusAddition_old - stimulusAdditionF);
-
-				
-				//std::cout << "SparseFeatures::spStimulus_fixp_kernel: sum_old=" << sum_old << "; sumF=" << toFloat(sumFixP) << "; stimulusAddition_old=" << stimulusAddition_old << "; stimulusAdditionF=" << stimulusAdditionF << "; error=" << error << std::endl;
-				write_2D(hiddenSummationTempFront, hiddenPosition_x, hiddenPosition_y, sum_old + stimulusAddition_old);
-			}
+			FixPoint sumTemp = addSaturate(sumFixP, toFixPoint(stimulusAdditionF));
+			write_2D_fixp(hiddenSummationTempFront, hiddenPosition_x, hiddenPosition_y, sumTemp);
 		}
 
 		template <int RADIUS>
@@ -814,10 +772,10 @@ namespace feynman {
 			if (true) {
 				const int nElements = range.x * range.y;
 				for (int i = 0; i < nElements; ++i) {
-					const float stimulus = stimuli._data[i];
-					const float bias = biases._data[i];
+					const float stimulus = stimuli._data_float[i];
+					const float bias = biases._data_float[i];
 					const float activation = stimulus + bias;
-					hiddenActivationsFront._data[i] = activation;
+					hiddenActivationsFront._data_float[i] = activation;
 				}
 			}
 			else {
@@ -891,8 +849,7 @@ namespace feynman {
 			const Image3D &weightsBack,
 			Image3D &weightsFront)
 		{
-			//if (useFixPoint)
-			if (false)
+			if (useFixPoint)
 			{
 				spLearnWeights_fixp_kernel<CORNER, RADIUS>(
 					hiddenPosition_x,
@@ -944,7 +901,7 @@ namespace feynman {
 			const int visiblePosStart_y = (CORNER) ? std::max(0, fieldLowerBound_y) : fieldLowerBound_y;
 			const int visiblePosEnd_y = (CORNER) ? std::min(visibleSize.y, fieldUpperBound_y + 1) : fieldUpperBound_y + 1;
 
-			const float hiddenState = read_2D(hiddenStates, hiddenPosition_x, hiddenPosition_y, true);
+			const float hiddenState = read_2D(hiddenStates, hiddenPosition_x, hiddenPosition_y);
 
 #			pragma ivdep
 			for (int visiblePosition_x = visiblePosStart_x; visiblePosition_x < visiblePosEnd_x; ++visiblePosition_x) {
@@ -955,12 +912,12 @@ namespace feynman {
 					const int offset_y = visiblePosition_y - fieldLowerBound_y;
 
 					const int wi = offset_y + (offset_x * ((RADIUS * 2) + 1));
-					const float weightPrev = read_3D(weightsBack, hiddenPosition_x, hiddenPosition_y, wi, true);
-					const float visibleState = read_2D(visibleStates, visiblePosition_x, visiblePosition_y, true);
+					const float weightPrev = read_3D(weightsBack, hiddenPosition_x, hiddenPosition_y, wi);
+					const float visibleState = read_2D(visibleStates, visiblePosition_x, visiblePosition_y);
 					const float learn = hiddenState * (visibleState - weightPrev);
 					float weight = weightPrev + (weightAlpha * learn);
 					weight = (weight > 1.0f) ? 1.0f : ((weight < 0.0f) ? 0.0f : weight);
-					write_3D(weightsFront, hiddenPosition_x, hiddenPosition_y, wi, weight, true);
+					write_3D(weightsFront, hiddenPosition_x, hiddenPosition_y, wi, weight);
 				}
 			}
 		}
@@ -989,12 +946,9 @@ namespace feynman {
 			const int visiblePosStart_y = (CORNER) ? std::max(0, fieldLowerBound_y) : fieldLowerBound_y;
 			const int visiblePosEnd_y = (CORNER) ? std::min(visibleSize.y, fieldUpperBound_y + 1) : fieldUpperBound_y + 1;
 
-			const float hiddenState_old = read_2D(hiddenStates, hiddenPosition_x, hiddenPosition_y, true);
-			const float hiddenStateWeightAlpha_old = hiddenState_old * weightAlpha;
-
 			const FixPoint weightAlphaFixP = toFixPoint(weightAlpha);
 			const FixPoint hiddenState = read_2D_fixp(hiddenStates, hiddenPosition_x, hiddenPosition_y);
-			const unsigned int hiddenStateWeightAlpha = static_cast<unsigned int>(hiddenState) * static_cast<unsigned int>(weightAlphaFixP);
+			const FixPoint2 hiddenStateWeightAlpha = static_cast<FixPoint2>(hiddenState) * static_cast<FixPoint2>(weightAlphaFixP);
 
 #			pragma ivdep
 			for (int visiblePosition_x = visiblePosStart_x; visiblePosition_x < visiblePosEnd_x; ++visiblePosition_x) {
@@ -1006,12 +960,6 @@ namespace feynman {
 					
 					const int wi = offset_y + (offset_x * ((RADIUS * 2) + 1));
 
-					const float weightPrev_old = read_3D(weightsBack, hiddenPosition_x, hiddenPosition_y, wi, true);
-					const float visibleState_old = read_2D(visibleStates, visiblePosition_x, visiblePosition_y, true);
-					const float learn_old = hiddenState_old * (visibleState_old - weightPrev_old);
-					float weight_old = weightPrev_old + (weightAlpha * learn_old);
-					weight_old = (weight_old > 1.0f) ? 1.0f : ((weight_old < 0.0f) ? 0.0f : weight_old);
-
 					const FixPoint weightPrev = read_3D_fixp(weightsBack, hiddenPosition_x, hiddenPosition_y, wi);
 					const FixPoint visibleState = read_2D_fixp(visibleStates, visiblePosition_x, visiblePosition_y);
 					FixPoint weight;
@@ -1019,14 +967,14 @@ namespace feynman {
 					{
 						const unsigned int weightDelta = reducePower2(hiddenStateWeightAlpha * static_cast<unsigned int>(visibleState - weightPrev));
 						weight = addSaturate(weightPrev, weightDelta);
+						//std::cout << "INFO: spLearnWeights_fixp_kernel: A: weight_fixP=" << toFloat(weight) << "; weight_old=" << weight_old << std::endl;
 					} else
 					{
 						const unsigned int weightDelta = reducePower2(hiddenStateWeightAlpha * static_cast<unsigned int>(weightPrev - visibleState));
 						weight = substractSaturate(weightPrev, weightDelta);
+						//std::cout << "INFO: spLearnWeights_fixp_kernel: B: weight_fixP=" << toFloat(weight) << "; weight_old="<< weight_old << std::endl;
 					}
-					//write_3D_fixp(weightsFront, hiddenPosition_x, hiddenPosition_y, wi, weight);
-					write_3D(weightsFront, hiddenPosition_x, hiddenPosition_y, wi, weightPrev_old);
-
+					write_3D_fixp(weightsFront, hiddenPosition_x, hiddenPosition_y, wi, weight);
 				}
 			}
 		}
@@ -1130,9 +1078,9 @@ namespace feynman {
 				const int nElements = range.x * range.y;
 #				pragma ivdep
 				for (int i = 0; i < nElements; ++i) {
-					float stimulus = stimuli._data[i];
-					float hiddenBiasPrev = hiddenBiasesBack._data[i];
-					hiddenBiasesFront._data[i] = hiddenBiasPrev + (biasAlpha * (-stimulus - hiddenBiasPrev));
+					const float stimulus = stimuli._data_float[i];
+					const float hiddenBiasPrev = hiddenBiasesBack._data_float[i];
+					hiddenBiasesFront._data_float[i] = hiddenBiasPrev + (biasAlpha * (-stimulus - hiddenBiasPrev));
 				}
 			}
 			else {
@@ -1140,9 +1088,9 @@ namespace feynman {
 				for (int x = 0; x < range.x; ++x) {
 #					pragma ivdep
 					for (int y = 0; y < range.y; ++y) {
-						float stimulus = read_2D(stimuli, x, y);
+						const float stimulus = read_2D(stimuli, x, y);
 						//float hiddenState = read_imagef_2D(hiddenStates, hiddenPosition); //TODO: unused
-						float hiddenBiasPrev = read_2D(hiddenBiasesBack, x, y);
+						const float hiddenBiasPrev = read_2D(hiddenBiasesBack, x, y);
 						write_2D(hiddenBiasesFront, x, y, hiddenBiasPrev + (biasAlpha * (-stimulus - hiddenBiasPrev)));
 					}
 				}

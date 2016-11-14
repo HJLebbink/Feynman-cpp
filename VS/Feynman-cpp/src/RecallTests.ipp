@@ -193,17 +193,17 @@ void recallTest_AAAX() {
 		Image2D reconstructionErrorImage = Image2D(inputImage._size);
 		{	// calculate the prediction error
 			float pixelMissmatch = 0;
-			for (size_t i = 0; i < inputImage._data.size(); ++i) {
-				const float predictedPixel = std::min(1.0f, std::max(0.0f, predictedImage._data[i]));
-				const float errorPerPixel = abs(inputImage._data[i] - predictedPixel);
+			for (size_t i = 0; i < inputImage._data_float.size(); ++i) {
+				const float predictedPixel = std::min(1.0f, std::max(0.0f, predictedImage._data_float[i]));
+				const float errorPerPixel = abs(inputImage._data_float[i] - predictedPixel);
 				if (errorPerPixel > 1.0) {
-					printf("WARNING: errorPerPixel %f, input=%f, predicted=%f\n", errorPerPixel, inputImage._data[i], predictedImage._data[i]);
+					printf("WARNING: errorPerPixel %f, input=%f, predicted=%f\n", errorPerPixel, inputImage._data_float[i], predictedImage._data_float[i]);
 				}
 
-				reconstructionErrorImage._data[i] = errorPerPixel;
+				reconstructionErrorImage._data_float[i] = errorPerPixel;
 				pixelMissmatch += errorPerPixel;
 			}
-			pixelMissmatch = pixelMissmatch / inputImage._data.size();
+			pixelMissmatch = pixelMissmatch / inputImage._data_float.size();
 			printf("trainstep %i: pixelMissmatch %f\n", counter, pixelMissmatch);
 		}
 
@@ -215,8 +215,8 @@ void recallTest_AAAX() {
 			plots::plotImage(reconstructionErrorImage, float2{ 2 * 10.0f * 32.0f, 0.0f }, 32.0f, window);
 			window.display();
 
-			plots::plotImage(newSDR_image, 8.0f, false, "Current SDR");
-			plots::plotImage(predSDR_image, 8.0f, false, "Predicted SDR");
+			plots::plotImage(newSDR_image, 8.0f, "Current SDR");
+			plots::plotImage(predSDR_image, 8.0f, "Predicted SDR");
 		}
 
 		// Hierarchy simulation step

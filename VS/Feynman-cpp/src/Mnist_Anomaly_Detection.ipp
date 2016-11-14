@@ -405,7 +405,9 @@ namespace mnist {
 				for (unsigned int x = 0; x < renderTextureImg.getSize().x; x++) {
 					for (unsigned int y = 0; y < renderTextureImg.getSize().y; y++) {
 						sf::Color c = renderTextureImg.getPixel(x, y);
-						scInputImage._data[x + y * renderTextureImg.getSize().x] = 0.333f * (c.r / 255.0f + c.b / 255.0f + c.g / 255.0f);
+						const float mono = 0.333f * (c.r / 255.0f + c.b / 255.0f + c.g / 255.0f);
+						write_2D(scInputImage, y, x, mono);
+						//scInputImage._data_float[x + y * renderTextureImg.getSize().x] = mono;
 					}
 				}
 			}
@@ -425,8 +427,8 @@ namespace mnist {
 			// Retrieve prediction
 			const Image2D &newSDR_image = sparseCoder.getHiddenStates()[_back];
 			const Image2D &predSDR_image = predictor.getPrediction();
-			const std::vector<float> &newSDR = newSDR_image._data;
-			const std::vector<float> &predSDR = predSDR_image._data;
+			const std::vector<float> &newSDR = newSDR_image._data_float;
+			const std::vector<float> &predSDR = predSDR_image._data_float;
 
 			for (size_t i = 0; i < newSDR.size(); i++) {
 				anomalyScore += newSDR[i] * predSDR[i];
@@ -569,13 +571,13 @@ namespace mnist {
 					}
 					if (false) {
 						//const Image2D &predSDR_image = predictor.getPrediction();
-						plots::plotImage(predSDR_image, 8.0f, false, "SDR Prediction");
+						plots::plotImage(predSDR_image, 8.0f, "SDR Prediction");
 					}
 					if (true) {
 						Image2D image2 = Image2D(scInputImage._size);
 						std::vector<Image2D> reconstructions = { image2 };
 						sparseCoder.reconstruct(predSDR_image, reconstructions);
-						plots::plotImage(reconstructions.front(), 8.0f, false, "Visual Prediction");
+						plots::plotImage(reconstructions.front(), 8.0f, "Visual Prediction");
 					}
 				}
 
