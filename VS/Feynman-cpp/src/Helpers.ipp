@@ -50,18 +50,18 @@ namespace feynman {
 	};
 
 	struct Image3D {
-		std::vector<float> _data;
+		std::vector<float> _data_float;
 		std::vector<FixPoint> _data_fixP;
 		int3 _size;
 
 		Image3D(int3 size) : _size(size)
 		{
 			const int nElements = size.x * size.y * size.z;
-			_data.resize(nElements);
+			_data_float.resize(nElements);
 			_data_fixP.resize(nElements);
 		}
 		void swap(Image3D& other) {
-			_data.swap(other._data);
+			_data_float.swap(other._data_float);
 			_data_fixP.swap(other._data_fixP);
 			const int3 tmp = this->_size;
 			this->_size = other._size;
@@ -97,6 +97,14 @@ namespace feynman {
 			//throw 1;
 		}
 //		#endif
+
+		float value_fp = toFloat(image._data_fixP[idx]);
+		if (std::abs(value_fp - value) > 0.004)
+		{
+			//printf("WARNING: Helpers::read_2D: value_fp=%30.28f; value=%30.28f\n", value_fp, value);
+			//throw 1;
+		}
+
 		return value;
 	}
 
@@ -112,7 +120,7 @@ namespace feynman {
 //#		ifdef _DEBUG
 		const FixPoint value2 = toFixPoint(image._data_float[idx]);
 		if (value != value2) {
-			printf("WARNING: read_2D_fixp: idx=%i; x=%i; y=%i; value=%llu; value2=%llu\n", idx, coord_x, coord_y, static_cast<unsigned long long>(value), static_cast<unsigned long long>(value2));
+			//printf("WARNING: read_2D_fixp: idx=%i; x=%i; y=%i; value=%llu; value2=%llu\n", idx, coord_x, coord_y, static_cast<unsigned long long>(value), static_cast<unsigned long long>(value2));
 			//throw 1;
 		}
 //		#endif
@@ -122,14 +130,22 @@ namespace feynman {
 	float inline read_3D(const Image3D &image, const int coord_x, const int coord_y, const int coord_z) {
 		const int idx = pos(coord_x, coord_y, coord_z, image._size.y, image._size.z);
 		//std::cout << "read_3D: idx=" << idx << "; x=" << coord_x << "; y=" << coord_y << "; z=" << coord_z << std::endl;
-		const float value = image._data[idx];
+		const float value = image._data_float[idx];
 		
 //#		ifdef _DEBUG
 		if ((value < 0.0f) || (value > 1.0f)) {
-			//printf("WARNING: Helpers::read_3D: value (%f) is not in range [0..1]\n", value);
+			printf("WARNING: Helpers::read_3D: value (%f) is not in range [0..1]\n", value);
 			//throw 1;
 		}
 //#		endif
+
+		float value_fp = toFloat(image._data_fixP[idx]);
+		if (std::abs(value_fp - value) > 0.004)
+		{
+			printf("WARNING: Helpers::read_3D: value_fp=%30.28f; value=%30.28f\n", value_fp, value);
+		}
+
+		//return value_fp;
 		return value;
 	}
 
@@ -137,7 +153,7 @@ namespace feynman {
 		const int idx = pos(coord_x, coord_y, coord_z, image._size.y, image._size.z);
 		FixPoint value = image._data_fixP[idx];
 //#		ifdef _DEBUG
-		const FixPoint value2 = toFixPoint(image._data[idx]);
+		const FixPoint value2 = toFixPoint(image._data_float[idx]);
 		if (value != value2) {
 			std::cout << "WARNING: read_3D_fixp: idx=" << idx << "; x=" << coord_x << "; y=" << coord_y << "; value=" << static_cast<unsigned long long>(value) << "; value2=" << static_cast<unsigned long long>(value2) << std::endl;
 			throw 1;
@@ -149,9 +165,9 @@ namespace feynman {
 	void inline write_2D(Image2D &image, const int coord_x, const int coord_y, float value) {
 //#		ifdef _DEBUG
 		if ((value < 0.0f) || (value > 1.0f)) {
-			printf("WARNING: Helpers::write_2D: value (%f) is not in range [0..1]\n", value);
+			//printf("WARNING: Helpers::write_2D: value (%f) is not in range [0..1]\n", value);
 			if (value < 0.0) value = 0.0; else if (value > 1.0f) value = 1.0f;
-			throw 1;
+			//throw 1;
 		}
 //#		endif
 		image._data_float[pos(coord_x, coord_y, image._size.y)] = value;
@@ -171,13 +187,13 @@ namespace feynman {
 			throw 1;
 		}
 //#		endif
-		image._data[pos(coord_x, coord_y, coord_z, image._size.y, image._size.z)] = value;
+		image._data_float[pos(coord_x, coord_y, coord_z, image._size.y, image._size.z)] = value;
 		image._data_fixP[pos(coord_x, coord_y, coord_z, image._size.y, image._size.z)] = toFixPoint(value);
 	}
 
 	void inline write_3D_fixp(Image3D &image, const int coord_x, const int coord_y, const int coord_z, const FixPoint value) {
 		image._data_fixP[pos(coord_x, coord_y, coord_z, image._size.y, image._size.z)] = value;
-		image._data[pos(coord_x, coord_y, coord_z, image._size.y, image._size.z)] = toFloat(value);
+		image._data_float[pos(coord_x, coord_y, coord_z, image._size.y, image._size.z)] = toFloat(value);
 	}
 
 	float randFloat(uint2* state) {

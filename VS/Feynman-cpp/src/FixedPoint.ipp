@@ -7,7 +7,11 @@
 namespace feynman {
 
 	// FixPoint Parameters
-	const bool useFixPoint = true;
+	const bool useFixPoint = false;
+	
+	
+	const bool UPDATE_FLOATING_POINT = true;
+	const bool UPDATE_FIXED_POINT = true;
 
 	const unsigned int N_BITS_FIXPOINT = 8;
 	const unsigned int N_BITS_DENOMINATOR = 8;

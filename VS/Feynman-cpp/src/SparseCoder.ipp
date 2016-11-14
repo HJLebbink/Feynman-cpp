@@ -628,13 +628,26 @@ namespace feynman {
 			const float activeRatio,
 			const int2 range)
 		{
-			if (true) {
+			if (false) { // TODO
 				const int nElements = range.x * range.y;
-#				pragma ivdep
-				for (int i = 0; i < nElements; ++i) {
-					const float hiddenState = hiddenStates._data_float[i];
-					const float hiddenThresholdPrev = hiddenThresholdsBack._data_float[i];
-					hiddenThresholdsFront._data_float[i] = hiddenThresholdPrev + thresholdAlpha * (activeRatio - hiddenState);
+
+				if (UPDATE_FLOATING_POINT) {
+#					pragma ivdep
+					for (int i = 0; i < nElements; ++i) {
+						const float hiddenState = hiddenStates._data_float[i];
+						const float hiddenThresholdPrev = hiddenThresholdsBack._data_float[i];
+						hiddenThresholdsFront._data_float[i] = hiddenThresholdPrev + thresholdAlpha * (activeRatio - hiddenState);
+					}
+				}
+				if (UPDATE_FIXED_POINT) {
+					const FixPoint thresholdAlphaFP = toFixPoint(thresholdAlpha);
+#					pragma ivdep
+					for (int i = 0; i < nElements; ++i) {
+						const FixPoint hiddenState = hiddenStates._data_fixP[i];
+						const FixPoint hiddenThresholdPrev = hiddenThresholdsBack._data_fixP[i];
+						const FixPoint hiddenTrhesholdDelta = reducePower1(static_cast<unsigned int>(thresholdAlphaFP) * static_cast<unsigned int>(activeRatio - hiddenState));
+						hiddenThresholdsFront._data_fixP[i] = addSaturate(hiddenThresholdPrev, hiddenTrhesholdDelta);
+					}
 				}
 			}
 			else {

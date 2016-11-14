@@ -152,7 +152,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>_WINDOWS;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>C:\Dev\opencv-2.4.13\build\include;C:\Dev\SFML-2.4.0\include</AdditionalIncludeDirectories>
-      <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
+      <EnableEnhancedInstructionSet>StreamingSIMDExtensions3</EnableEnhancedInstructionSet>
       <Parallelization>false</Parallelization>
       <FloatingPointModel>Fast2</FloatingPointModel>
       <FlushDenormalResultsToZero>true</FlushDenormalResultsToZero>

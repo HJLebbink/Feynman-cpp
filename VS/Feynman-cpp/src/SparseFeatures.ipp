@@ -769,13 +769,14 @@ namespace feynman {
 			Image2D &hiddenActivationsFront, // write only
 			const int2 range)
 		{
-			if (true) {
+			if (true) { //TODO
 				const int nElements = range.x * range.y;
 				for (int i = 0; i < nElements; ++i) {
 					const float stimulus = stimuli._data_float[i];
 					const float bias = biases._data_float[i];
 					const float activation = stimulus + bias;
 					hiddenActivationsFront._data_float[i] = activation;
+					hiddenActivationsFront._data_fixP[i] = toFixPoint(activation);
 				}
 			}
 			else {
@@ -810,6 +811,9 @@ namespace feynman {
 					int inhibition = 0;
 					int count = 0;
 
+					//TODO optimize boundary condition
+
+
 #					pragma ivdep
 					for (int dx = -radius; dx <= radius; ++dx) {
 						const int otherPosition_x = x + dx;
@@ -823,7 +827,7 @@ namespace feynman {
 								else {
 									const int otherPosition_y = y + dy;
 									if (inBounds(otherPosition_y, hiddenSize.y)) {
-										float otherActivation = read_2D(activations, otherPosition_x, otherPosition_y);
+										const float otherActivation = read_2D(activations, otherPosition_x, otherPosition_y);
 										inhibition += (otherActivation >= activation) ? 1 : 0;
 										count++;
 									}
@@ -1074,13 +1078,30 @@ namespace feynman {
 			const float biasAlpha,
 			const int2 range)
 		{
-			if (true) {
+			if (true) { //TODO
 				const int nElements = range.x * range.y;
-#				pragma ivdep
-				for (int i = 0; i < nElements; ++i) {
-					const float stimulus = stimuli._data_float[i];
-					const float hiddenBiasPrev = hiddenBiasesBack._data_float[i];
-					hiddenBiasesFront._data_float[i] = hiddenBiasPrev + (biasAlpha * (-stimulus - hiddenBiasPrev));
+				if (UPDATE_FLOATING_POINT) {
+#					pragma ivdep
+					for (int i = 0; i < nElements; ++i) {
+						const float stimulus = stimuli._data_float[i];
+						const float hiddenBiasPrev = hiddenBiasesBack._data_float[i];
+						//INFO: HiddenBiases can be negative
+						hiddenBiasesFront._data_float[i] = hiddenBiasPrev + (biasAlpha * (-stimulus - hiddenBiasPrev));
+					}
+				}
+				if (false) {
+				//if (UPDATE_FIXED_POINT) {
+					const FixPoint biasAlphaFP = toFixPoint(biasAlpha);
+#					pragma ivdep
+					for (int i = 0; i < nElements; ++i) {
+						const FixPoint stimulus = stimuli._data_fixP[i];
+						const FixPoint hiddenBiasPrev = hiddenBiasesBack._data_fixP[i];
+						const unsigned int hiddenBiasInt = static_cast<unsigned int>(biasAlphaFP) * (-static_cast<int>(stimulus) - hiddenBiasPrev);
+						const FixPoint hiddenBias = (hiddenBiasInt < 0)
+							? substractSaturate(hiddenBiasPrev, toFixPoint(-hiddenBiasInt))
+							: addSaturate(hiddenBiasPrev, toFixPoint(hiddenBiasInt));
+						hiddenBiasesFront._data_fixP[i] = hiddenBias;
+					}
 				}
 			}
 			else {

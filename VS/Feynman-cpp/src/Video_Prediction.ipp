@@ -98,7 +98,7 @@ namespace video {
 		std::normal_distribution<float> noiseDist(0.0f, 1.0f);
 
 		// Training time
-		const int numIter = 10;
+		const int numIter = 6;
 
 		// UI update resolution
 		const int progressBarLength = 40;
