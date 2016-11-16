@@ -1,5 +1,6 @@
 #include <iostream>		// for cerr and cout
 
+#include "FixedPoint.ipp"
 #include "Mnist_Anomaly_Detection.ipp"
 #include "Video_Prediction.ipp"
 #include "SequenceRecall.ipp"
@@ -9,10 +10,11 @@
 int main()
 {
 	//TEST
+	if (false) fixedPointTest::test2();
 
 	if (false) {
-		SparseFeatures::speedTest(100);
-		PredictorLayer::speedTest(100);
+		SparseFeatures::speedTest(1000);
+		PredictorLayer::speedTest(1000);
 	}
 	if (false) mnist::mnist_Anomaly_Detection();
 	if (true) video::video_Prediction();

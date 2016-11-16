@@ -156,16 +156,19 @@ namespace feynman {
 				{
 					std::vector<float> &src = _hiddenSummationTemp[_back]._data_float;
 					std::vector<float> &dst = _hiddenStates[_front]._data_float;
-
-					std::vector<FixPoint> &src2 = _hiddenSummationTemp[_back]._data_fixP;
-					std::vector<FixPoint> &dst2 = _hiddenStates[_front]._data_fixP;
+#					ifdef _USE_FIXED_POINT
+					std::vector<FixedP> &src2 = _hiddenSummationTemp[_back]._data_fixP;
+					std::vector<FixedP> &dst2 = _hiddenStates[_front]._data_fixP;
+#					endif
 
 					const int nElements = _hiddenSummationTemp[_back]._size.x * _hiddenSummationTemp[_back]._size.y;
 #					pragma ivdep
 					for (int i = 0; i < nElements; ++i) {
 						const float stimulus = src[i];
 						dst[i] = (stimulus < 0.0f) ? 0.0f : ((stimulus > 1.0f) ? 1.0f : stimulus);
+#						ifdef _USE_FIXED_POINT
 						dst2[i] = src2[i];
+#						endif
 					}
 				} else
 				{
@@ -251,10 +254,10 @@ namespace feynman {
 			printf("Running PredictorLayer::speedTest\n");
 			std::mt19937 generator(static_cast<unsigned int>(time(nullptr)));
 
-			const int RADIUS = 20;
+			const int RADIUS = 6;
 			const float weightAlpha = 0.002;
-			const int2 visibleSize = { 128, 128 };
-			const int2 hiddenSize = { 96, 96 };
+			const int2 visibleSize = { 64, 64 };
+			const int2 hiddenSize = { 64, 64 };
 
 			const int weightDiam = RADIUS * 2 + 1;
 			const int numWeights = weightDiam * weightDiam;
@@ -335,9 +338,9 @@ namespace feynman {
 			printf("Running PredictorLayer::speedTest\n");
 			std::mt19937 generator(static_cast<unsigned int>(time(nullptr)));
 
-			const int RADIUS = 20;
-			const int2 visibleSize = { 128, 128 };
-			const int2 hiddenSize = { 96, 96 };
+			const int RADIUS = 6;
+			const int2 visibleSize = { 64, 64 };
+			const int2 hiddenSize = { 64, 64 };
 
 			const int weightDiam = RADIUS * 2 + 1;
 			const int numWeights = weightDiam * weightDiam;
@@ -450,7 +453,6 @@ namespace feynman {
 			}
 			const float sumCurrent = read_2D(hiddenSummationTempBack, hiddenPosition_x, hiddenPosition_y);
 			float sumNew = sumCurrent + subSum;
-			if (sumNew < 0.0f) sumNew = 0.0; else if (sumNew > 1.0f) sumNew = 1.0f;
 			write_2D(hiddenSummationTempFront, hiddenPosition_x, hiddenPosition_y, sumNew);
 		}
 
@@ -584,24 +586,52 @@ namespace feynman {
 			const int visiblePosStart_y = (CORNER) ? std::max(0, fieldLowerBound_y) : fieldLowerBound_y;
 			const int visiblePosEnd_y = (CORNER) ? std::min(visibleStatesPrev._size.y, fieldUpperBound_y + 1) : fieldUpperBound_y + 1;
 
-			const float error = weightAlpha * (read_2D(targets, hiddenPosition_x, hiddenPosition_y) - read_2D(hiddenStatesPrev, hiddenPosition_x, hiddenPosition_y));
+#			ifdef USE_FIXED_POINT
+				FixedP weightAlphaFP = toFixedP(weightAlpha);
+				if (weightAlphaFP == 0) printf("WARNING: plLearnPredWeights_kernel weightAlpha=%24.22f (%i) is too small\n", weightAlpha, toFixedP(weightAlpha));
 
-#			pragma ivdep
-			for (int visiblePosition_x = visiblePosStart_x; visiblePosition_x < visiblePosEnd_x; ++visiblePosition_x) {
-				const int offset_x = visiblePosition_x - fieldLowerBound_x;
+				const float error_old = weightAlpha * (read_2D(targets, hiddenPosition_x, hiddenPosition_y) - read_2D(hiddenStatesPrev, hiddenPosition_x, hiddenPosition_y));
+				const FixedP2 error = multiply(weightAlphaFP, (read_2D_fixp(targets, hiddenPosition_x, hiddenPosition_y) - read_2D_fixp(hiddenStatesPrev, hiddenPosition_x, hiddenPosition_y)));
+
+				//printf("INFO: plLearnPredWeights_kernel weightAlpha=%24.22f (%i); error=%24.22 (%i); error_old=%24.22f (%i)\n", weightAlpha, toFixedP(weightAlpha), toFloat(error), error, error_old, toFixedP(error_old));
 
 #				pragma ivdep
-				for (int visiblePosition_y = visiblePosStart_y; visiblePosition_y < visiblePosEnd_y; ++visiblePosition_y) {
-					const int offset_y = visiblePosition_y - fieldLowerBound_y;
+				for (int visiblePosition_x = visiblePosStart_x; visiblePosition_x < visiblePosEnd_x; ++visiblePosition_x) {
+					const int offset_x = visiblePosition_x - fieldLowerBound_x;
 
-					const int wi = offset_y + (offset_x * ((RADIUS * 2) + 1));
-					const float weightPrev = read_3D(weightsBack, hiddenPosition_x, hiddenPosition_y, wi);
-					const float visibleStatePrev = read_2D(visibleStatesPrev, visiblePosition_x, visiblePosition_y);
-					float weight = weightPrev + (error * visibleStatePrev);
-					if (weight < 0.0f) weight = 0.0; else if (weight > 1.0f) weight = 1.0f;
-					write_3D(weightsFront, hiddenPosition_x, hiddenPosition_y, wi, weight);
+#					pragma ivdep
+					for (int visiblePosition_y = visiblePosStart_y; visiblePosition_y < visiblePosEnd_y; ++visiblePosition_y) {
+						const int offset_y = visiblePosition_y - fieldLowerBound_y;
+
+						const int wi = offset_y + (offset_x * ((RADIUS * 2) + 1));
+						const FixedP weightPrev = read_3D_fixp(weightsBack, hiddenPosition_x, hiddenPosition_y, wi);
+						const FixedP visibleStatePrev = read_2D_fixp(visibleStatesPrev, visiblePosition_x, visiblePosition_y);
+						const FixedP wD = multiply_saturate(error, visibleStatePrev);
+						const FixedP weight = add_saturate(weightPrev, wD);
+
+						//printf("WARNING: plLearnPredWeights_kernel weightPrev=%24.22f (%i); weight=%24.22f (%i)\n", toFloat(weightPrev), weightPrev, toFloat(weight), weight);
+						write_3D_fixp(weightsFront, hiddenPosition_x, hiddenPosition_y, wi, weight);
+					}
 				}
-			}
+#			else
+				const float error = weightAlpha * (read_2D(targets, hiddenPosition_x, hiddenPosition_y) - read_2D(hiddenStatesPrev, hiddenPosition_x, hiddenPosition_y));
+
+#				pragma ivdep
+				for (int visiblePosition_x = visiblePosStart_x; visiblePosition_x < visiblePosEnd_x; ++visiblePosition_x) {
+					const int offset_x = visiblePosition_x - fieldLowerBound_x;
+
+#					pragma ivdep
+					for (int visiblePosition_y = visiblePosStart_y; visiblePosition_y < visiblePosEnd_y; ++visiblePosition_y) {
+						const int offset_y = visiblePosition_y - fieldLowerBound_y;
+
+						const int wi = offset_y + (offset_x * ((RADIUS * 2) + 1));
+						const float weightPrev = read_3D(weightsBack, hiddenPosition_x, hiddenPosition_y, wi);
+						const float visibleStatePrev = read_2D(visibleStatesPrev, visiblePosition_x, visiblePosition_y);
+						float weight = weightPrev + (error * visibleStatePrev);
+						write_3D(weightsFront, hiddenPosition_x, hiddenPosition_y, wi, weight);
+					}
+				}
+#			endif
 		}
 
 		template <int RADIUS>

@@ -28,7 +28,7 @@ namespace plots {
 
 		for (int x = 0; x < hInWidth; ++x) {
 			for (int y = 0; y < hInHeight; ++y) {
-				float pixelValue = toFloat(image._data_fixP[x + (y * hInWidth)]);
+				float pixelValue = image._data_float[x + (y * hInWidth)];
 				sf::Color c;
 				c.r = c.g = c.b = static_cast<sf::Uint8>(255 * std::min(1.0f, std::max(0.0f, pixelValue)));
 				sdrImg.setPixel(x, y, c);
