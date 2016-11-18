@@ -6,8 +6,8 @@
 #include "SequenceRecall.ipp"
 #include "SparseFeatures.ipp"
 #include "RecallTests.ipp"
-#include "SparseCOderTests.ipp"
-
+#include "SparseCoderTests.ipp"
+#include "ScalarEncoderTests.ipp"
 
 int main()
 {
@@ -22,8 +22,8 @@ int main()
 	if (false) video::video_Prediction();
 	if (false) sequenceRecall();
 	if (false) recallTest_AAAX();
-	if (true) sparseCoderTests::SparseCoderTests();
-
+	if (false) sparseCoderTests::SparseCoderTests();
+	if (true) scalarEncoderTests::ScalarEncoderTests();
 
 	std::cout << "Press any key to close" << std::endl;
 	std::cin.ignore();

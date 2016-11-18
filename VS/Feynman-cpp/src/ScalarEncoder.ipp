@@ -41,14 +41,13 @@ namespace feynman {
 		\param seed rng seed, same seed gives same scalar encoder results.
 		*/
 		void createRandom(
-			int numInputs, 
-			int numOutputs, 
-			float initMinWeight, 
-			float initMaxWeight, 
-			int seed) 
+			const int numInputs, 
+			const int numOutputs, 
+			const float initMinWeight, 
+			const float initMaxWeight, 
+			const int seed) 
 		{
 			std::uniform_real_distribution<float> weightDist(initMinWeight, initMaxWeight);
-
 			std::mt19937 rng(seed);
 
 			_encoderOutputs.clear();
@@ -60,13 +59,13 @@ namespace feynman {
 			_biases.clear();
 			_biases.assign(numOutputs, 0.0f);
 
-			for (int i = 0; i < _biases.size(); i++)
+			for (size_t i = 0; i < _biases.size(); ++i) {
 				_biases[i] = weightDist(rng);
-
+			}
 			_weightsEncode.resize(numInputs * numOutputs);
 			_weightsDecode.resize(numInputs * numOutputs);
 
-			for (int i = 0; i < _weightsEncode.size(); i++) {
+			for (size_t i = 0; i < _weightsEncode.size(); i++) {
 				_weightsEncode[i] = weightDist(rng);
 				_weightsDecode[i] = weightDist(rng);
 			}
@@ -81,19 +80,22 @@ namespace feynman {
 		*/
 		void encode(
 			const std::vector<float> &inputs, 
-			float activeRatio, 
-			float alpha, 
-			float beta) 
+			const float activeRatio, 
+			const float alpha, 
+			const float beta) 
 		{
-			assert(inputs.size() == _weightsEncode.size() / _encoderOutputs.size());
+			if (inputs.size() != (_weightsEncode.size() / _encoderOutputs.size())) {
+				printf("WARNING: ScalarEncoder:encode: incorrect number of inputs");
+				return;
+			}
 
 			// Compute activations
 			std::vector<float> activations(_encoderOutputs.size());
 
-			for (int i = 0; i < _encoderOutputs.size(); i++) {
+			for (size_t i = 0; i < _encoderOutputs.size(); ++i) {
 				float sum = _biases[i];
 
-				for (int j = 0; j < inputs.size(); j++) {
+				for (size_t j = 0; j < inputs.size(); ++j) {
 					float delta = inputs[j] - _weightsEncode[i * inputs.size() + j];
 					sum += -delta * delta;
 				}
@@ -101,10 +103,10 @@ namespace feynman {
 			}
 
 			// Inhibit
-			for (int i = 0; i < _encoderOutputs.size(); i++) {
+			for (size_t i = 0; i < _encoderOutputs.size(); ++i) {
 				float numHigher = 0.0f;
 
-				for (int j = 0; j < _encoderOutputs.size(); j++) {
+				for (size_t j = 0; j < _encoderOutputs.size(); ++j) {
 					if (i == j) {
 						continue;
 					}
@@ -112,28 +114,28 @@ namespace feynman {
 						numHigher++;
 					}
 				}
-				_encoderOutputs[i] = numHigher < activeRatio * _encoderOutputs.size() ? 1.0f : 0.0f;
+				_encoderOutputs[i] = (numHigher < activeRatio * _encoderOutputs.size()) ? 1.0f : 0.0f;
 			}
 
 			std::vector<float> reconInputs(inputs.size());
 
 			// Reconstruct
-			for (int i = 0; i < inputs.size(); i++) {
+			for (size_t i = 0; i < inputs.size(); ++i) {
 				float sum = 0.0f;
-				for (int j = 0; j < _encoderOutputs.size(); j++) {
+				for (size_t j = 0; j < _encoderOutputs.size(); ++j) {
 					sum += _weightsDecode[j * inputs.size() + i] * _encoderOutputs[j];
 				}
 				reconInputs[i] = sum * activeRatio;
 			}
 
 			// Learn
-			for (int i = 0; i < inputs.size(); i++) {
-				for (int j = 0; j < _encoderOutputs.size(); j++)
+			for (size_t i = 0; i < inputs.size(); ++i) {
+				for (size_t j = 0; j < _encoderOutputs.size(); ++j)
 					_weightsDecode[j * inputs.size() + i] += alpha * (inputs[i] - reconInputs[i]) * _encoderOutputs[j];
 			}
 
 			// Bias update
-			for (int i = 0; i < _biases.size(); i++) {
+			for (size_t i = 0; i < _biases.size(); i++) {
 				_biases[i] += beta * (activeRatio - _encoderOutputs[i]);
 			}
 		}
@@ -145,13 +147,16 @@ namespace feynman {
 		void decode(
 			const std::vector<float> &outputs) 
 		{
-			assert(outputs.size() == _encoderOutputs.size());
+			if (outputs.size() != _encoderOutputs.size()) {
+				printf("WARNING: ScalarEncoder:decode: incorrect number of outputs");
+				return;
+			}
 
-			for (size_t i = 0; i < _decoderOutputs.size(); i++) {
+			for (size_t i = 0; i < _decoderOutputs.size(); ++i) {
 				float sum = 0.0f;
 				float count = 0.0f;
 
-				for (int j = 0; j < outputs.size(); j++) {
+				for (size_t j = 0; j < outputs.size(); ++j) {
 					sum += _weightsEncode[j * _decoderOutputs.size() + i] * outputs[j];
 					count += outputs[j];
 				}

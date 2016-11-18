@@ -296,7 +296,7 @@ namespace feynman {
 			std::vector<Image2D> &reconstructions)
 		{
 			if (reconstructions.size() != _visibleLayers.size()) {
-				printf("WARNING: incorrect number of reconstructions");
+				printf("WARNING: SparseCoder:reconstruct: incorrect number of reconstructions");
 				return;
 			}
 			for (size_t vli = 0; vli < _visibleLayers.size(); vli++) {

@@ -81,6 +81,9 @@
     <None Include="src\SparseCoderTests.ipp">
       <Filter>Source Files</Filter>
     </None>
+    <None Include="src\ScalarEncoderTests.ipp">
+      <Filter>Source Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Main.cpp">

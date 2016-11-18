@@ -207,6 +207,7 @@
     <None Include="src\PredictorLayer.ipp" />
     <None Include="src\RecallTests.ipp" />
     <None Include="src\ScalarEncoder.ipp" />
+    <None Include="src\ScalarEncoderTests.ipp" />
     <None Include="src\SequenceRecall.ipp" />
     <None Include="src\SparseCoder.ipp" />
     <None Include="src\SparseCoderTests.ipp" />
