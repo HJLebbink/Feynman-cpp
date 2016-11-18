@@ -247,18 +247,17 @@ namespace feynman {
 					vl._reconError,				// out
 					vl._weights[_back],			// in
 					vld._size,
-					//_hiddenSize,
+					_hiddenSize,
 					vl._visibleToHidden,
 					vl._hiddenToVisible,
 					vld._radius,
-					vl._reverseRadii,
-					vld._size);
+					vl._reverseRadii);
 
-				//plots::plotImage(vl._reconError, 16.0f, "reconError");
+				plots::plotImage(vl._reconError, 8.0f, "reconError");
 			}
 
 			// Learn weights
-			for (size_t vli = 0; vli < _visibleLayers.size(); vli++) {
+			for (size_t vli = 0; vli < _visibleLayers.size(); ++vli) {
 				VisibleLayer &vl = _visibleLayers[vli];
 				VisibleLayerDesc &vld = _visibleLayerDescs[vli];
 
@@ -272,8 +271,7 @@ namespace feynman {
 					vl._hiddenToVisible,
 					vld._radius,
 					//activeRatio,				// unused
-					vld._weightAlpha,
-					_hiddenSize);
+					vld._weightAlpha);
 
 				std::swap(vl._weights[_front], vl._weights[_back]);
 			}
@@ -448,20 +446,19 @@ namespace feynman {
 			const Image2D &visibleStates, // was float2
 			Image2D &reconErrors,		// write only
 			const Image3D &weights,
-			//const int2 /*visibleSize*/, // unused
+			const int2 visibleSize,
 			const int2 hiddenSize,
 			const float2 visibleToHidden,
 			const float2 hiddenToVisible,
 			const int radius,
-			const int2 reverseRadii,
-			const int2 range)
+			const int2 reverseRadii)
 		{
 #			pragma ivdep
-			for (int x = 0; x < range.x; ++x) {
+			for (int x = 0; x < visibleSize.x; ++x) {
 				const int hiddenPositionCenter_x = static_cast<int>(x * visibleToHidden.x + 0.5f);
 
 #				pragma ivdep
-				for (int y = 0; y < range.y; ++y) {
+				for (int y = 0; y < visibleSize.y; ++y) {
 					const int hiddenPositionCenter_y = static_cast<int>(y * visibleToHidden.y + 0.5f);
 
 					float recon = 0.0f;
@@ -511,6 +508,91 @@ namespace feynman {
 				}
 			}
 		}
+
+		static void scReverse_NEW(
+			const Image2D &hiddenStates,
+			const Image2D &visibleStates, // was float2
+			Image2D &reconErrors,		// write only
+			const Image3D &weights,
+			const int2 visibleSize,
+			const int2 hiddenSize,
+			const float2 visibleToHidden,
+			const float2 hiddenToVisible,
+			const int radius,
+			const int2 reverseRadii)
+		{
+			const bool CORNER = true;
+
+			for (int visiblePosition_x = 0; visiblePosition_x < visibleSize.x; ++visiblePosition_x) {
+				for (int visiblePosition_y = 0; visiblePosition_y < visibleSize.y; ++visiblePosition_y) {
+
+					/*
+					const int visiblePositionCenter_x = project(hiddenPosition_x, hiddenToVisible.x);
+					const int fieldLowerBound_x = visiblePositionCenter_x - RADIUS;
+					const int fieldUpperBound_x = visiblePositionCenter_x + RADIUS;
+					const int visiblePosStart_x = (CORNER) ? std::max(0, fieldLowerBound_x) : fieldLowerBound_x;
+					const int visiblePosEnd_x = (CORNER) ? std::min(visibleSize.x, fieldUpperBound_x + 1) : fieldUpperBound_x + 1;
+
+					const int visiblePositionCenter_y = project(hiddenPosition_y, hiddenToVisible.y);
+					const int fieldLowerBound_y = visiblePositionCenter_y - RADIUS;
+					const int fieldUpperBound_y = visiblePositionCenter_y + RADIUS;
+					const int visiblePosStart_y = (CORNER) ? std::max(0, fieldLowerBound_y) : fieldLowerBound_y;
+					const int visiblePosEnd_y = (CORNER) ? std::min(visibleSize.y, fieldUpperBound_y + 1) : fieldUpperBound_y + 1;
+					*/
+					const int hiddenPositionCenter_x = static_cast<int>(visiblePosition_x * visibleToHidden.x + 0.5f);
+					const int fieldLowerBound_x = hiddenPositionCenter_x - reverseRadii.x;
+					const int fieldUpperBound_x = hiddenPositionCenter_x + reverseRadii.x;
+					const int hiddenPosStart_x = (CORNER) ? std::max(0, fieldLowerBound_x) : fieldLowerBound_x;
+					const int hiddenPosEnd_x = (CORNER) ? std::min(hiddenSize.x, fieldUpperBound_x + 1) : fieldUpperBound_x + 1;
+
+					const int hiddenPositionCenter_y = static_cast<int>(visiblePosition_y * visibleToHidden.y + 0.5f);
+					const int fieldLowerBound_y = hiddenPositionCenter_y - reverseRadii.y;
+					const int fieldUpperBound_y = hiddenPositionCenter_y + reverseRadii.y;
+					const int hiddenPosStart_y = (CORNER) ? std::max(0, fieldLowerBound_y) : fieldLowerBound_y;
+					const int hiddenPosEnd_y = (CORNER) ? std::min(hiddenSize.y, fieldUpperBound_y + 1) : fieldUpperBound_y + 1;
+
+					float recon = 0.0f;
+					//float div = 0.0f;
+
+#					pragma ivdep
+					for (int hiddenPosition_x = hiddenPosStart_x; hiddenPosition_x <= hiddenPosEnd_x; ++hiddenPosition_x) {
+
+						const int fieldCenter_x = static_cast<int>(hiddenPosition_x * hiddenToVisible.x + 0.5f);
+						const int fieldLowerBound_x = fieldCenter_x - radius;
+						const int fieldUpperBound_x = fieldCenter_x + radius + 1; // So is included in inBounds
+
+																				  // Check for containment
+						if (inBounds(visiblePosition_x, fieldLowerBound_x, fieldUpperBound_x)) {
+							const int offset_x = visiblePosition_x - fieldLowerBound_x;
+
+#							pragma ivdep
+							for (int hiddenPosition_y = hiddenPosStart_y; hiddenPosition_y <= hiddenPosEnd_y; ++hiddenPosition_y) {
+
+								// Next layer node's receptive field
+								const int fieldCenter_y = static_cast<int>(hiddenPosition_y * hiddenToVisible.y + 0.5f);
+
+								const int fieldLowerBound_y = fieldCenter_y - radius;
+								const int fieldUpperBound_y = fieldCenter_y + radius + 1; // So is included in inBounds
+
+								if (inBounds(visiblePosition_y, fieldLowerBound_y, fieldUpperBound_y)) {
+									const int offset_y = visiblePosition_y - fieldLowerBound_y;
+
+									const float hiddenState = read_2D(hiddenStates, hiddenPosition_x, hiddenPosition_y);
+									const int wi = offset_y + (offset_x * ((radius * 2) + 1));
+									const float weight = read_3D(weights, hiddenPosition_x, hiddenPosition_y, wi);
+									recon += hiddenState * weight;
+									//div += hiddenState;
+								}
+							}
+						}
+					}
+
+					const float visibleState = read_2D(visibleStates, visiblePosition_x, visiblePosition_y);
+					write_2D(reconErrors, visiblePosition_x, visiblePosition_y, visibleState - recon);
+				}
+			}
+		}
+
 
 		//Create SDR in hiddenStatesFront from activations
 		static void scSolveHidden(
@@ -577,43 +659,43 @@ namespace feynman {
 			Image3D &weightsFront, // write only
 			const int2 visibleSize,
 			const float2 hiddenToVisible,
-			const int radius,
+			const int RADIUS,
 			//const float /*activeRatio*/,
-			const float weightAlpha,
-			const int2 range)
+			const float weightAlpha)
 		{
-			for (int x = 0; x < range.x; ++x) {
-				const int visiblePositionCenter_x = static_cast<int>(x * hiddenToVisible.x + 0.5f);
-				const int fieldLowerBound_x = visiblePositionCenter_x - radius;
+			const bool CORNER = true;
 
-				for (int y = 0; y < range.y; ++y) {
-					const int visiblePositionCenter_y = static_cast<int>(y * hiddenToVisible.y + 0.5f);
-					const int fieldLowerBound_y = visiblePositionCenter_y - radius;
+			for (int hiddenPosition_x = 0; hiddenPosition_x < hiddenStates._size.x; ++hiddenPosition_x) {
+				for (int hiddenPosition_y = 0; hiddenPosition_y < hiddenStates._size.y; ++hiddenPosition_y) {
 
-					const float hiddenState = read_2D(hiddenStates, x, y);
+					const int visiblePositionCenter_x = project(hiddenPosition_x, hiddenToVisible.x);
+					const int fieldLowerBound_x = visiblePositionCenter_x - RADIUS;
+					const int fieldUpperBound_x = visiblePositionCenter_x + RADIUS;
+					const int visiblePosStart_x = (CORNER) ? std::max(0, fieldLowerBound_x) : fieldLowerBound_x;
+					const int visiblePosEnd_x = (CORNER) ? std::min(visibleSize.x, fieldUpperBound_x + 1) : fieldUpperBound_x + 1;
+
+					const int visiblePositionCenter_y = project(hiddenPosition_y, hiddenToVisible.y);
+					const int fieldLowerBound_y = visiblePositionCenter_y - RADIUS;
+					const int fieldUpperBound_y = visiblePositionCenter_y + RADIUS;
+					const int visiblePosStart_y = (CORNER) ? std::max(0, fieldLowerBound_y) : fieldLowerBound_y;
+					const int visiblePosEnd_y = (CORNER) ? std::min(visibleSize.y, fieldUpperBound_y + 1) : fieldUpperBound_y + 1;
+
+					const float hiddenState = read_2D(hiddenStates, hiddenPosition_x, hiddenPosition_y);
 					//const float hiddenStatePrev = read_imagef_2D(hiddenStatesPrev, hiddenPosition); // unused
 
 #					pragma ivdep
-					for (int dx = -radius; dx <= radius; ++dx) {
-						const int visiblePosition_x = visiblePositionCenter_x + dx;
+					for (int visiblePosition_x = visiblePosStart_x; visiblePosition_x < visiblePosEnd_x; ++visiblePosition_x) {
+						const int offset_x = visiblePosition_x - fieldLowerBound_x;
 
-						if (inBounds(visiblePosition_x, visibleSize.x)) {
-							const int offset_x = visiblePosition_x - fieldLowerBound_x;
+#						pragma ivdep
+						for (int visiblePosition_y = visiblePosStart_y; visiblePosition_y < visiblePosEnd_y; ++visiblePosition_y) {
+							const int offset_y = visiblePosition_y - fieldLowerBound_y;
 
-#							pragma ivdep
-							for (int dy = -radius; dy <= radius; ++dy) {
-								const int visiblePosition_y = visiblePositionCenter_y + dy;
-
-								if (inBounds(visiblePosition_y, visibleSize.y)) {
-									const int offset_y = visiblePosition_y - fieldLowerBound_y;
-
-									const int wi = offset_y + (offset_x * ((radius * 2) + 1));
-									const float weightPrev = read_3D(weightsBack, x, y, wi);
-									const float reconError = read_2D(reconErrors, visiblePosition_x, visiblePosition_y);
-									const float newWeight = weightPrev + weightAlpha * hiddenState * reconError;
-									write_3D(weightsFront, x, y, wi, newWeight);
-								}
-							}
+							const int wi = offset_y + (offset_x * ((RADIUS * 2) + 1));
+							const float weightPrev = read_3D(weightsBack, hiddenPosition_x, hiddenPosition_y, wi);
+							const float reconError = read_2D(reconErrors, visiblePosition_x, visiblePosition_y);
+							const float newWeight = weightPrev + (weightAlpha * hiddenState * reconError);
+							write_3D(weightsFront, hiddenPosition_x, hiddenPosition_y, wi, newWeight);
 						}
 					}
 				}
@@ -635,7 +717,7 @@ namespace feynman {
 				for (int i = 0; i < nElements; ++i) {
 					const float hiddenState = hiddenStates._data_float[i];
 					const float hiddenThresholdPrev = hiddenThresholdsBack._data_float[i];
-					hiddenThresholdsFront._data_float[i] = hiddenThresholdPrev + thresholdAlpha * (activeRatio - hiddenState);
+					hiddenThresholdsFront._data_float[i] = hiddenThresholdPrev + (thresholdAlpha * (activeRatio - hiddenState));
 				}
 
 #				ifdef USE_FIXED_POINT

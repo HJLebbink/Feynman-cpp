@@ -104,7 +104,7 @@ namespace mnist {
 		// --------------------------- Create the Predictor ---------------------------
 		Predictor predictor;
 		{
-			std::vector<Predictor::PredLayerDesc> predictiveLayerDescs(4); // Predictor layer descriptors
+			std::vector<Predictor::PredictorLayerDesc> predictiveLayerDescs(4); // Predictor layer descriptors
 			std::vector<FeatureHierarchy::LayerDesc> layerDescs(4); // Matching feature layer descriptors
 
 			// Sizes
@@ -304,7 +304,7 @@ namespace mnist {
 				}
 			}
 
-			if (totalSamples == 10) quit = true;
+			if (totalSamples == 100) quit = true;
 
 			window.clear();
 
@@ -407,9 +407,9 @@ namespace mnist {
 						sf::Color c = renderTextureImg.getPixel(x, y);
 						const float mono = 0.333f * (c.r / 255.0f + c.b / 255.0f + c.g / 255.0f);
 						write_2D(scInputImage, y, x, mono);
-						//scInputImage._data_float[x + y * renderTextureImg.getSize().x] = mono;
 					}
 				}
+				plots::plotImage(scInputImage, 8.0f, "scInputImage");
 			}
 
 			// Activate sparse coder
@@ -567,9 +567,15 @@ namespace mnist {
 				if (true) {
 					if (true) {
 						//const Image2D &newSDR_image = sparseCoder.getHiddenStates()[_back];
-						plots::plotImage(newSDR_image, { 0.0f, 0.0f }, 2.0f, window);
+						plots::plotImage(newSDR_image, 8.0f, "SDR Current");
 					}
-					if (false) {
+					if (true) {
+						Image2D image2 = Image2D(scInputImage._size);
+						std::vector<Image2D> reconstructions = { image2 };
+						sparseCoder.reconstruct(newSDR_image, reconstructions);
+						plots::plotImage(reconstructions.front(), 10.0f, "SDR Current Visual");
+					}
+					if (true) {
 						//const Image2D &predSDR_image = predictor.getPrediction();
 						plots::plotImage(predSDR_image, 8.0f, "SDR Prediction");
 					}
@@ -577,10 +583,9 @@ namespace mnist {
 						Image2D image2 = Image2D(scInputImage._size);
 						std::vector<Image2D> reconstructions = { image2 };
 						sparseCoder.reconstruct(predSDR_image, reconstructions);
-						plots::plotImage(reconstructions.front(), 8.0f, "Visual Prediction");
+						plots::plotImage(reconstructions.front(), 10.0f, "SDR Prediction Visual");
 					}
 				}
-
 				window.display();
 			}
 		}

@@ -6,6 +6,8 @@
 #include "SequenceRecall.ipp"
 #include "SparseFeatures.ipp"
 #include "RecallTests.ipp"
+#include "SparseCOderTests.ipp"
+
 
 int main()
 {
@@ -17,9 +19,11 @@ int main()
 		PredictorLayer::speedTest(1000);
 	}
 	if (false) mnist::mnist_Anomaly_Detection();
-	if (true) video::video_Prediction();
+	if (false) video::video_Prediction();
 	if (false) sequenceRecall();
 	if (false) recallTest_AAAX();
+	if (true) sparseCoderTests::SparseCoderTests();
+
 
 	std::cout << "Press any key to close" << std::endl;
 	std::cin.ignore();

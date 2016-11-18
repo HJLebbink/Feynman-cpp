@@ -55,7 +55,7 @@ namespace video {
 #		endif
 
 		// Parameters
-		const int frameSkip = 4; // Frames to skip
+		const int frameSkip = 3; // Frames to skip
 		const float videoScale = 1.0f; // Rescale ratio
 		const float blendPred = 0.0f; // Ratio of how much prediction to blend in to input (part of input corruption)
 
@@ -72,22 +72,24 @@ namespace video {
 		Predictor predictor;
 		{
 			// Hierarchy structure
-			std::vector<FeatureHierarchy::LayerDesc> layerDescs(3);
-			std::vector<Predictor::PredLayerDesc> pLayerDescs(3);
+			std::vector<FeatureHierarchy::LayerDesc> layerDescs(5);
+			std::vector<Predictor::PredictorLayerDesc> pLayerDescs(5);
 
 			layerDescs[0]._size = { 64, 64 };
 			layerDescs[1]._size = { 64, 64 };
 			layerDescs[2]._size = { 64, 64 };
+			layerDescs[3]._size = { 32, 32 };
+			layerDescs[4]._size = { 32, 32 };
 
 			for (size_t l = 0; l < layerDescs.size(); l++) {
-				layerDescs[l]._recurrentRadius = 6;
-				layerDescs[l]._spActiveRatio = 0.04f;
+				layerDescs[l]._recurrentRadius = 20;
+				layerDescs[l]._spActiveRatio = 0.01f;
 				layerDescs[l]._spBiasAlpha = 0.01f;
 
 				pLayerDescs[l]._alpha = 0.08f;
 				pLayerDescs[l]._beta = 0.16f;
 			}
-			predictor.createRandom({ static_cast<int>(rescaleRT.getSize().x), static_cast<int>(rescaleRT.getSize().y) }, pLayerDescs, layerDescs, { 0.0f, 0.01f }, generator);
+			predictor.createRandom({ static_cast<int>(rescaleRT.getSize().x), static_cast<int>(rescaleRT.getSize().y) }, pLayerDescs, layerDescs, { -0.01f, 0.01f }, generator);
 			if (true) predictor.getMemoryUsage(true);
 		}
 
@@ -98,7 +100,7 @@ namespace video {
 		std::normal_distribution<float> noiseDist(0.0f, 1.0f);
 
 		// Training time
-		const int numIter = 6;
+		const int numIter = 20;
 
 		// UI update resolution
 		const int progressBarLength = 40;

@@ -24,14 +24,14 @@ namespace feynman {
 
 	public:
 		//Description of a predictor layer
-		struct PredLayerDesc {
+		struct PredictorLayerDesc {
 			//Predictor layer properties. Radius onto hidden layer, learning rates for feed-forward and feed-back.
 			int _radius;
 			float _alpha;
 			float _beta;
 
 			//Initialize defaults
-			PredLayerDesc()
+			PredictorLayerDesc()
 				: _radius(8), _alpha(0.08f), _beta(0.16f)
 			{}
 		};
@@ -40,7 +40,7 @@ namespace feynman {
 
 		FeatureHierarchy _featureHierarchy;
 		int2 _inputSize;
-		std::vector<PredLayerDesc> _pLayerDescs;
+		std::vector<PredictorLayerDesc> _pLayerDescs;
 		std::vector<PredictorLayer> _predictorLayers;
 
 	public:
@@ -58,7 +58,7 @@ namespace feynman {
 		*/
 		void createRandom(
 			const int2 inputSize, 
-			const std::vector<PredLayerDesc> &pLayerDescs, 
+			const std::vector<PredictorLayerDesc> &pLayerDescs, 
 			const std::vector<FeatureHierarchy::LayerDesc> &hLayerDescs,
 			const float2 initWeightRange,
 			std::mt19937 &rng, 
@@ -207,7 +207,7 @@ namespace feynman {
 		}
 
 		//Get access to a predictor layer desc
-		const PredLayerDesc &getPLayerDesc(int index) const {
+		const PredictorLayerDesc &getPLayerDesc(int index) const {
 			return _pLayerDescs[index];
 		}
 

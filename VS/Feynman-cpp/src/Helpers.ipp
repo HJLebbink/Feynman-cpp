@@ -26,6 +26,23 @@ namespace feynman {
 	struct uint2 { unsigned int x, y; };
 	struct float2 { float x, y; };
 
+	int inline pos(const int2 coord, const int2 size) {
+		return (coord.x * size.y) + coord.y;
+	}
+
+	int inline pos(const int coord_x, const int coord_y, const int size_y) {
+		return (coord_x * size_y) + coord_y;
+	}
+
+	int inline pos(const int3 coord, const int3 size) {
+		return (coord.x * size.y * size.z) + (coord.y * size.z) + coord.z;
+	}
+
+	int inline pos(const int coord_x, const int coord_y, const int coord_z, const int size_y, const int size_z) {
+		return (coord_x * size_y * size_z) + (coord_y * size_z) + coord_z;
+	}
+
+
 	struct Image2D {
 		std::vector<float> _data_float;
 #ifdef USE_FIXED_POINT
@@ -44,6 +61,16 @@ namespace feynman {
 			_data_fixP.resize(nElements);
 #endif
 		}
+
+		/*
+		void setPixel(int x, int y, float value) {
+			_data_float[pos(x, y, _size.y)] = value;
+		}
+
+		float getPixel(int x, int y) {
+			return _data_float[pos(x, y, _size.y)];
+		}
+		*/
 		void swap(Image2D& other) {
 			_data_float.swap(other._data_float);
 #ifdef USE_FIXED_POINT
@@ -80,22 +107,6 @@ namespace feynman {
 			other._size = tmp;
 		}
 	};
-
-	int inline pos(const int2 coord, const int2 size) {
-		return (coord.x * size.y) + coord.y;
-	}
-
-	int inline pos(const int coord_x, const int coord_y, const int size_y) {
-		return (coord_x * size_y) + coord_y;
-	}
-
-	int inline pos(const int3 coord, const int3 size) {
-		return (coord.x * size.y * size.z) + (coord.y * size.z) + coord.z;
-	}
-
-	int inline pos(const int coord_x, const int coord_y, const int coord_z, const int size_y, const int size_z) {
-		return (coord_x * size_y * size_z) + (coord_y * size_z) + coord_z;
-	}
 
 	float inline read_2D(const Image2D &image, const int coord_x, const int coord_y)
 	{

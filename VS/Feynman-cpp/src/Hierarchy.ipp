@@ -55,7 +55,7 @@ namespace feynman {
 
 			int2 inputSize = { inputWidth, inputHeight };
 
-			std::vector<Predictor::PredLayerDesc> pLayerDescs(layerDescs.size());
+			std::vector<Predictor::PredictorLayerDesc> pLayerDescs(layerDescs.size());
 			std::vector<FeatureHierarchy::LayerDesc> hLayerDescs(layerDescs.size());
 
 			for (int l = 0; l < layerDescs.size(); l++) {

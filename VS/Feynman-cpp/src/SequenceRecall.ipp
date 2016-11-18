@@ -27,7 +27,7 @@ void sequenceRecall() {
 
 	// Hierarchy structure
 	std::vector<FeatureHierarchy::LayerDesc> layerDescs(3);
-	std::vector<Predictor::PredLayerDesc> pLayerDescs(3);
+	std::vector<Predictor::PredictorLayerDesc> pLayerDescs(3);
 
 	layerDescs[0]._size = { 16, 16 };
 	layerDescs[1]._size = { 16, 16 };
