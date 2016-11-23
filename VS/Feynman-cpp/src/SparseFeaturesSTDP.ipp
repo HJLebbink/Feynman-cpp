@@ -148,22 +148,24 @@ namespace feynman {
 			_activeRatio(activeRatio),
 			_gamma(gamma)
 		{
+			// last checked: 23-nov
+
 			_type = SparseFeaturesType::_stdp;
 			_visibleLayerDescs = visibleLayerDescs;
 			_visibleLayers.resize(_visibleLayerDescs.size());
 
 			// Create layers
-			for (int vli = 0; vli < static_cast<int>(_visibleLayers.size()); ++vli) {
+			for (size_t vli = 0; vli < _visibleLayers.size(); ++vli) {
 				VisibleLayer &vl = _visibleLayers[vli];
 				VisibleLayerDesc &vld = _visibleLayerDescs[vli];
 
 				vl._hiddenToVisible = float2{
-					static_cast<float>(vld._size.x) / static_cast<float>(_hiddenSize.x),
-					static_cast<float>(vld._size.y) / static_cast<float>(_hiddenSize.y)
+					static_cast<float>(vld._size.x) / _hiddenSize.x,
+					static_cast<float>(vld._size.y) / _hiddenSize.y
 				};
 				vl._visibleToHidden = float2{
-					static_cast<float>(_hiddenSize.x) / static_cast<float>(vld._size.x),
-					static_cast<float>(_hiddenSize.y) / static_cast<float>(vld._size.y)
+					static_cast<float>(_hiddenSize.x) / vld._size.x,
+					static_cast<float>(_hiddenSize.y) / vld._size.y
 				};
 				vl._reverseRadii = int2{
 					static_cast<int>(std::ceil(vl._visibleToHidden.x * vld._radius) + 1),
@@ -172,7 +174,7 @@ namespace feynman {
 				{
 					const int weightDiam = vld._radius * 2 + 1;
 					const int numWeights = weightDiam * weightDiam;
-					const int3 weightsSize = { _hiddenSize.x, _hiddenSize.y, numWeights };
+					const int3 weightsSize = int3{ _hiddenSize.x, _hiddenSize.y, numWeights };
 					vl._weights = createDoubleBuffer3D(weightsSize);
 					randomUniform3D(vl._weights[_back], weightsSize, initWeightRange, rng);
 				}
@@ -189,10 +191,13 @@ namespace feynman {
 			clear(_hiddenActivations[_back]);
 			clear(_hiddenStates[_back]);
 
-			randomUniform2D(_hiddenBiases[_back], _hiddenSize, initWeightRange, rng);
-			clear(_hiddenBiases[_back]);
+			if (false) {
+				randomUniform2D(_hiddenBiases[_back], _hiddenSize, initWeightRange, rng);
+			}
+			else {
+				clear(_hiddenBiases[_back]);
+			}
 		}
-
 
 		/*!
 		\brief Activate predictor
@@ -205,17 +210,18 @@ namespace feynman {
 			const Image2D &predictionsPrev,
 			std::mt19937 &rng) override
 		{
-			// Start by clearing stimulus summation buffer to biases
+			// last checked: 23-nov
+
+			// Start by clearing stimulus summation buffer
 			clear(_hiddenSummationTemp[_back]);
 
 			// Find up stimulus
-			for (size_t vli = 0; vli < _visibleLayers.size(); vli++) {
+			for (size_t vli = 0; vli < _visibleLayers.size(); ++vli) {
 				VisibleLayer &vl = _visibleLayers[vli];
 				VisibleLayerDesc &vld = _visibleLayerDescs[vli];
 
 				sfsDeriveInputs(
 					visibleStates[vli],			// in
-					//vl._derivedInput[_back],	// unused
 					vl._derivedInput[_front],	// out
 					vld._size);
 
@@ -227,7 +233,8 @@ namespace feynman {
 					vld._size,
 					vl._hiddenToVisible,
 					vld._radius,
-					vld._ignoreMiddle);
+					vld._ignoreMiddle,
+					_hiddenSize);
 
 				// Swap buffers
 				std::swap(_hiddenSummationTemp[_front], _hiddenSummationTemp[_back]);
@@ -235,7 +242,7 @@ namespace feynman {
 
 			// Activate
 			std::uniform_int_distribution<int> seedDist(0, 9999);
-			uint2 seed = { static_cast<unsigned int>(seedDist(rng)), static_cast<unsigned int>(seedDist(rng)) };
+			const uint2 seed = { static_cast<unsigned int>(seedDist(rng)), static_cast<unsigned int>(seedDist(rng)) };
 
 			sfsActivate(
 				_hiddenSummationTemp[_back],	// in
@@ -243,7 +250,8 @@ namespace feynman {
 				_hiddenBiases[_back],			// in
 				_hiddenActivations[_back],		// ?
 				_hiddenActivations[_front],		// out
-				seed);
+				seed,
+				_hiddenSize);
 
 			// Inhibit
 			sfsInhibit(
@@ -253,12 +261,14 @@ namespace feynman {
 				_hiddenSize,
 				_inhibitionRadius,
 				_activeRatio,
-				_gamma);
+				_gamma,
+				_hiddenSize);
 		}
 		
 		//End a simulation step
 		void stepEnd() override
 		{
+			// last checked: 23-nov
 			std::swap(_hiddenActivations[_front], _hiddenActivations[_back]);
 			std::swap(_hiddenStates[_front], _hiddenStates[_back]);
 
@@ -277,6 +287,7 @@ namespace feynman {
 		*/
 		void learn(std::mt19937 &rng) override 
 		{
+			// last checked: 23-nov
 			// Learn weights
 			for (size_t vli = 0; vli < _visibleLayers.size(); vli++) {
 				VisibleLayer &vl = _visibleLayers[vli];
@@ -293,7 +304,8 @@ namespace feynman {
 					vld._size,
 					vl._hiddenToVisible,
 					vld._radius,
-					vld._weightAlpha
+					vld._weightAlpha,
+					_hiddenSize
 				);
 				std::swap(vl._weights[_front], vl._weights[_back]);
 			}
@@ -305,7 +317,8 @@ namespace feynman {
 				_hiddenBiases[_back],
 				_hiddenBiases[_front],
 				_activeRatio,
-				_biasAlpha
+				_biasAlpha,
+				_hiddenSize
 			);
 			std::swap(_hiddenBiases[_front], _hiddenBiases[_back]);
 		}
@@ -316,12 +329,14 @@ namespace feynman {
 		*/
 		void inhibit(const Image2D &activations, Image2D &states, std::mt19937 &rng) override 
 		{
+			// last checked: 23-nov
 			sfsInhibitPred(
 				activations,
 				states,
 				_hiddenSize,
 				_inhibitionRadius,
-				_activeRatio
+				_activeRatio,
+				_hiddenSize
 			);
 		}
 
@@ -364,6 +379,7 @@ namespace feynman {
 		\brief Clear the working memory
 		*/
 		void clearMemory() override {
+			// last checked: 23-nov
 			clear(_hiddenActivations[_back]);
 			clear(_hiddenStates[_back]);
 
@@ -372,10 +388,6 @@ namespace feynman {
 				clear(vl._derivedInput[_back]);
 			}
 		}
-
-
-
-
 
 		// approx memory usage in bytes;
 		size_t getMemoryUsage(bool plot) const {
@@ -543,7 +555,8 @@ namespace feynman {
 					weights,					// in
 					visibleSize,
 					hiddenToVisible,
-					ignoreMiddle);
+					ignoreMiddle,
+					hiddenSummationTempBack._size);
 
 				const double dt = ::tools::get_elapsed_mcycles();
 				min0 = std::min(min0, dt);
@@ -562,7 +575,8 @@ namespace feynman {
 					weights,					// in
 					visibleSize,
 					hiddenToVisible,
-					ignoreMiddle);
+					ignoreMiddle,
+					hiddenSummationTempBack._size);
 
 				const double dt = ::tools::get_elapsed_mcycles();
 				min1 = std::min(min1, dt);
@@ -776,10 +790,11 @@ namespace feynman {
 			const Image3D &weights,
 			const int2 visibleSize,
 			const float2 hiddenToVisible,
-			const bool ignoreMiddle)
+			const bool ignoreMiddle,
+			const int2 range)
 		{
-			for (int x = 0; x < hiddenSummationTempBack._size.x; ++x) {
-				for (int y = 0; y < hiddenSummationTempBack._size.y; ++y) {
+			for (int x = 0; x < range.x; ++x) {
+				for (int y = 0; y < range.y; ++y) {
 					sfsStimulus_kernel<true, RADIUS>(x, y, visibleStates, hiddenSummationTempBack, hiddenSummationTempFront, weights, visibleSize, hiddenToVisible, ignoreMiddle);
 				}
 			}
@@ -793,9 +808,10 @@ namespace feynman {
 			const Image3D &weights,
 			const int2 visibleSize,
 			const float2 hiddenToVisible,
-			const bool ignoreMiddle)
+			const bool ignoreMiddle,
+			const int2 range)
 		{
-			std::tuple<int2, int2> ranges = cornerCaseRange(hiddenSummationTempBack._size, visibleStates._size, RADIUS, hiddenToVisible);
+			std::tuple<int2, int2> ranges = cornerCaseRange(range, visibleStates._size, RADIUS, hiddenToVisible);
 			const int x0 = 0;
 			const int x1 = std::get<0>(ranges).x;
 			const int x2 = std::get<0>(ranges).y;
@@ -836,12 +852,13 @@ namespace feynman {
 			const int2 visibleSize,
 			const float2 hiddenToVisible,
 			const int radius,
-			const bool ignoreMiddle)
+			const bool ignoreMiddle,
+			const int2 range)
 		{
 			switch (radius) {
-			case 6: sfsStimulus_v0<6>(visibleStates, hiddenSummationTempBack, hiddenSummationTempFront, weights, visibleSize, hiddenToVisible, ignoreMiddle); break;
-			case 8: sfsStimulus_v0<8>(visibleStates, hiddenSummationTempBack, hiddenSummationTempFront, weights, visibleSize, hiddenToVisible, ignoreMiddle); break;
-			case 20: sfsStimulus_v0<20>(visibleStates, hiddenSummationTempBack, hiddenSummationTempFront, weights, visibleSize, hiddenToVisible, ignoreMiddle); break;
+			case 6: sfsStimulus_v0<6>(visibleStates, hiddenSummationTempBack, hiddenSummationTempFront, weights, visibleSize, hiddenToVisible, ignoreMiddle, range); break;
+			case 8: sfsStimulus_v0<8>(visibleStates, hiddenSummationTempBack, hiddenSummationTempFront, weights, visibleSize, hiddenToVisible, ignoreMiddle, range); break;
+			case 20: sfsStimulus_v0<20>(visibleStates, hiddenSummationTempBack, hiddenSummationTempFront, weights, visibleSize, hiddenToVisible, ignoreMiddle, range); break;
 			default: printf("ERROR: SparseFeaturesSTDP::sfsStimulus: provided radius %i is not implemented\n", radius); break;
 			}
 		}
@@ -852,10 +869,11 @@ namespace feynman {
 			const Image2D &biases,
 			const Image2D &hiddenActivationsBack,
 			Image2D &hiddenActivationsFront, // write only
-			const uint2 seed)
+			const uint2 seed,
+			const int2 range)
 		{
 			//uint2 seedValue = seed + (uint2)(get_global_id(0) * 61 + 22, get_global_id(1) * 52 + 4) * 56;
-			const int nElements = hiddenStatesPrev._size.x * hiddenStatesPrev._size.y;
+			const int nElements = range.x * range.y;
 			for (int i = 0; i < nElements; ++i) 
 			{
 				const float stimulus = stimuli._data_float[i];
@@ -876,10 +894,11 @@ namespace feynman {
 			const int2 hiddenSize,
 			const int radius,
 			const float activeRatio,
-			const float gamma)
+			const float gamma,
+			const int2 range)
 		{
-			for (int hiddenPosition_x = 0; hiddenPosition_x < hiddenStatesBack._size.x; ++hiddenPosition_x) {
-				for (int hiddenPosition_y = 0; hiddenPosition_y < hiddenStatesBack._size.y; ++hiddenPosition_y) {
+			for (int hiddenPosition_x = 0; hiddenPosition_x < range.x; ++hiddenPosition_x) {
+				for (int hiddenPosition_y = 0; hiddenPosition_y < range.y; ++hiddenPosition_y) {
 
 					const float activation = read_2D(activations, hiddenPosition_x, hiddenPosition_y);
 					int inhibition = 0;
@@ -1019,7 +1038,8 @@ namespace feynman {
 			Image3D &weightsFront,			// write only
 			const int2 visibleSize,
 			const float2 hiddenToVisible,
-			const float weightAlpha)
+			const float weightAlpha,
+			const int2 range)
 		{
 			const int visiblePositionCenter_x = project(hiddenPosition_x, hiddenToVisible.x);
 			const int fieldLowerBound_x = visiblePositionCenter_x - RADIUS;
@@ -1082,9 +1102,10 @@ namespace feynman {
 			Image3D &weightsFront,			// write only
 			const int2 visibleSize,
 			const float2 hiddenToVisible,
-			const float weightAlpha)
+			const float weightAlpha,
+			const int2 range)
 		{
-			std::tuple<int2, int2> ranges = cornerCaseRange(hiddenStates._size, visibleStates._size, RADIUS, hiddenToVisible);
+			std::tuple<int2, int2> ranges = cornerCaseRange(range, visibleStates._size, RADIUS, hiddenToVisible);
 			const int x0 = 0;
 			const int x1 = std::get<0>(ranges).x;
 			const int x2 = std::get<0>(ranges).y;
@@ -1127,10 +1148,11 @@ namespace feynman {
 			Image3D &weightsFront,			// write only
 			const int2 visibleSize,
 			const float2 hiddenToVisible,
-			const float weightAlpha)
+			const float weightAlpha,
+			const int2 range)
 		{
-			for (int hiddenPosition_x = 0; hiddenPosition_x < hiddenStates._size.x; ++hiddenPosition_x) {
-				for (int hiddenPosition_y = 0; hiddenPosition_y < hiddenStates._size.y; ++hiddenPosition_y) {
+			for (int hiddenPosition_x = 0; hiddenPosition_x < range.x; ++hiddenPosition_x) {
+				for (int hiddenPosition_y = 0; hiddenPosition_y < range.y; ++hiddenPosition_y) {
 					sfsLearnWeights_kernel<true, RADIUS>(hiddenPosition_x, hiddenPosition_y, hiddenStates, hiddenStatesPrev, visibleStates, visibleStatesPrev, weightsBack, weightsFront, visibleSize, hiddenToVisible, weightAlpha);
 				}
 			}
@@ -1146,12 +1168,13 @@ namespace feynman {
 			const int2 visibleSize,
 			const float2 hiddenToVisible,
 			const int radius,
-			const float weightAlpha)
+			const float weightAlpha,
+			const int2 range)
 		{
 			switch (radius) {
-			case 6: sfsLearnWeights_v1<6>(hiddenStates, hiddenStatesPrev, visibleStates, visibleStatesPrev, weightsBack, weightsFront, visibleSize, hiddenToVisible, weightAlpha); break;
-			case 8: sfsLearnWeights_v1<8>(hiddenStates, hiddenStatesPrev, visibleStates, visibleStatesPrev, weightsBack, weightsFront, visibleSize, hiddenToVisible, weightAlpha); break;
-			case 20: sfsLearnWeights_v1<20>(hiddenStates, hiddenStatesPrev, visibleStates, visibleStatesPrev, weightsBack, weightsFront, visibleSize, hiddenToVisible, weightAlpha); break;
+			case 6: sfsLearnWeights_v1<6>(hiddenStates, hiddenStatesPrev, visibleStates, visibleStatesPrev, weightsBack, weightsFront, visibleSize, hiddenToVisible, weightAlpha, range); break;
+			case 8: sfsLearnWeights_v1<8>(hiddenStates, hiddenStatesPrev, visibleStates, visibleStatesPrev, weightsBack, weightsFront, visibleSize, hiddenToVisible, weightAlpha, range); break;
+			case 20: sfsLearnWeights_v1<20>(hiddenStates, hiddenStatesPrev, visibleStates, visibleStatesPrev, weightsBack, weightsFront, visibleSize, hiddenToVisible, weightAlpha, range); break;
 			default: printf("ERROR: SparseFeaturesSTDP::sfsLearnWeights: provided radius %i is not implemented\n", radius); break;
 			}
 		}
@@ -1161,10 +1184,11 @@ namespace feynman {
 			Image2D &hiddenStatesFront,
 			const int2 hiddenSize,
 			const int radius,
-			const float activeRatio)
+			const float activeRatio,
+			const int2 range)
 		{
-			for (int hiddenPosition_x = 0; hiddenPosition_x < hiddenSize.x; ++hiddenPosition_x) {
-				for (int hiddenPosition_y = 0; hiddenPosition_y < hiddenSize.y; ++hiddenPosition_y) {
+			for (int hiddenPosition_x = 0; hiddenPosition_x < range.x; ++hiddenPosition_x) {
+				for (int hiddenPosition_y = 0; hiddenPosition_y < range.y; ++hiddenPosition_y) {
 					const float activation = read_2D(activations, hiddenPosition_x, hiddenPosition_y);
 
 					float inhibition = 0.0f;
@@ -1210,9 +1234,10 @@ namespace feynman {
 			const Image2D &hiddenBiasesBack, 
 			Image2D &hiddenBiasesFront, 
 			const float activeRatio, 
-			const float biasAlpha) 
+			const float biasAlpha,
+			const int2 range) 
 		{
-			const int nElements = hiddenStates._size.x * hiddenStates._size.y;
+			const int nElements = range.x * range.y;
 			for (int i = 0; i < nElements; ++i) {
 				const float stimulus = stimuli._data_float[i];
 				const float hiddenState = hiddenStates._data_float[i];
