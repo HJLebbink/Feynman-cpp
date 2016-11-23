@@ -9,6 +9,7 @@
 #pragma once
 
 #include "Helpers.ipp"
+#include "PlotDebug.ipp"
 
 namespace feynman {
 

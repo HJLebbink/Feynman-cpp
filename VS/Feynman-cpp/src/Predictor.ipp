@@ -16,6 +16,8 @@
 #include "Helpers.ipp"
 #include "FeatureHierarchy.ipp"
 #include "PredictorLayer.ipp"
+#include "PlotDebug.ipp"
+
 
 namespace feynman {
 
@@ -24,23 +26,22 @@ namespace feynman {
 
 	public:
 		//Description of a predictor layer
-		struct PredictorLayerDesc {
+		struct PredLayerDesc {
 			//Predictor layer properties. Radius onto hidden layer, learning rates for feed-forward and feed-back.
 			int _radius;
 			float _alpha;
 			float _beta;
 
 			//Initialize defaults
-			PredictorLayerDesc()
+			PredLayerDesc()
 				: _radius(8), _alpha(0.08f), _beta(0.16f)
 			{}
 		};
 
 	private:
 
-		FeatureHierarchy _featureHierarchy;
-		int2 _inputSize;
-		std::vector<PredictorLayerDesc> _pLayerDescs;
+		FeatureHierarchy _h;
+		std::vector<PredLayerDesc> _pLayerDescs;
 		std::vector<PredictorLayer> _predictorLayers;
 
 	public:
@@ -57,12 +58,10 @@ namespace feynman {
 		to remain unchanged.
 		*/
 		void createRandom(
-			const int2 inputSize, 
-			const std::vector<PredictorLayerDesc> &pLayerDescs, 
+			const std::vector<PredLayerDesc> &pLayerDescs, 
 			const std::vector<FeatureHierarchy::LayerDesc> &hLayerDescs,
 			const float2 initWeightRange,
-			std::mt19937 &rng, 
-			float firstLearningRateScalar = 0.1f)
+			std::mt19937 &rng)
 		{
 			if ((pLayerDescs.size() != hLayerDescs.size()) | pLayerDescs.empty())
 			{
@@ -70,51 +69,27 @@ namespace feynman {
 				throw 1;
 			}
 
-			_inputSize = inputSize;
 			// Create underlying hierarchy
-			_featureHierarchy.createRandom(
-				std::vector<FeatureHierarchy::InputDesc>{ FeatureHierarchy::InputDesc(inputSize, hLayerDescs.front()._inputDescs.front()._radius) }, 
-				hLayerDescs, 
-				initWeightRange, 
-				rng
-			);
-
-			int2 prevLayerSize = inputSize;
+			_h.createRandom(hLayerDescs, rng);
 			_pLayerDescs = pLayerDescs;
 			_predictorLayers.resize(_pLayerDescs.size());
 
-			for (size_t layer = 0; layer < _predictorLayers.size(); layer++) {
-				std::vector<PredictorLayer::VisibleLayerDesc> pVisibleLayerDescs;
+			for (size_t l = 0; l < _predictorLayers.size(); ++l) {
+				std::vector<PredictorLayer::VisibleLayerDesc> pVisibleLayerDescs((l == _predictorLayers.size() - 1) ? 1 : 2);
 
-				const float alpha = (layer == 0) ? (firstLearningRateScalar * _pLayerDescs[layer]._alpha) : _pLayerDescs[layer]._alpha;
-				const float beta  = (layer == 0) ? (firstLearningRateScalar * _pLayerDescs[layer]._beta)  : _pLayerDescs[layer]._beta;
-
-				if (layer < _predictorLayers.size() - 1) {
-					pVisibleLayerDescs.resize(2);
-
+				for (size_t p = 0; p < pVisibleLayerDescs.size(); p++) {
 					// Current
-					pVisibleLayerDescs[0]._radius = _pLayerDescs[layer]._radius;
-					pVisibleLayerDescs[0]._alpha = alpha;
-					pVisibleLayerDescs[0]._size = hLayerDescs[layer]._size;
-
-					// Feed back
-					pVisibleLayerDescs[1]._radius = _pLayerDescs[layer]._radius;
-					pVisibleLayerDescs[1]._alpha = beta;
-					pVisibleLayerDescs[1]._size = hLayerDescs[layer]._size;
-				}
-				else {
-					pVisibleLayerDescs.resize(1);
-
-					// Current
-					pVisibleLayerDescs[0]._radius = _pLayerDescs[layer]._radius;
-					pVisibleLayerDescs[0]._alpha = alpha;
-					pVisibleLayerDescs[0]._size = hLayerDescs[layer]._size;
+					pVisibleLayerDescs[p]._radius = _pLayerDescs[l]._radius;
+					pVisibleLayerDescs[p]._alpha = p == 0 ? _pLayerDescs[l]._alpha : _pLayerDescs[l]._beta;
+					pVisibleLayerDescs[p]._size = _h.getLayer(l)._sf->getHiddenSize();
 				}
 
-				_predictorLayers[layer].createRandom(prevLayerSize, pVisibleLayerDescs, initWeightRange, rng);
-
-				// Next layer
-				prevLayerSize = hLayerDescs[layer]._size;
+				_predictorLayers[l].createRandom(
+					_h.getLayer(l)._sf->getHiddenSize(), 
+					pVisibleLayerDescs, 
+					_h.getLayer(l)._sf, 
+					initWeightRange, 
+					rng);
 			}
 		}
 		
@@ -127,39 +102,47 @@ namespace feynman {
 		\param learn optional argument to disable learning.
 		*/
 		void simStep(
-			const Image2D &input,
-			const Image2D &inputCorrupted,
+			const std::vector<Image2D> &inputs,
+			const std::vector<Image2D> &inputsCorrupted,
 			std::mt19937 &rng,
-			const bool learn = true)
+			const bool learn)
 		{
 			//plots::plotImage(inputCorrupted, 8.0f, false, "Predictor:inputCorrupted");
 			//TODO: consider using binary input instead of float
 			//const float2 minmax = find_min_max(inputCorrupted);
 			//printf("INFO: Predictor:simStep, min=%f; max=%f\n", minmax.x, minmax.y);
 
+			std::vector<Image2D> predictionsPrev(_predictorLayers.size());
+
+			for (size_t l = 0; l < predictionsPrev.size(); l++) {
+				predictionsPrev[l] = _predictorLayers[l].getHiddenStates()[_back];
+			}
+
 			// Activate hierarchy
-			_featureHierarchy.simStep({ inputCorrupted }, rng, learn);
-			const int nLayers = static_cast<int>(_predictorLayers.size());
+			_h.simStep(inputsCorrupted, predictionsPrev, rng, learn);
 
 			// Forward pass through predictor to get next prediction
+
+		/*
+			const int nLayers = static_cast<int>(_predictorLayers.size());
 			for (int layer = (nLayers - 1); (layer >= 0); --layer) {
 
 				if (true) { // display hidden layer
-					const Image2D &layerData = _featureHierarchy.getLayer(layer)._sparseFeatures.getHiddenStates()[_back];
+					const Image2D &layerData = _h.getLayer(layer)._sf->getHiddenStates()[_back];
 					const float desiredSize = 400.0f;
 					const float rescaleSize = desiredSize / layerData._size.x;
 					plots::plotImage(layerData, rescaleSize, "Hidden.Layer" + std::to_string(layer) + " ("+std::to_string(layerData._size.x) + "x" + std::to_string(layerData._size.y) +")");
-					//const float2 minmax = find_min_max(_featureHierarchy.getLayer(layer)._sparseFeatures.getHiddenStates()[_back]);
+					//const float2 minmax = find_min_max(_featureHierarchy.getLayer(layer)._sf.getHiddenStates()[_back]);
 					//printf("INFO: Predictor:simStep, min=%f; max=%f\n", minmax.x, minmax.y);
 				}
 
 				const std::vector<Image2D> visibleStates =
 					(layer == (nLayers - 1))
 						? std::vector<Image2D> { // top-layer only get feature input from the top layer
-							_featureHierarchy.getLayer(layer)._sparseFeatures.getHiddenStates()[_back]
+							_h.getLayer(layer)._sf->getHiddenStates()[_back]
 						}
 						: std::vector<Image2D>{ // non-top-layers get feature inputs from the current layer and the layer above.
-							_featureHierarchy.getLayer(layer)._sparseFeatures.getHiddenStates()[_back],
+							_h.getLayer(layer)._sf->getHiddenStates()[_back],
 							_predictorLayers[layer + 1].getHiddenStates()[_front]
 						};
 
@@ -172,24 +155,39 @@ namespace feynman {
 					const Image2D target = 
 						(layer == 0) 
 							? input 
-							: _featureHierarchy.getLayer(layer - 1)._sparseFeatures.getHiddenStates()[_back];
+							: _h.getLayer(layer - 1)._sf->getHiddenStates()[_back];
 
 					const std::vector<Image2D> visibleStatesPrev =
 						(layer == (nLayers - 1))
 							? std::vector<Image2D> { 
-								_featureHierarchy.getLayer(layer)._sparseFeatures.getHiddenStates()[_front] 
+								_h.getLayer(layer)._sf->getHiddenStates()[_front]
 							}
 							: std::vector<Image2D> {
-								_featureHierarchy.getLayer(layer)._sparseFeatures.getHiddenStates()[_front],
+								_h.getLayer(layer)._sf->getHiddenStates()[_front],
 								_predictorLayers[layer + 1].getHiddenStates()[_back]
 							};
 
 					_predictorLayers[layer].learn(target, visibleStatesPrev);
 				}
 			}
-
 			for (int layer = 0; layer < nLayers; layer++) {
 				_predictorLayers[layer].stepEnd();
+			}
+			*/
+			for (int l = static_cast<int>(_predictorLayers.size()) - 1; l >= 0; l--) {
+				if (_h.getLayer(l)._tpReset || _h.getLayer(l)._tpNextReset) {
+					Image2D target = _h.getLayer(l)._sf->getHiddenStates()[_back];
+
+					if (l != _predictorLayers.size() - 1) {
+						_predictorLayers[l].activate(std::vector<Image2D>{ _h.getLayer(l)._sf->getHiddenStates()[_back], _predictorLayers[l + 1].getHiddenStates()[_back] }, rng);
+						if (learn) _predictorLayers[l].learn(target);
+					}
+					else {
+						_predictorLayers[l].activate(std::vector<Image2D>{ _h.getLayer(l)._sf->getHiddenStates()[_back] }, rng);
+						if (learn) _predictorLayers[l].learn(target);
+					}
+					_predictorLayers[l].stepEnd();
+				}
 			}
 		}
 
@@ -202,31 +200,32 @@ namespace feynman {
 		}
 
 		//Get access to a predictor layer
-		const PredictorLayer &getPLayer(int index) const {
+		const PredictorLayer &getPredLayer(int index) const {
 			return _predictorLayers[index];
 		}
 
 		//Get access to a predictor layer desc
-		const PredictorLayerDesc &getPLayerDesc(int index) const {
+		const PredLayerDesc &getPredLayerDesc(int index) const {
 			return _pLayerDescs[index];
 		}
 
-		// Get the predictions
-		const Image2D &getPrediction() const {
-			return _predictorLayers.front().getHiddenStates()[_back];
+		//Get the predictions
+		const DoubleBuffer2D &getHiddenPrediction() const {
+			return _predictorLayers.front().getHiddenStates();
 		}
+
 
 		//Get the underlying feature hierarchy
 		FeatureHierarchy &getHierarchy() {
-			return _featureHierarchy;
+			return _h;
 		}
 
 		// approx memory usage in bytes;
 		size_t getMemoryUsage(bool plot) const {
 			size_t nBytes = 0;
-			for (int layer = 0; layer < static_cast<int>(_featureHierarchy.getNumLayers()); ++layer) {
+			for (int layer = 0; layer < static_cast<int>(_h.getNumLayers()); ++layer) {
 				if (plot) std::cout << "Predictor: layer" << layer << std::endl;
-				nBytes += _featureHierarchy.getLayer(layer)._sparseFeatures.getMemoryUsage(plot);
+				//nBytes += _featureHierarchy.getLayer(layer)._sf.getMemoryUsage(plot);
 			}
 			if (plot) std::cout << "memory usage " << nBytes << " bytes = " << nBytes / 1024 << " kb = " << nBytes / (1024 * 1024) << " mb" << std::endl;
 			return nBytes;

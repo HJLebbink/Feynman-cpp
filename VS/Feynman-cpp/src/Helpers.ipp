@@ -9,14 +9,18 @@
 #pragma once
 
 #include <array>
+#include <tuple>
 #include <vector>
 #include <random>
 #include <ctime>
 #include "FixedPoint.ipp"
 
-
 namespace feynman {
 
+	//Possible encoder identifiers
+	 enum SparseFeaturesType {
+		_stdp, _delay, _chunk
+	};
 
 	std::mt19937 generator_test(static_cast<unsigned int>(time(nullptr)));
 
@@ -42,43 +46,55 @@ namespace feynman {
 		return (coord_x * size_y * size_z) + (coord_y * size_z) + coord_z;
 	}
 
-
-	struct Image2D {
-		std::vector<float> _data_float;
-#ifdef USE_FIXED_POINT
+	template <typename T>
+	struct Array2D {
+		std::vector<T> _data_float;
+#		ifdef USE_FIXED_POINT
 		std::vector<FixedP> _data_fixP;
-#endif
+#		endif
 		int2 _size;
 
-		// default constructor
-		Image2D() : _size({ 0, 0 }) {}
 
-		Image2D(int2 size) : _size(size)
+		Array2D(int2 size) : _size(size)
 		{
 			const int nElements = size.x * size.y;
 			_data_float.resize(nElements);
-#ifdef USE_FIXED_POINT
+#			ifdef USE_FIXED_POINT
 			_data_fixP.resize(nElements);
-#endif
+#			endif
 		}
 
-		/*
-		void setPixel(int x, int y, float value) {
+		// default constructor
+		Array2D() : Array2D(int2{ 0, 0 }) {}
+		Array2D(int x, int y) : Array2D(int2{ x, y }) {}
+	
+		void fill(T value) {
+			const int nElements = _size.x * _size.y;
+			for (int i = 0; i < nElements; ++i) {
+				_data_float[i] = value;
+			}
+		}
+
+		void set(int x, int y, T value) {
 			_data_float[pos(x, y, _size.y)] = value;
 		}
 
-		float getPixel(int x, int y) {
+		float get(int x, int y) const {
 			return _data_float[pos(x, y, _size.y)];
 		}
-		*/
-		void swap(Image2D& other) {
+	
+		void swap(Array2D<T>& other) {
 			_data_float.swap(other._data_float);
-#ifdef USE_FIXED_POINT
+#			ifdef USE_FIXED_POINT
 			_data_fixP.swap(other._data_fixP);
-#endif
+#			endif
 			const int2 tmp = this->_size;
 			this->_size = other._size;
 			other._size = tmp;
+		}
+
+		int2 getSize() const {
+			return _size;
 		}
 	};
 
@@ -108,18 +124,24 @@ namespace feynman {
 		}
 	};
 
-	float inline read_2D(const Image2D &image, const int coord_x, const int coord_y)
+
+	//TODO rename Image2D to Array2Df
+	using Image2D = Array2D<float>;
+	using Array2Di2 = Array2D<int2>;
+
+	template <typename T>
+	T inline read_2D(const Array2D<T> &image, const int coord_x, const int coord_y)
 	{
 		const int idx = pos(coord_x, coord_y, image._size.y);
 		//std::cout << "read_imagef_2D: idx=" << idx << "; x=" << coord_x << "; y=" << coord_y << std::endl;
-		const float value = image._data_float[idx];
+		const T value = image._data_float[idx];
 #		ifdef _DEBUG
-		if (false) {
-			if (!inRange(value)) {
-				printf("WARNING: Helpers::read_2D: value (%24.22f) is not in range [%24.22f,%24.22f]\n", value, minValueFloat, maxValueFloat);
-				//throw 1;
-			}
-		}
+//		if (false) {
+//			if (!inRange(value)) {
+//				std::cout << "WARNING: Helpers::read_2D: value "<< value <<" is not in range ["<< minValueFloat <<","<< maxValueFloat <<"]" << std::endl;
+//				//throw 1;
+//			}
+//		}
 #		endif
 #		ifdef USE_FIXED_POINT
 		if (false) {
@@ -134,7 +156,8 @@ namespace feynman {
 		return value;
 	}
 
-	float inline read_2D(const Image2D &image, const int2 coord)
+	template <typename T>
+	float inline read_2D(const Array2D<T> &image, const int2 coord)
 	{
 		return read_2D(image, coord.x, coord.y);
 	}
@@ -193,7 +216,8 @@ namespace feynman {
 		return value;
 	}
 
-	void inline write_2D(Image2D &image, const int coord_x, const int coord_y, float value) {
+	template <typename T>
+	void inline write_2D(Array2D<T> &image, const int coord_x, const int coord_y, const T value) {
 
 		image._data_float[pos(coord_x, coord_y, image._size.y)] = value;
 #		ifdef USE_FIXED_POINT
@@ -257,6 +281,15 @@ namespace feynman {
 #		endif
 	}
 
+	static void clear(Image3D &image) {
+		const size_t nBytes = image._size.x * image._size.y * image._size.z * sizeof(float);
+		memset(&image._data_float[0], 0, nBytes);
+#		ifdef USE_FIXED_POINT
+		const size_t nBytesFixPoint = image._size.x * image._size.y * image._size.z * sizeof(FixedP);
+		memset(&image._data_fixP[0], 0, nBytesFixPoint);
+#		endif
+	}
+
 	static void copy(const Image2D &src, Image2D &dst) {
 		const size_t nBytes = src._size.x * src._size.y * sizeof(float);
 		memcpy(&dst._data_float[0], &src._data_float[0], nBytes);
@@ -294,6 +327,8 @@ namespace feynman {
 		const float2 minMax,
 		std::mt19937 &rng) 
 	{
+		//TODO remove range
+
 		std::uniform_int_distribution<int> seedDist(0, 999);
 		const unsigned int seedx = static_cast<unsigned int>(seedDist(rng));
 		const unsigned int seedy = static_cast<unsigned int>(seedDist(rng));;

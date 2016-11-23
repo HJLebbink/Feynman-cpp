@@ -17,9 +17,13 @@
 #include <time.h>
 #include <iostream>
 #include <random>
+#include <algorithm>
+
 
 #include "Helpers.ipp"
 #include "Predictor.ipp"
+#include "Architect.ipp"
+
 
 using namespace feynman;
 using namespace cv;
@@ -41,7 +45,8 @@ namespace video {
 		window.setFramerateLimit(0);
 
 		// Target file name
-		std::string fileName = "C:/Users/henk/OneDrive/Documents/GitHub/OgmaNeoDemos/resources/Tesseract.wmv";
+		const std::string fileName = "C:/Users/henk/OneDrive/Documents/GitHub/OgmaNeoDemos/resources/Tesseract.wmv";
+		//const std::string fileName = "C:/Data/Tesseract.wmv";
 		sf::Font font;
 
 #		ifdef _WINDOWS
@@ -55,7 +60,7 @@ namespace video {
 #		endif
 
 		// Parameters
-		const int frameSkip = 3; // Frames to skip
+		const int frameSkip = 4; // Frames to skip
 		const float videoScale = 1.0f; // Rescale ratio
 		const float blendPred = 0.0f; // Ratio of how much prediction to blend in to input (part of input corruption)
 
@@ -63,44 +68,67 @@ namespace video {
 		sf::RenderTexture rescaleRT;
 		rescaleRT.create(128, 128);
 
-		// --------------------------- Create the Sparse Coder ---------------------------
-		// Input images
-		Image2D inputImage = Image2D(int2{ static_cast<int>(rescaleRT.getSize().x), static_cast<int>(rescaleRT.getSize().y) });
-		Image2D inputImageCorrupted = Image2D(int2{ static_cast<int>(rescaleRT.getSize().x), static_cast<int>(rescaleRT.getSize().y) });
+		// --------------------------- Create the Hierarchy ---------------------------
 
-		// Predictive hierarchy
-		Predictor predictor;
-		{
-			// Hierarchy structure
-			std::vector<FeatureHierarchy::LayerDesc> layerDescs(5);
-			std::vector<Predictor::PredictorLayerDesc> pLayerDescs(5);
+		feynman::Architect arch;
+		arch.initialize(1234);
 
-			layerDescs[0]._size = { 64, 64 };
-			layerDescs[1]._size = { 64, 64 };
-			layerDescs[2]._size = { 64, 64 };
-			layerDescs[3]._size = { 32, 32 };
-			layerDescs[4]._size = { 32, 32 };
+		// 3 input layers for RGB
+		arch.addInputLayer(int2{ static_cast<int>(rescaleRT.getSize().x), static_cast<int>(rescaleRT.getSize().y) })
+			.setValue("in_p_alpha", 0.02f)
+			.setValue("in_p_radius", 8);
 
-			for (size_t l = 0; l < layerDescs.size(); l++) {
-				layerDescs[l]._recurrentRadius = 20;
-				layerDescs[l]._spActiveRatio = 0.01f;
-				layerDescs[l]._spBiasAlpha = 0.01f;
+		arch.addInputLayer(int2{ static_cast<int>(rescaleRT.getSize().x), static_cast<int>(rescaleRT.getSize().y) })
+			.setValue("in_p_alpha", 0.02f)
+			.setValue("in_p_radius", 8);
 
-				pLayerDescs[l]._alpha = 0.08f;
-				pLayerDescs[l]._beta = 0.16f;
-			}
-			predictor.createRandom({ static_cast<int>(rescaleRT.getSize().x), static_cast<int>(rescaleRT.getSize().y) }, pLayerDescs, layerDescs, { -0.01f, 0.01f }, generator);
-			if (true) predictor.getMemoryUsage(true);
-		}
+		arch.addInputLayer(int2{ static_cast<int>(rescaleRT.getSize().x), static_cast<int>(rescaleRT.getSize().y) })
+			.setValue("in_p_alpha", 0.02f)
+			.setValue("in_p_radius", 8);
 
-		// Host image buffer
-		std::vector<float> pred(rescaleRT.getSize().x * rescaleRT.getSize().y, 0.0f); // init with content equal to zero
+		for (int l = 0; l < 1; l++)
+			arch.addHigherLayer({ 64, 64 }, feynman::_chunk)
+			.setValue("sfc_chunkSize", int2{ 6, 6 })
+			.setValue("sfc_ff_radius", 8)
+			.setValue("hl_poolSteps", 2)
+			.setValue("sfc_numSamples", 2)
+			.setValue("sfc_weightAlpha", 0.01f)
+			.setValue("sfc_biasAlpha", 0.1f)
+			.setValue("sfc_gamma", 0.92f)
+			.setValue("p_alpha", 0.04f)
+			.setValue("p_beta", 0.08f)
+			.setValue("p_radius", 8);
+
+		// 4 layers using chunk encoders
+		for (int l = 0; l < 4; l++)
+			arch.addHigherLayer({ 64, 64 }, feynman::_stdp)
+			.setValue("sfs_ff_radius", 8)
+			.setValue("hl_poolSteps", 2)
+			.setValue("sfs_inhibitionRadius", 6)
+			.setValue("sfs_activeRatio", 0.02f)
+			.setValue("sfs_weightAlpha", 0.01f)
+			.setValue("sfs_biasAlpha", 0.1f)
+			.setValue("sfs_gamma", 0.92f)
+			.setValue("p_alpha", 0.04f)
+			.setValue("p_beta", 0.08f)
+			.setValue("p_radius", 8);
+
+		// Generate the hierarchy
+		std::shared_ptr<feynman::Hierarchy> h = arch.generateHierarchy();
+
+		// Input and prediction fields for color components
+		Image2D inputFieldR(rescaleRT.getSize().x, rescaleRT.getSize().y);
+		Image2D inputFieldG(rescaleRT.getSize().x, rescaleRT.getSize().y);
+		Image2D inputFieldB(rescaleRT.getSize().x, rescaleRT.getSize().y);
+		Image2D predFieldR(rescaleRT.getSize().x, rescaleRT.getSize().y);
+		Image2D predFieldG(rescaleRT.getSize().x, rescaleRT.getSize().y);
+		Image2D predFieldB(rescaleRT.getSize().x, rescaleRT.getSize().y);
 
 		// Unit Gaussian noise for input corruption
 		std::normal_distribution<float> noiseDist(0.0f, 1.0f);
 
 		// Training time
-		const int numIter = 20;
+		const int numIter = 4;
 
 		// UI update resolution
 		const int progressBarLength = 40;
@@ -108,7 +136,7 @@ namespace video {
 		bool quit = false;
 
 		// Train for a bit
-		for (int iter = 0; iter < numIter && !quit; iter++) {
+		for (int iter = 0; ((iter < numIter) && !quit); ++iter) {
 			std::cout << "Iteration " << (iter + 1) << " of " << numIter << ":" << std::endl;
 
 			// Open the video file
@@ -139,7 +167,6 @@ namespace video {
 				sf::Image img;
 				{
 					img.create(frame.cols, frame.rows);
-
 					for (unsigned int x = 0; x < img.getSize().x; x++) {
 						for (unsigned int y = 0; y < img.getSize().y; y++) {
 							sf::Uint8 r = frame.data[(x + y * img.getSize().x) * 3 + 0];
@@ -175,30 +202,51 @@ namespace video {
 				// SFML image from rescaled frame
 				{
 					sf::Image reImg = rescaleRT.getTexture().copyToImage();
+
 					// Get input buffers
 					for (unsigned int x = 0; x < reImg.getSize().x; x++) {
 						for (unsigned int y = 0; y < reImg.getSize().y; y++) {
 							sf::Color c = reImg.getPixel(x, y);
-							const float mono = (c.r / 255.0f + c.g / 255.0f + c.b / 255.0f) * 0.3333f;
-							const float blend = blendPred * pred[x + y * reImg.getSize().x] + (1.0f - blendPred) * mono;
-							//inputImage._data[x + y * reImg.getSize().x] = mono;
-							write_2D(inputImage, y, x, mono);
-							//inputImageCorrupted._data[x + y * reImg.getSize().x] = blend;
-							write_2D(inputImageCorrupted, y, x, blend);
+
+							write_2D(inputFieldR, x, y, c.r / 255.0f * (1.0f - blendPred) + read_2D(predFieldR, x, y) * blendPred);
+							write_2D(inputFieldG, x, y, c.r / 255.0f * (1.0f - blendPred) + read_2D(predFieldG, x, y) * blendPred);
+							write_2D(inputFieldB, x, y, c.r / 255.0f * (1.0f - blendPred) + read_2D(predFieldB, x, y) * blendPred);
 						}
 					}
 				}
 
-				// Run a simulation step of the hierarchy (learning enabled)
-				predictor.simStep(inputImage, inputImageCorrupted, generator, true);
+				std::vector<Image2D> inputVector = { inputFieldR, inputFieldG, inputFieldB };
 
-				// Get the resulting prediction (for prediction blending)
-				copy(predictor.getPrediction(), pred);
+				// Run a simulation step of the hierarchy (learning enabled)
+				h->simStep(inputVector, true);
+
+				predFieldR = h->getPredictions()[0];
+				predFieldG = h->getPredictions()[1];
+				predFieldB = h->getPredictions()[2];
+
+
+				// show visual prediction
+				if (true) {
+
+					img.create(rescaleRT.getSize().x, rescaleRT.getSize().y);
+					for (size_t x = 0; x < rescaleRT.getSize().x; x++) {
+						for (size_t y = 0; y < rescaleRT.getSize().y; y++) {
+							sf::Color c;
+							c.r = 255.0f * std::min(1.0f, std::max(0.0f, read_2D(predFieldR, x, y)));
+							c.g = 255.0f * std::min(1.0f, std::max(0.0f, read_2D(predFieldG, x, y)));
+							c.b = 255.0f * std::min(1.0f, std::max(0.0f, read_2D(predFieldB, x, y)));
+							img.setPixel(x, y, c);
+						}
+					}
+
+					plots::plotImage(img, predFieldR._size, 3, "Prediction");
+				}
 
 				// Show progress bar
 				float ratio = static_cast<float>(currentFrame + 1) / captureLength;
+
+				// Console
 				{
-					// Console
 					if (currentFrame % progressUpdateTicks == 0) {
 						std::cout << "\r";
 						std::cout << "[";
@@ -256,13 +304,6 @@ namespace video {
 					window.display();
 				}
 
-				// plot visual prediction
-				if (true) {
-					plots::plotImage(predictor.getPrediction(), 4.0f, "Visual Prediction");
-				}
-
-
-			
 			} while (!frame.empty() && !quit);
 
 			// Make sure bar is at 100%
@@ -296,22 +337,24 @@ namespace video {
 					quit = true;
 			}
 			
-			// Write prediction as input
-			copy(pred, inputImage);
+			window.clear();
 
-			// Run a simulation step with learning disabled
-			predictor.simStep(inputImage, inputImage, generator, false);
+			std::vector<Image2D> inputVector = { predFieldR, predFieldG, predFieldB };
+			h->simStep(inputVector, false);
 
-			// Display prediction
-			copy(predictor.getPrediction(), pred);
+			predFieldR = h->getPredictions()[0];
+			predFieldG = h->getPredictions()[1];
+			predFieldB = h->getPredictions()[2];
 
 			sf::Image img;
 			img.create(rescaleRT.getSize().x, rescaleRT.getSize().y);
 
-			for (unsigned int x = 0; x < rescaleRT.getSize().x; x++) {
-				for (unsigned int y = 0; y < rescaleRT.getSize().y; y++) {
+			for (size_t x = 0; x < rescaleRT.getSize().x; x++) {
+				for (size_t y = 0; y < rescaleRT.getSize().y; y++) {
 					sf::Color c;
-					c.r = c.g = c.b = static_cast<sf::Uint8>(255.0f * std::min(1.0f, std::max(0.0f, pred[x + y * img.getSize().x])));
+					c.r = 255.0f * std::min(1.0f, std::max(0.0f, read_2D(predFieldR, x, y)));
+					c.g = 255.0f * std::min(1.0f, std::max(0.0f, read_2D(predFieldG, x, y)));
+					c.b = 255.0f * std::min(1.0f, std::max(0.0f, read_2D(predFieldB, x, y)));
 					img.setPixel(x, y, c);
 				}
 			}

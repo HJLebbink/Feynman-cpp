@@ -84,15 +84,16 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
-      <PrecompiledHeader>
-      </PrecompiledHeader>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>EnableAllWarnings</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_WINDOWS;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>C:\Dev\opencv-2.4.13\build\include;C:\Dev\SFML-2.4.0\include</AdditionalIncludeDirectories>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions3</EnableEnhancedInstructionSet>
       <UseProcessorExtensions>SSE41</UseProcessorExtensions>
-      <DisableSpecificWarnings>4710;4820;4711;4062;4068;4625;4626;4365</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4710;4820;4711;4062;4068;4625;4626;4365;869</DisableSpecificWarnings>
+      <DisablePrecompiledHeaderMessages>true</DisablePrecompiledHeaderMessages>
+      <EmitGAPDiagnosticsToFile>true</EmitGAPDiagnosticsToFile>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -103,15 +104,16 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <PrecompiledHeader>
-      </PrecompiledHeader>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>EnableAllWarnings</WarningLevel>
       <Optimization>MinSpace</Optimization>
       <PreprocessorDefinitions>_WINDOWS;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>C:\Dev\opencv-2.4.13\build\include;C:\Dev\SFML-2.4.0\include</AdditionalIncludeDirectories>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions3</EnableEnhancedInstructionSet>
       <UseProcessorExtensions>SSE41</UseProcessorExtensions>
-      <DisableSpecificWarnings>4710;4820;4711;4062;4068;4625;4626;4365</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4710;4820;4711;4062;4068;4625;4626;4365;869</DisableSpecificWarnings>
+      <DisablePrecompiledHeaderMessages>true</DisablePrecompiledHeaderMessages>
+      <EmitGAPDiagnosticsToFile>true</EmitGAPDiagnosticsToFile>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -123,8 +125,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
       <WarningLevel>EnableAllWarnings</WarningLevel>
-      <PrecompiledHeader>
-      </PrecompiledHeader>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
@@ -132,7 +133,9 @@
       <AdditionalIncludeDirectories>C:\Dev\opencv-2.4.13\build\include;C:\Dev\SFML-2.4.0\include</AdditionalIncludeDirectories>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions3</EnableEnhancedInstructionSet>
       <UseProcessorExtensions>SSE41</UseProcessorExtensions>
-      <DisableSpecificWarnings>4710;4820;4711;4062;4068;4625;4626;4365</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4710;4820;4711;4062;4068;4625;4626;4365;869</DisableSpecificWarnings>
+      <DisablePrecompiledHeaderMessages>true</DisablePrecompiledHeaderMessages>
+      <EmitGAPDiagnosticsToFile>true</EmitGAPDiagnosticsToFile>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -152,7 +155,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>_WINDOWS;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>C:\Dev\opencv-2.4.13\build\include;C:\Dev\SFML-2.4.0\include</AdditionalIncludeDirectories>
-      <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
+      <EnableEnhancedInstructionSet>StreamingSIMDExtensions3</EnableEnhancedInstructionSet>
       <Parallelization>false</Parallelization>
       <FloatingPointModel>Fast2</FloatingPointModel>
       <FlushDenormalResultsToZero>true</FlushDenormalResultsToZero>
@@ -171,7 +174,7 @@
       <EmitOptimizationDiagnosticsToFile>false</EmitOptimizationDiagnosticsToFile>
       <EnableGapAnalysis>Disable</EnableGapAnalysis>
       <EmitGAPDiagnosticsToFile>true</EmitGAPDiagnosticsToFile>
-      <DisableSpecificWarnings>4710;4820;4711;4062;4068;4625;4626;4365</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4710;4820;4711;4062;4068;4625;4626;4365;869</DisableSpecificWarnings>
       <SuppressStartupBanner>false</SuppressStartupBanner>
       <DisablePrecompiledHeaderMessages>true</DisablePrecompiledHeaderMessages>
     </ClCompile>
@@ -193,25 +196,23 @@
     <None Include="src\Agent.ipp" />
     <None Include="src\AgentLayer.ipp" />
     <None Include="src\AgentSwarm.ipp" />
-    <None Include="src\AgentTests.ipp" />
+    <None Include="src\Architect.ipp" />
     <None Include="src\FeatureHierarchy.ipp" />
     <None Include="src\FixedPoint.ipp" />
     <None Include="src\Helpers.ipp" />
     <None Include="src\Hierarchy.ipp" />
     <None Include="src\ImageWhitener.ipp" />
     <None Include="src\LayerDescs.ipp" />
-    <None Include="src\Mnist_Anomaly_Detection.ipp" />
     <None Include="src\Plot.ipp" />
     <None Include="src\PlotDebug.ipp" />
     <None Include="src\Predictor.ipp" />
     <None Include="src\PredictorLayer.ipp" />
-    <None Include="src\RecallTests.ipp" />
     <None Include="src\ScalarEncoder.ipp" />
-    <None Include="src\ScalarEncoderTests.ipp" />
-    <None Include="src\SequenceRecall.ipp" />
     <None Include="src\SparseCoder.ipp" />
-    <None Include="src\SparseCoderTests.ipp" />
     <None Include="src\SparseFeatures.ipp" />
+    <None Include="src\SparseFeaturesChunk.ipp" />
+    <None Include="src\SparseFeaturesDelay.ipp" />
+    <None Include="src\SparseFeaturesSTDP.ipp" />
     <None Include="src\Video_Prediction.ipp" />
   </ItemGroup>
   <ItemGroup>

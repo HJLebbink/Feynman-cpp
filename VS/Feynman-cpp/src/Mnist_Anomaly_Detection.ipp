@@ -104,7 +104,7 @@ namespace mnist {
 		// --------------------------- Create the Predictor ---------------------------
 		Predictor predictor;
 		{
-			std::vector<Predictor::PredictorLayerDesc> predictiveLayerDescs(4); // Predictor layer descriptors
+			std::vector<Predictor::PredLayerDesc> predictiveLayerDescs(4); // Predictor layer descriptors
 			std::vector<FeatureHierarchy::LayerDesc> layerDescs(4); // Matching feature layer descriptors
 
 			// Sizes

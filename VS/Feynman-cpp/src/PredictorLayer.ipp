@@ -9,10 +9,14 @@
 #pragma once
 
 #include <iostream>		// for cerr and cout
-
+#include <memory>
+#include <algorithm>
 
 #include "Helpers.ipp"
 #include "FixedPoint.ipp"
+#include "SparseFeatures.ipp"
+#include "timing.h"
+#include "PlotDebug.ipp"
 
 namespace feynman {
 
@@ -31,8 +35,8 @@ namespace feynman {
 			//Initialize defaults
 			VisibleLayerDesc()
 				: _size({ 16, 16 }),
-				_radius(10),
-				_alpha(0.01f)
+				_radius(8),
+				_alpha(0.04f)
 			{}
 		};
 
@@ -40,6 +44,7 @@ namespace feynman {
 		struct VisibleLayer {
 
 			//Layer parameters
+			DoubleBuffer2D _derivedInput;
 			DoubleBuffer3D _weights;
 
 			float2 _hiddenToVisible;
@@ -58,6 +63,10 @@ namespace feynman {
 		//Predictions
 		DoubleBuffer2D _hiddenStates;
 
+		//Encoder corresponding to this decoder, if available (else nullptr)
+		std::shared_ptr<SparseFeatures> _inhibitSparseFeatures;
+
+
 		//Layers and descs
 		std::vector<VisibleLayer> _visibleLayers;
 		std::vector<VisibleLayerDesc> _visibleLayerDescs;
@@ -75,11 +84,13 @@ namespace feynman {
 		void createRandom(
 			const int2 hiddenSize,
 			const std::vector<VisibleLayerDesc> &visibleLayerDescs,
+			const std::shared_ptr<SparseFeatures> &inhibitSparseFeatures,
 			const float2 initWeightRange,
 			std::mt19937 &rng)
 		{
 			_visibleLayerDescs = visibleLayerDescs;
 			_hiddenSize = hiddenSize;
+			_inhibitSparseFeatures = inhibitSparseFeatures;
 			_visibleLayers.resize(_visibleLayerDescs.size());
 
 			// Create layers
@@ -106,6 +117,8 @@ namespace feynman {
 					vl._weights = createDoubleBuffer3D(weightsSize);
 					randomUniform3D(vl._weights[_back], weightsSize, initWeightRange, rng);
 				}
+				vl._derivedInput = createDoubleBuffer2D(vld._size);
+				clear(vl._derivedInput[_back]);
 			}
 			// Hidden state data
 			_hiddenStates = createDoubleBuffer2D(_hiddenSize);
@@ -121,18 +134,24 @@ namespace feynman {
 		*/
 		void activate(
 			const std::vector<Image2D> &visibleStates,
-			const bool threshold)
+			std::mt19937 &rng)
 		{
 			// Start by clearing stimulus summation buffer to biases
 			clear(_hiddenSummationTemp[_back]);
 
 			// Find up stimulus
-			for (size_t vli = 0; vli < _visibleLayers.size(); vli++) {
+			for (size_t vli = 0; vli < _visibleLayers.size(); ++vli) {
 				VisibleLayer &vl = _visibleLayers[vli];
 				VisibleLayerDesc &vld = _visibleLayerDescs[vli];
 
-				plStimulus(
+				// Derive inputs
+				plDeriveInputs(
 					visibleStates[vli],				// in
+					vl._derivedInput[_back],		// in
+					vl._derivedInput[_front]);		// out
+
+				plStimulus(
+					vl._derivedInput[_front],		// in
 					_hiddenSummationTemp[_back],	// in
 					_hiddenSummationTemp[_front],	// out
 					vl._weights[_back],				// in
@@ -144,15 +163,12 @@ namespace feynman {
 
 				std::swap(_hiddenSummationTemp[_front], _hiddenSummationTemp[_back]);
 			}
-			if (threshold) {
-				plThreshold(
-					_hiddenSummationTemp[_back],	// in
-					_hiddenStates[_front],			// out
-					_hiddenSize);
-			}
+
+			if (_inhibitSparseFeatures != nullptr)
+				_inhibitSparseFeatures->inhibit(_hiddenSummationTemp[_back], _hiddenStates[_front], rng);
 			else {
 				// Copy to hidden states
-				if (true) //TODO ask whether forcing the hidden state to be in range [0..1] has known side effects
+				if (false) //TODO ask whether forcing the hidden state to be in range [0..1] has known side effects
 				{
 					std::vector<float> &src = _hiddenSummationTemp[_back]._data_float;
 					std::vector<float> &dst = _hiddenStates[_front]._data_float;
@@ -183,16 +199,18 @@ namespace feynman {
 		\param visibleStatesPrev the input states of the !previous! timestep.
 		*/
 		void learn(
-			const Image2D &targets,
-			const std::vector<Image2D> &visibleStatesPrev)
+			const Image2D &targets)
 		{
 			// Learn weights
-			for (size_t vli = 0; vli < _visibleLayers.size(); vli++) {
+			for (size_t vli = 0; vli < _visibleLayers.size(); ++vli) {
 				VisibleLayer &vl = _visibleLayers[vli];
 				VisibleLayerDesc &vld = _visibleLayerDescs[vli];
 
+				plots::plotImage(_hiddenStates[_back], 4, "PredictorLayer:hiddenState");
+
+
 				plLearnPredWeights(
-					visibleStatesPrev[vli],	// in
+					vl._derivedInput[_back],// in
 					targets,				// in
 					_hiddenStates[_back],	// in
 					vl._weights[_back],		// in
@@ -209,6 +227,13 @@ namespace feynman {
 		//Step end (buffer swap)
 		void stepEnd() {
 			std::swap(_hiddenStates[_front], _hiddenStates[_back]);
+
+			// Swap buffers
+			for (size_t vli = 0; vli < _visibleLayers.size(); ++vli) {
+				VisibleLayer &vl = _visibleLayers[vli];
+				VisibleLayerDesc &vld = _visibleLayerDescs[vli];
+				std::swap(vl._derivedInput[_front], vl._derivedInput[_back]);
+			}
 		}
 
 		//Clear memory (recurrent data)
@@ -411,6 +436,18 @@ namespace feynman {
 		}
 
 	private:
+
+		static void plDeriveInputs(
+			const Image2D &inputs, 
+			const Image2D &outputsBack, 
+			Image2D &outputsFront) 
+		{
+			const int nElements = inputs._size.x * inputs._size.y;
+			for (int i = 0; i < nElements; ++i) {
+				const float input = inputs._data_float[i];
+				outputsFront._data_float[i] = input;
+			}
+		}
 
 		template <bool CORNER, int RADIUS>
 		static void plStimulus_kernel(

@@ -28,27 +28,32 @@ namespace feynman {
 
 			//Q learning parameters
 			float _qAlpha;
+			float _actionAlpha;
 			float _qGamma;
 			float _qLambda;
-			float _epsilon;
+			float _actionLambda;
+			float _maxActionWeightMag;
 
 			//Initialize defaults
 			AgentLayerDesc()
-				: _radius(12), _qAlpha(0.00004f),
-				_qGamma(0.99f), _qLambda(0.98f), _epsilon(0.06f)
+				: _radius(12), _qAlpha(0.01f), _actionAlpha(0.1f),
+				_qGamma(0.99f), _qLambda(0.98f), _actionLambda(0.98f),
+				_maxActionWeightMag(10.0f)
 			{}
 		};
 
 	private:
-		//Feature hierarchy with same dimensions as swarm layer
-		FeatureHierarchy _featureHierarchy;
+
+		Predictor _p;
 
 		//Layers and descs
-		std::vector<AgentLayer> _aLayers;
-		std::vector<AgentLayerDesc> _aLayerDescs;
+		std::vector<std::vector<AgentLayer>> _aLayers;
+		std::vector<std::vector<AgentLayerDesc>> _aLayerDescs;
+		std::vector<float> _rewardSums;
+		std::vector<float> _rewardCounts;
 
 		// All ones image for first layer modulation
-		Image2D _ones;
+		std::vector<Image2D> _ones;
 
 	public:
 
@@ -69,50 +74,62 @@ namespace feynman {
 		\param rng a random number generator.
 		*/
 		void createRandom(
-			const int2 inputSize, 
-			const int2 actionSize,
-			const int2 actionTileSize,
-			const int actionRadius,
-			const std::vector<AgentLayerDesc> &aLayerDescs,
+			const std::vector<int2> &actionSizes, 
+			const std::vector<int2> actionTileSizes,
+			const std::vector<std::vector<AgentLayerDesc>> &aLayerDescs,
+			const std::vector<Predictor::PredLayerDesc> &pLayerDescs,
 			const std::vector<FeatureHierarchy::LayerDesc> &hLayerDescs,
-			const float2 initWeightRange,
-			std::mt19937 &rng)
+			float2 initWeightRange, std::mt19937 &rng)
 		{
 			assert(aLayerDescs.size() > 0);
 			assert(aLayerDescs.size() == hLayerDescs.size());
 
 			// Create underlying hierarchy
-			const std::vector<FeatureHierarchy::InputDesc> inputDescs = { 
-				FeatureHierarchy::InputDesc(inputSize, hLayerDescs.front()._inputDescs.front()._radius), 
-				FeatureHierarchy::InputDesc(actionSize, actionRadius) 
-			};
-			_featureHierarchy.createRandom(inputDescs, hLayerDescs, initWeightRange, rng);
+			_p.createRandom(pLayerDescs, hLayerDescs, initWeightRange, rng);
 
 			_aLayerDescs = aLayerDescs;
 			_aLayers.resize(_aLayerDescs.size());
 
-			for (size_t layer = 0; layer < _aLayers.size(); layer++) {
-				std::vector<AgentLayer::VisibleLayerDesc> agentVisibleLayerDescs(1);
+			for (size_t layer = 0; layer < _aLayers.size(); ++layer) 
+			{
+				_aLayers[layer].resize(_aLayerDescs[layer].size());
+				for (size_t i = 0; i < _aLayers[layer].size(); i++)
+				{
+					std::vector<AgentLayer::VisibleLayerDesc> agentVisibleLayerDescs(1);
+					const float lrScalar = (layer == 0) ? 0.25f : 1.0f;
 
-				agentVisibleLayerDescs[0]._radius = aLayerDescs[layer]._radius;
-				agentVisibleLayerDescs[0]._alpha = aLayerDescs[layer]._qAlpha;
-				agentVisibleLayerDescs[0]._size = (layer == 0) 
-					? hLayerDescs[layer]._size :
-					int2{ hLayerDescs[layer]._size.x * 2, hLayerDescs[layer]._size.y * 2 };
+					agentVisibleLayerDescs[0]._radius = aLayerDescs[layer][i]._radius;
+					agentVisibleLayerDescs[0]._qAlpha = aLayerDescs[layer][i]._qAlpha * lrScalar;
+					agentVisibleLayerDescs[0]._actionAlpha = aLayerDescs[layer][i]._actionAlpha * lrScalar;
 
-				const int2 numActionTiles = (layer == _aLayerDescs.size() - 1)
-					? actionSize
-					: hLayerDescs[layer + 1]._size;
-
-				const int2 actionTileSize2 = (layer == _aLayerDescs.size() - 1) 
-					? actionTileSize 
-					: int2{ 2, 2 };
-
-				_aLayers[layer].createRandom(numActionTiles, actionTileSize2, agentVisibleLayerDescs, initWeightRange, rng);
+					const int2 size = _p.getHierarchy().getLayer(layer)._sf->getHiddenSize();
+					agentVisibleLayerDescs[0]._size = (layer == 0) ? size : int2{ size.x * 2, size.y * 2 };
+					_aLayers[layer][i].createRandom(
+						(layer == _aLayers.size() - 1) 
+							? actionSizes[i] 
+							: _p.getHierarchy().getLayer(layer + 1)._sf->getHiddenSize(), 
+						(layer == _aLayers.size() - 1) 
+							? actionTileSizes[i] 
+							: int2{ 2, 2 }, 
+						agentVisibleLayerDescs, 
+						initWeightRange, 
+						rng);
+				}
 			}
 
-			_ones = Image2D(actionSize);
-			clear(_ones);
+			_ones.resize(_aLayers.back().size());
+
+			for (size_t i = 0; i < _ones.size(); ++i) 
+			{
+				_ones[i] = Image2D(actionSizes[i]);
+				_ones[i].fill(1.0f);
+			}
+
+			_rewardSums.clear();
+			_rewardSums.assign(_aLayers.size(), 0.0f);
+
+			_rewardCounts.clear();
+			_rewardCounts.assign(_aLayers.size(), 0.0f);
 		}
 
 		/*!
@@ -125,24 +142,54 @@ namespace feynman {
 		*/
 		void simStep(
 			const float reward,
-			const Image2D &input,
+			const std::vector<Image2D> &inputs,
+			const std::vector<Image2D> &inputsCorrupted,
 			std::mt19937 &rng,
-			const bool learn) 
+			const bool learn = true) 
 		{
-			_featureHierarchy.simStep({ input, _aLayers.back().getOneHotActions() }, rng, learn);
+			// Activate hierarchy
+			_p.simStep(inputs, inputsCorrupted, rng, learn);
 
 			// Update agent layers
-			for (int layer = 0; layer < _aLayers.size(); layer++) {
-				const Image2D feedBack = (layer == 0) 
-				? _featureHierarchy.getLayer(layer)._sparseFeatures.getHiddenStates()[_back] 
-				: _aLayers[layer - 1].getOneHotActions();
+			for (size_t layer = 0; layer < _aLayers.size(); layer++)
+			{
+				_rewardSums[layer] += reward;
+				_rewardCounts[layer] += 1.0f;
+				float totalReward = _rewardSums[layer] / _rewardCounts[layer];
 
-				if (layer == _aLayers.size() - 1)
-					_aLayers[layer].simStep(reward, std::vector<Image2D>(1, feedBack), _ones, _aLayerDescs[layer]._qGamma, _aLayerDescs[layer]._qLambda, _aLayerDescs[layer]._epsilon, rng, learn);
-				else
-					_aLayers[layer].simStep(reward, std::vector<Image2D>(1, feedBack), _featureHierarchy.getLayer(layer + 1)._sparseFeatures.getHiddenStates()[_back], _aLayerDescs[layer]._qGamma, _aLayerDescs[layer]._qLambda, _aLayerDescs[layer]._epsilon, rng, learn);
+				for (size_t i = 0; i < _aLayers[layer].size(); i++) {
+					Image2D inputs = (layer == 0) 
+						? _p.getHierarchy().getLayer(layer)._sf->getHiddenStates()[_back] 
+						: _aLayers[layer - 1].front().getOneHotActions();
+
+					if (layer == _aLayers.size() - 1) {
+						_aLayers[layer][i].simStep(
+							totalReward, 
+							std::vector<Image2D>(1, inputs),
+							_ones[i], 
+							_aLayerDescs[layer][i]._qGamma,
+							_aLayerDescs[layer][i]._qLambda, 
+							_aLayerDescs[layer][i]._actionLambda, 
+							_aLayerDescs[layer][i]._maxActionWeightMag, 
+							rng, 
+							learn);
+					} 
+					else {
+						_aLayers[layer][i].simStep(
+							totalReward, std::vector<Image2D>(1, inputs), 
+							_p.getHierarchy().getLayer(layer + 1)._sf->getHiddenStates()[_back], 
+							_aLayerDescs[layer][i]._qGamma, 
+							_aLayerDescs[layer][i]._qLambda,
+							_aLayerDescs[layer][i]._actionLambda,
+							_aLayerDescs[layer][i]._maxActionWeightMag,
+							rng, 
+							learn);
+					}
+				}
+
+				_rewardSums[layer] = 0.0f;
+				_rewardCounts[layer] = 0.0f;
 			}
-
 		}
 
 		/*!
@@ -156,14 +203,14 @@ namespace feynman {
 		/*!
 		\brief Get access to an agent layer
 		*/
-		const AgentLayer &getAgentLayer(int index) const {
+		const std::vector<AgentLayer> &getAgentLayer(int index) const {
 			return _aLayers[index];
 		}
 
 		/*!
 		\brief Get access to an agent layer descriptor
 		*/
-		const AgentLayerDesc &getAgentLayerDesc(int index) const {
+		const std::vector<AgentLayerDesc> &getAgentLayerDesc(int index) const {
 			return _aLayerDescs[index];
 		}
 
@@ -172,15 +219,13 @@ namespace feynman {
 		Returns float 2D image where each element is actually an integer, representing the index of the select action for each tile.
 		To get continuous values, divide each tile index by the number of elements in a tile (actionTileSize.x * actionTileSize.y).
 		*/
-		const Image2D &getAction() const {
-			return _aLayers.back().getActions()[_back];
+		const Image2D &getAction(int index) const {
+			return _aLayers.back()[index].getActions()[_back];
 		}
 
-		/*!
-		\brief Get the underlying feature hierarchy
-		*/
-		FeatureHierarchy &getHierarchy() {
-			return _featureHierarchy;
+		//Get the underlying feature hierarchy
+		Predictor &getPredictor() {
+			return _p;
 		}
 	};
 }

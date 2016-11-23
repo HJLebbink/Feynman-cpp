@@ -20,64 +20,45 @@ namespace feynman {
 	class FeatureHierarchy {
 	public:
 
-		//Descriptor of a layer input
-		struct InputDesc {
-
-			//Size of layer
-			int2 _size;
-
-			// Radii for feed forward and inhibitory connections
-			int _radius;
-
-			//Initialize defaults
-			InputDesc() : _size({ 8, 8 }), _radius(0)
-			{}
-
-			//brief Initialize from values
-			InputDesc(int2 size, int radius)
-				: _size(size), _radius(radius)
-			{}
-		};
-
 		//Descriptor of a layer in the feature hierarchy
 		struct LayerDesc {
-			
-			//Size of layer
-			int2 _size;
+			//Sparse features desc
+			std::shared_ptr<SparseFeatures::SparseFeaturesDesc> _sfDesc;
 
-			//Input descriptors
-			std::vector<InputDesc> _inputDescs;
-
-			//Radius for recurrent connections
-			int _recurrentRadius;
-
-			//Radius for inhibitory connections
-			int _inhibitionRadius;
-
-			//Sparse predictor parameters
-			float _spFeedForwardWeightAlpha;
-			float _spRecurrentWeightAlpha;
-			float _spBiasAlpha;
-			float _spActiveRatio;
+			// Temporal pooling
+			int _poolSteps;
 
 			//Initialize defaults
 			LayerDesc()
-				: _size({ 8, 8 }),
-				_inputDescs({ InputDesc({ 16, 16 }, 6) }), _recurrentRadius(6), _inhibitionRadius(5),
-				_spFeedForwardWeightAlpha(0.25f), _spRecurrentWeightAlpha(0.25f), _spBiasAlpha(0.01f),
-				_spActiveRatio(0.02f)
+				: _poolSteps(2)
 			{}
 		};
 
-		//Layer
+		//brief Layer
 		struct Layer {
-			
-			//Sparse predictor
-			SparseFeatures _sparseFeatures;
+			//Sparse features
+			std::shared_ptr<SparseFeatures> _sf;
 
+			//Clock for temporal pooling (relative to previous layer)
+			int _clock;
+
+			//brief Temporal pooling buffer
+			DoubleBuffer2D _tpBuffer;
+
+			//brief Prediction error temporary buffer
+			Image2D _predErrors;
+
+			//Flags for use by other systems
+			bool _tpReset;
+			bool _tpNextReset;
+
+			//Initialize defaults
+			Layer()
+				: _clock(0), _tpReset(false), _tpNextReset(false)
+			{}
 		};
 
-	private: 
+	private:
 
 		std::vector<Layer> _layers;
 		std::vector<LayerDesc> _layerDescs;
@@ -96,64 +77,21 @@ namespace feynman {
 		\param rng a random number generator.
 		*/
 		void createRandom(
-			const std::vector<InputDesc> &inputDescs, 
 			const std::vector<LayerDesc> &layerDescs,
-			const float2 initWeightRange,
 			std::mt19937 &rng)
 		{
 			_layerDescs = layerDescs;
-			_layerDescs.front()._inputDescs = inputDescs;
 			_layers.resize(_layerDescs.size());
-			int2 prevLayerSize = inputDescs.front()._size;
 
-			for (size_t layer = 0; layer < _layers.size(); layer++) {
-				if (layer == 0) {
-					std::vector<SparseFeatures::VisibleLayerDesc> spDescs(inputDescs.size());
+			for (size_t layer = 0; layer < _layers.size(); ++layer) {
+				//std::cout << "INFO: layer=" << layer << std::endl;
+				_layers[layer]._sf = _layerDescs[layer]._sfDesc->sparseFeaturesFactory();
 
-					for (size_t i = 0; i < inputDescs.size(); i++) {
-						// Feed forward
-						spDescs[i]._size = inputDescs[i]._size;
-						spDescs[i]._radius = inputDescs[i]._radius;
-						spDescs[i]._ignoreMiddle = false;
-						spDescs[i]._weightAlpha = _layerDescs[layer]._spFeedForwardWeightAlpha;
-					}
+				// Create temporal pooling buffer
+				_layers[layer]._tpBuffer = createDoubleBuffer2D(_layers[layer]._sf->getHiddenSize());
 
-					// Recurrent
-					if (_layerDescs[layer]._recurrentRadius != 0) {
-						SparseFeatures::VisibleLayerDesc recDesc;
-
-						recDesc._size = _layerDescs[layer]._size;
-						recDesc._radius = _layerDescs[layer]._recurrentRadius;
-						recDesc._ignoreMiddle = true;
-						recDesc._weightAlpha = _layerDescs[layer]._spRecurrentWeightAlpha;
-
-						spDescs.push_back(recDesc);
-					}
-
-					_layers[layer]._sparseFeatures.createRandom(spDescs, _layerDescs[layer]._size, _layerDescs[layer]._inhibitionRadius, initWeightRange, rng);
-				}
-				else {
-					std::vector<SparseFeatures::VisibleLayerDesc> spDescs(_layerDescs[layer]._recurrentRadius != 0 ? 2 : 1);
-
-					// Feed forward
-					spDescs[0]._size = prevLayerSize;
-					spDescs[0]._radius = _layerDescs[layer]._inputDescs.front()._radius;
-					spDescs[0]._ignoreMiddle = false;
-					spDescs[0]._weightAlpha = _layerDescs[layer]._spFeedForwardWeightAlpha;
-
-					// Recurrent
-					if (_layerDescs[layer]._recurrentRadius != 0) {
-						spDescs[1]._size = _layerDescs[layer]._size;
-						spDescs[1]._radius = _layerDescs[layer]._recurrentRadius;
-						spDescs[1]._ignoreMiddle = true;
-						spDescs[1]._weightAlpha = _layerDescs[layer]._spRecurrentWeightAlpha;
-					}
-
-					_layers[layer]._sparseFeatures.createRandom(spDescs, _layerDescs[layer]._size, _layerDescs[layer]._inhibitionRadius, initWeightRange, rng);
-				}
-
-				// Next layer
-				prevLayerSize = _layerDescs[layer]._size;
+				// Prediction error
+				_layers[layer]._predErrors = Image2D(_layers[layer]._sf->getHiddenSize());
 			}
 		}
 
@@ -166,47 +104,79 @@ namespace feynman {
 		*/
 		void simStep(
 			const std::vector<Image2D> &inputs,
+			const std::vector<Image2D> &predictionsPrev,
 			std::mt19937 &rng,
 			const bool learn = true)
 		{
-			std::vector<Image2D> inputsUse = inputs;
-
-			if (_layerDescs.front()._recurrentRadius != 0) {
-				inputsUse.push_back(_layers.front()._sparseFeatures.getHiddenStates()[_back]);
+			// Clear summation buffers if reset previously
+			for (size_t layer = 0; layer < _layers.size(); layer++) {
+				if (_layers[layer]._tpNextReset) {
+					// Clear summation buffer
+					clear(_layers[layer]._tpBuffer[_back]);
+				}
 			}
+
 			// Activate
-			for (size_t layer = 0; layer < _layers.size(); layer++) {
+			bool prevClockReset = true;
 
-				std::vector<Image2D> visibleStates;
-				if (layer == 0) {
-					visibleStates = inputsUse;
+			for (size_t layer = 0; layer < _layers.size(); ++layer) {
+				// Add input to pool
+				if (prevClockReset) {
+					_layers[layer]._clock++;
+
+					// Gather inputs for layer
+					std::vector<Image2D> visibleStates;
+
+					if (layer == 0) {
+						std::vector<Image2D> inputsUse = inputs;
+
+						if (_layerDescs.front()._sfDesc->_inputType == SparseFeatures::_feedForwardRecurrent)
+							inputsUse.push_back(_layers.front()._sf->getHiddenContext());
+
+						visibleStates = inputsUse;
+					}
+					else
+						visibleStates = (_layerDescs[layer]._sfDesc->_inputType == SparseFeatures::_feedForwardRecurrent) 
+							? std::vector<Image2D>{ _layers[layer - 1]._tpBuffer[_back], _layers[layer]._sf->getHiddenContext() } 
+							: std::vector<Image2D>{ _layers[layer - 1]._tpBuffer[_back] };
+
+					// Update layer
+					_layers[layer]._sf->activate(visibleStates, predictionsPrev[layer], rng);
+
+					if (learn)
+						_layers[layer]._sf->learn(rng);
+
+					_layers[layer]._sf->stepEnd();
+
+					// Prediction error
+					fhPredError(
+						_layers[layer]._sf->getHiddenStates()[_back],
+						predictionsPrev[layer],
+						_layers[layer]._predErrors
+					);
+
+					// Add state to average
+					fhPool(
+						_layers[layer]._predErrors,
+						_layers[layer]._tpBuffer[_back],
+						_layers[layer]._tpBuffer[_front],
+						1.0f / std::max(1, _layerDescs[layer]._poolSteps)
+					);
+
+					std::swap(_layers[layer]._tpBuffer[_front], _layers[layer]._tpBuffer[_back]);
 				}
-				else if (_layerDescs[layer]._recurrentRadius == 0) {
-					visibleStates = std::vector<Image2D>{
-						_layers[layer - 1]._sparseFeatures.getHiddenStates()[_front]
-					};
-				} else {
-					visibleStates = std::vector<Image2D>{
-						_layers[layer - 1]._sparseFeatures.getHiddenStates()[_front],
-						_layers[layer]._sparseFeatures.getHiddenStates()[_back]
-					};
+
+				_layers[layer]._tpReset = prevClockReset;
+
+				if (_layers[layer]._clock >= _layerDescs[layer]._poolSteps) {
+					_layers[layer]._clock = 0;
+
+					prevClockReset = true;
 				}
-				_layers[layer]._sparseFeatures.activate(
-					visibleStates, 
-					_layerDescs[layer]._spActiveRatio, 
-					rng);
-			}
-			// Learn
-			if (learn) {
-				for (size_t layer = 0; layer < _layers.size(); layer++) {
-					_layers[layer]._sparseFeatures.learn(
-						_layerDescs[layer]._spBiasAlpha, 
-						_layerDescs[layer]._spActiveRatio);
-				}
-			}
-			// Step end
-			for (size_t layer = 0; layer < _layers.size(); layer++) {
-				_layers[layer]._sparseFeatures.stepEnd();
+				else
+					prevClockReset = false;
+
+				_layers[layer]._tpNextReset = prevClockReset;
 			}
 		}
 
@@ -233,8 +203,42 @@ namespace feynman {
 
 		//Clear the working memory
 		void clearMemory() {
-			for (size_t layer = 0; layer < _layers.size(); layer++) {
-				_layers[layer]._sparseFeatures.clearMemory();
+			for (size_t layer = 0; layer < _layers.size(); ++layer) {
+				_layers[layer]._sf->clearMemory();
+			}
+		}
+
+	private:
+
+		static void fhPool(
+			const Image2D &states, 
+			const Image2D &outputsBack, 
+			Image2D &outputsFront, 
+			const float scale) 
+		{
+			const int nElements = states._size.x * states._size.y;
+			for (int i = 0; i < nElements; ++i) {
+				const float state = states._data_float[i];
+				const float outputPrev = outputsBack._data_float[i];
+				const float newValue = (outputPrev > state) ? outputPrev : state;
+				outputsFront._data_float[i] = newValue;
+			}
+		}
+
+		static void fhPredError(
+			const Image2D &states, 
+			const Image2D &predictionsPrev, 
+			Image2D &errors) 
+		{
+			const int nElements = states._size.x * states._size.y;
+			for (int i = 0; i < nElements; ++i) {
+				const float state = states._data_float[i];
+				const float predictionPrev = predictionsPrev._data_float[i];
+
+				//write_imagef(errors, position, (float4)(state - predictionPrev, 0.0f, 0.0f, 0.0f));
+				//write_imagef(errors, position, (float4)(state, 0.0f, 0.0f, 0.0f));
+				const float newValue = (state * (1.0f - predictionPrev)) + ((1.0f - state) * predictionPrev);
+				errors._data_float[i] = newValue;
 			}
 		}
 	};

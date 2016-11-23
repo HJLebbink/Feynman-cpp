@@ -14,6 +14,25 @@ using namespace feynman;
 
 namespace plots {
 
+	static std::map<std::string, sf::RenderWindow *> all_windows;
+
+	void plotImage(
+		const sf::Image &image,
+		const int2 sizeImage,
+		const float2 pos,
+		const float scale2,
+		sf::RenderWindow &window)
+	{
+		sf::Texture sdrTex;
+		sdrTex.loadFromImage(image);
+
+		sf::Sprite sprite2;
+		sprite2.setTexture(sdrTex);
+		sprite2.setPosition(pos.x, pos.y + (window.getSize().y - scale2 * sizeImage.y));
+		sprite2.setScale(scale2, scale2);
+		window.draw(sprite2);
+	}
+
 	void plotImage(
 		const Image2D &image,
 		const float2 pos,
@@ -34,17 +53,27 @@ namespace plots {
 				sdrImg.setPixel(x, y, c);
 			}
 		}
-		sf::Texture sdrTex;
-		sdrTex.loadFromImage(sdrImg);
-
-		sf::Sprite sprite2;
-		sprite2.setTexture(sdrTex);
-		sprite2.setPosition(pos.x, pos.y + (window.getSize().y - scale2 * hInHeight));
-		sprite2.setScale(scale2, scale2);
-		window.draw(sprite2);
+		plotImage(sdrImg, image._size, pos, scale2, window);
 	}
 
-	static std::map<std::string, sf::RenderWindow *> all_windows;
+	void plotImage(
+		const sf::Image &image,
+		const int2 sizeImage,
+		const float scale2,
+		const std::string name)
+	{
+		sf::RenderWindow * window = new sf::RenderWindow();
+
+		if (all_windows.find(name) == all_windows.end()) {
+			window->create(sf::VideoMode(static_cast<unsigned int>(sizeImage.x * scale2), static_cast<unsigned int>(sizeImage.y * scale2)), name);
+			all_windows[name] = window;
+		}
+		else {
+			window = all_windows[name];
+		}
+		plotImage(image, sizeImage, float2{ 0.0f, 0.0f }, scale2, *window);
+		window->display();
+	}
 
 	void plotImage(
 		const Image2D &image,

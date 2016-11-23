@@ -57,32 +57,26 @@
     <None Include="src\SparseFeatures.ipp">
       <Filter>Header Files</Filter>
     </None>
-    <None Include="src\Mnist_Anomaly_Detection.ipp">
-      <Filter>Source Files</Filter>
-    </None>
-    <None Include="src\SequenceRecall.ipp">
-      <Filter>Source Files</Filter>
-    </None>
     <None Include="src\Video_Prediction.ipp">
       <Filter>Source Files</Filter>
     </None>
     <None Include="src\PlotDebug.ipp">
       <Filter>Header Files</Filter>
     </None>
-    <None Include="src\RecallTests.ipp">
-      <Filter>Source Files</Filter>
-    </None>
-    <None Include="src\AgentTests.ipp">
-      <Filter>Source Files</Filter>
-    </None>
     <None Include="src\FixedPoint.ipp">
       <Filter>Header Files</Filter>
     </None>
-    <None Include="src\SparseCoderTests.ipp">
-      <Filter>Source Files</Filter>
+    <None Include="src\Architect.ipp">
+      <Filter>Header Files</Filter>
     </None>
-    <None Include="src\ScalarEncoderTests.ipp">
-      <Filter>Source Files</Filter>
+    <None Include="src\SparseFeaturesSTDP.ipp">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="src\SparseFeaturesChunk.ipp">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="src\SparseFeaturesDelay.ipp">
+      <Filter>Header Files</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>

@@ -5,6 +5,7 @@
 #include <limits>	// for std::numeric_limits
 #include <iostream>
 
+
 namespace feynman {
 
 	// FixPoint Parameters
@@ -37,6 +38,11 @@ namespace feynman {
 	bool inRange(const float f) {
 		return (f >= minValueFloat) && (f <= maxValueFloat);
 	}
+//	bool inRange(const int2 i) {
+//		return true;
+//	}
+
+
 
 	FixedP reducePower1(FixedP2 i) {
 		return static_cast<FixedP>(i >> (N_BITS_FIXPOINT * 1));
