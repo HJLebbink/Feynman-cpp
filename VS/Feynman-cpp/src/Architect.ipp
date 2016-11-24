@@ -26,44 +26,6 @@ namespace feynman {
 	static const std::string _boolTrue = "true";
 	static const std::string _boolFalse = "false";
 
-	//Describe a 2D field of values. Typically used for input values to a hierarchy.
-	class ValueField2D {
-	private:
-		std::vector<float> _data;
-		int2 _size;
-
-	public:
-		ValueField2D()
-		{}
-
-		ValueField2D(const int2 &size, float defVal = 0.0f) {
-			create(size, defVal);
-		}
-
-		void create(const int2 &size, float defVal = 0.0f) {
-			_size = size;
-
-			_data.clear();
-			_data.assign(size.x * size.y, defVal);
-		}
-
-		float getValue(const int2 &pos) const {
-			return _data[pos.x + pos.y * _size.x];
-		}
-
-		void setValue(const int2 &pos, float value) {
-			_data[pos.x + pos.y * _size.x] = value;
-		}
-
-		const int2 getSize() const {
-			return _size;
-		}
-
-		std::vector<float> &getData() {
-			return _data;
-		}
-	};
-
 	//Parameter modified interface
 	class ParameterModifier {
 	public:
@@ -105,7 +67,7 @@ namespace feynman {
 			return *this;
 		}
 
-		static int2 parseVec2i(const std::string &s) {
+		static int2 parseInt2(const std::string &s) {
 			std::istringstream is(s.substr(1, s.size() - 2)); // Remove ()
 			std::string xs;
 			std::getline(is, xs, ',');
@@ -114,7 +76,7 @@ namespace feynman {
 			return int2{ std::stoi(xs), std::stoi(ys) };
 		}
 
-		static float2 parseVec2f(const std::string &s) {
+		static float2 parseFloat2(const std::string &s) {
 			std::istringstream is(s.substr(1, s.size() - 2)); // Remove ()
 			std::string xs;
 			std::getline(is, xs, ',');
@@ -175,14 +137,14 @@ namespace feynman {
 				std::shared_ptr<SparseFeaturesSTDP::SparseFeaturesSTDPDesc> sfDescSTDP = std::make_shared<SparseFeaturesSTDP::SparseFeaturesSTDPDesc>();
 
 				sfDescSTDP->_inputType = SparseFeatures::_feedForwardRecurrent;
-				sfDescSTDP->_hiddenSize = { size.x, size.y };
+				sfDescSTDP->_hiddenSize = int2{ size.x, size.y };
 				sfDescSTDP->_rng = _rng;
 
 				if (params.find("sfs_inhibitionRadius") != params.end())
 					sfDescSTDP->_inhibitionRadius = std::stoi(params["sfs_inhibitionRadius"]);
 
 				if (params.find("sfs_initWeightRange") != params.end()) {
-					float2 initWeightRange = ParameterModifier::parseVec2f(params["sfs_initWeightRange"]);
+					float2 initWeightRange = ParameterModifier::parseFloat2(params["sfs_initWeightRange"]);
 					sfDescSTDP->_initWeightRange = { initWeightRange.x, initWeightRange.y };
 				}
 
@@ -348,12 +310,12 @@ namespace feynman {
 				sfDescChunk->_rng = _rng;
 
 				if (params.find("sfc_chunkSize") != params.end()) {
-					int2 chunkSize = ParameterModifier::parseVec2i(params["sfc_chunkSize"]);
+					int2 chunkSize = ParameterModifier::parseInt2(params["sfc_chunkSize"]);
 					sfDescChunk->_chunkSize = { chunkSize.x, chunkSize.y };
 				}
 
 				if (params.find("sfc_initWeightRange") != params.end()) {
-					float2 initWeightRange = ParameterModifier::parseVec2f(params["sfc_initWeightRange"]);
+					float2 initWeightRange = ParameterModifier::parseFloat2(params["sfc_initWeightRange"]);
 					sfDescChunk->_initWeightRange = { initWeightRange.x, initWeightRange.y };
 				}
 
@@ -525,7 +487,7 @@ namespace feynman {
 			float2 initWeightRange = { -0.01f, 0.01f };
 
 			if (additionalParams.find("ad_initWeightRange") != additionalParams.end()) {
-				float2 range = ParameterModifier::parseVec2f(additionalParams["ad_initWeightRange"]);
+				float2 range = ParameterModifier::parseFloat2(additionalParams["ad_initWeightRange"]);
 				initWeightRange = { range.x, range.y };
 			}
 
@@ -594,7 +556,7 @@ namespace feynman {
 			float2 initWeightRange = { -0.01f, 0.01f };
 
 			if (additionalParams.find("ad_initWeightRange") != additionalParams.end()) {
-				float2 range = ParameterModifier::parseVec2f(additionalParams["ad_initWeightRange"]);
+				float2 range = ParameterModifier::parseFloat2(additionalParams["ad_initWeightRange"]);
 
 				initWeightRange = { range.x, range.y };
 			}

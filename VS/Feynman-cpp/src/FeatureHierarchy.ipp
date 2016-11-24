@@ -80,6 +80,7 @@ namespace feynman {
 			const std::vector<LayerDesc> &layerDescs,
 			std::mt19937 &rng)
 		{
+			// last checked: 24-nov-2016
 			_layerDescs = layerDescs;
 			_layers.resize(_layerDescs.size());
 
@@ -108,8 +109,10 @@ namespace feynman {
 			std::mt19937 &rng,
 			const bool learn = true)
 		{
+			// last checked: 24-nov-2016
+
 			// Clear summation buffers if reset previously
-			for (size_t layer = 0; layer < _layers.size(); layer++) {
+			for (size_t layer = 0; layer < _layers.size(); ++layer) {
 				if (_layers[layer]._tpNextReset) {
 					// Clear summation buffer
 					clear(_layers[layer]._tpBuffer[_back]);
@@ -152,7 +155,8 @@ namespace feynman {
 					fhPredError(
 						_layers[layer]._sf->getHiddenStates()[_back],
 						predictionsPrev[layer],
-						_layers[layer]._predErrors
+						_layers[layer]._predErrors,
+						_layers[layer]._sf->getHiddenSize()
 					);
 
 					// Add state to average
@@ -160,7 +164,8 @@ namespace feynman {
 						_layers[layer]._predErrors,
 						_layers[layer]._tpBuffer[_back],
 						_layers[layer]._tpBuffer[_front],
-						1.0f / std::max(1, _layerDescs[layer]._poolSteps)
+						1.0f / std::max(1, _layerDescs[layer]._poolSteps),
+						_layers[layer]._sf->getHiddenSize()
 					);
 
 					std::swap(_layers[layer]._tpBuffer[_front], _layers[layer]._tpBuffer[_back]);
@@ -170,12 +175,11 @@ namespace feynman {
 
 				if (_layers[layer]._clock >= _layerDescs[layer]._poolSteps) {
 					_layers[layer]._clock = 0;
-
 					prevClockReset = true;
 				}
-				else
+				else {
 					prevClockReset = false;
-
+				}
 				_layers[layer]._tpNextReset = prevClockReset;
 			}
 		}
@@ -203,6 +207,7 @@ namespace feynman {
 
 		//Clear the working memory
 		void clearMemory() {
+			// last checked: 24-nov-2016
 			for (size_t layer = 0; layer < _layers.size(); ++layer) {
 				_layers[layer]._sf->clearMemory();
 			}
@@ -211,12 +216,14 @@ namespace feynman {
 	private:
 
 		static void fhPool(
-			const Image2D &states, 
-			const Image2D &outputsBack, 
-			Image2D &outputsFront, 
-			const float scale) 
+			const Image2D &states,
+			const Image2D &outputsBack,
+			Image2D &outputsFront,
+			const float scale,
+			const int2 range)
 		{
-			const int nElements = states._size.x * states._size.y;
+			// last checked: 24-nov-2016
+			const int nElements = range.x * range.y;
 			for (int i = 0; i < nElements; ++i) {
 				const float state = states._data_float[i];
 				const float outputPrev = outputsBack._data_float[i];
@@ -226,15 +233,16 @@ namespace feynman {
 		}
 
 		static void fhPredError(
-			const Image2D &states, 
-			const Image2D &predictionsPrev, 
-			Image2D &errors) 
+			const Image2D &states,
+			const Image2D &predictionsPrev,
+			Image2D &errors,
+			const int2 range)
 		{
-			const int nElements = states._size.x * states._size.y;
+			// last checked: 24-nov-2016
+			const int nElements = range.x * range.y;
 			for (int i = 0; i < nElements; ++i) {
 				const float state = states._data_float[i];
 				const float predictionPrev = predictionsPrev._data_float[i];
-
 				//write_imagef(errors, position, (float4)(state - predictionPrev, 0.0f, 0.0f, 0.0f));
 				//write_imagef(errors, position, (float4)(state, 0.0f, 0.0f, 0.0f));
 				const float newValue = (state * (1.0f - predictionPrev)) + ((1.0f - state) * predictionPrev);

@@ -76,40 +76,6 @@ namespace feynman {
 		//Learning
 		virtual void learn(
 			std::mt19937 &rng) = 0;
-		/*
-		{
-			// Learn weights
-			for (size_t vli = 0; vli < _visibleLayers.size(); vli++) {
-				VisibleLayer &vl = _visibleLayers[vli];
-				VisibleLayerDesc &vld = _visibleLayerDescs[vli];
-
-				spLearnWeights(
-					_hiddenStates[_front],		// in
-					vl._derivedInput[_front],	// in
-					vl._weights[_back],			// in
-					vl._weights[_front],		// out
-					vld._size,
-					vl._hiddenToVisible,
-					vld._radius,
-					//activeRatio,				// unused
-					vld._weightAlpha);
-
-				std::swap(vl._weights[_front], vl._weights[_back]);
-			}
-
-			// Bias update
-			spLearnBiases(
-				_hiddenSummationTemp[_back],	// in
-				//_hiddenStates[_front],		// unused
-				_hiddenBiases[_back],			// in
-				_hiddenBiases[_front],			// out
-				//activeRatio,					// unused
-				biasAlpha,
-				_hiddenSize);
-
-			std::swap(_hiddenBiases[_front], _hiddenBiases[_back]);
-		}
-		*/
 
 		//Inhibition
 		virtual void inhibit(

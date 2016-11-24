@@ -50,7 +50,7 @@ namespace feynman {
 		struct VisibleLayer {
 
 			//Possibly manipulated input
-			DoubleBuffer2D _derivedInput;
+			DoubleBuffer2D2f _derivedInput;
 
 			// Samples (time sliced derived inputs)
 			DoubleBuffer3D _samples;
@@ -161,7 +161,7 @@ namespace feynman {
 			_biasAlpha(biasAlpha), 
 			_gamma(gamma)
 		{
-			// last checked: 23-nov
+			// last checked: 24-nov 2016
 
 			_type = SparseFeaturesType::_chunk;
 			_visibleLayerDescs = visibleLayerDescs;
@@ -169,8 +169,10 @@ namespace feynman {
 			_chunkSize = chunkSize;
 			_numSamples = numSamples;
 
-			const int chunksInX = static_cast<int>(std::ceil(static_cast<float>(_hiddenSize.x) / static_cast<float>(_chunkSize.x)));
-			const int chunksInY = static_cast<int>(std::ceil(static_cast<float>(_hiddenSize.y) / static_cast<float>(_chunkSize.y)));
+			_visibleLayers.resize(_visibleLayerDescs.size());
+
+			const int chunksInX = static_cast<int>(std::ceil(static_cast<float>(_hiddenSize.x) / _chunkSize.x));
+			const int chunksInY = static_cast<int>(std::ceil(static_cast<float>(_hiddenSize.y) / _chunkSize.y));
 
 			_chunkToHidden = float2{ 
 				static_cast<float>(_hiddenSize.x) / chunksInX,
@@ -201,7 +203,7 @@ namespace feynman {
 					vl._weights = createDoubleBuffer3D(weightsSize);
 					randomUniform3D(vl._weights[_back], weightsSize, initWeightRange, rng);
 				}
-				vl._derivedInput = createDoubleBuffer2D(vld._size);
+				vl._derivedInput = createDoubleBuffer2D2f(vld._size);
 				clear(vl._derivedInput[_back]);
 
 				vl._samples = createDoubleBuffer3D({ vld._size.x, vld._size.y, numSamples });
@@ -242,7 +244,7 @@ namespace feynman {
 			const Image2D &predictionsPrev,
 			std::mt19937 &rng) override
 		{
-			// last checked: 23-nov
+			// last checked: 24-nov 2016
 
 			// Start by clearing stimulus summation buffer to biases
 			clear(_hiddenSummationTemp[_back]);
@@ -294,9 +296,11 @@ namespace feynman {
 			);
 
 			// Inhibit
-			const int chunksInX = _hiddenSize.x / _chunkSize.x + 1;
-			const int chunksInY = _hiddenSize.y / _chunkSize.y + 1;
-
+			const int chunksInX = static_cast<int>(std::ceil(static_cast<float>(_hiddenSize.x) / _chunkSize.x));
+			const int chunksInY = static_cast<int>(std::ceil(static_cast<float>(_hiddenSize.y) / _chunkSize.y));
+			//const int chunksInX = _hiddenSize.x / _chunkSize.x + 1;
+			//const int chunksInY = _hiddenSize.y / _chunkSize.y + 1;
+			
 			sfcInhibit(
 				_hiddenActivations[_front],		// in
 				_hiddenStates[_front],			// out
@@ -675,16 +679,16 @@ namespace feynman {
 	private:
 
 		static void sfcAddSample(
-			const Image2D &visibleStates,
+			const Array2D2f &visibleStates,
 			const Image3D &samplesBack, 
 			Image3D &samplesFront,
 			const int numSamples,
 			const int2 range)
 		{
-			// last checked: 23-nov
+			// last checked: 24-nov 2016
 			for (int x = 0; x < range.x; ++x) {
-				for (int y = 0; x < range.y; ++y) {
-					const float visibleState = read_2D(visibleStates, x, y);
+				for (int y = 0; y < range.y; ++y) {
+					const float visibleState = read_2D(visibleStates, x, y).x;
 					for (int s = 1; s < numSamples; ++s) {
 						const float samplePrev = read_3D(samplesBack, x, y, s - 1);
 						write_3D(samplesFront, x, y, s, samplePrev);
@@ -757,12 +761,13 @@ namespace feynman {
 			const bool ignoreMiddle)
 		{
 			// last checked: 23-nov
+			throw 1;
 			if (true) {
 				int chunkPosition_x = hiddenPosition_x / chunkSize.x;
 				int chunkPosition_y = hiddenPosition_y / chunkSize.y;
 
-				int chunkCenter_x = static_cast<int>((chunkPosition_x + 0.5f) * chunksToHidden.x);
-				int chunkCenter_y = static_cast<int>((chunkPosition_y + 0.5f) * chunksToHidden.y);
+				const int chunkCenter_x = static_cast<int>((static_cast<float>(chunkPosition_x) + 0.5f) * chunksToHidden.x);
+				const int chunkCenter_y = static_cast<int>((static_cast<float>(chunkPosition_y) + 0.5f) * chunksToHidden.y);
 
 				int visiblePositionCenter_x = project(chunkCenter_x, hiddenToVisible.x);
 				int visiblePositionCenter_y = project(chunkCenter_y, hiddenToVisible.y);
@@ -872,6 +877,8 @@ namespace feynman {
 			const float2 hiddenToVisible,
 			const bool ignoreMiddle)
 		{
+			throw 1;
+
 			const int visiblePositionCenter_x = project(hiddenPosition_x, hiddenToVisible.x);
 			const int fieldLowerBound_x = visiblePositionCenter_x - RADIUS;
 			const int fieldUpperBound_x = visiblePositionCenter_x + RADIUS;
@@ -952,6 +959,7 @@ namespace feynman {
 			const int numSamples,
 			const bool ignoreMiddle)
 		{
+			throw 1;
 			// last checked: 23-nov
 			for (int x = 0; x < hiddenSummationTempBack._size.x; ++x) {
 				for (int y = 0; y < hiddenSummationTempBack._size.y; ++y) {
@@ -1017,6 +1025,7 @@ namespace feynman {
 			const bool ignoreMiddle, 
 			const int2 range)
 		{
+			// last checked: 24-nov 2016
 			/*
 			switch (radius) {
 			case 6: spStimulus_v0<6>(stimulus, hiddenSummationTempBack, hiddenSummationTempFront, weights, visibleSize, hiddenToVisible, chunkSize, chunksToHidden, numSamples, ignoreMiddle); break;
@@ -1025,15 +1034,14 @@ namespace feynman {
 			default: printf("ERROR: SparseFeatures::spStimulus: provided radius %i is not implemented\n", radius); break;
 			}
 			*/
-
 			for (int hiddenPosition_x = 0; hiddenPosition_x < range.x; ++hiddenPosition_x) {
 				for (int hiddenPosition_y = 0; hiddenPosition_y < range.y; ++hiddenPosition_y) {
 
 					const int chunkPosition_x = hiddenPosition_x / chunkSize.x;
 					const int chunkPosition_y = hiddenPosition_y / chunkSize.y;
 
-					const int chunkCenter_x = static_cast<int>((chunkPosition_x + 0.5f) * chunksToHidden.x);
-					const int chunkCenter_y = static_cast<int>((chunkPosition_y + 0.5f) * chunksToHidden.y);
+					const int chunkCenter_x = static_cast<int>((static_cast<float>(chunkPosition_x) + 0.5f) * chunksToHidden.x);
+					const int chunkCenter_y = static_cast<int>((static_cast<float>(chunkPosition_y) + 0.5f) * chunksToHidden.y);
 
 					const int visiblePositionCenter_x = project(chunkCenter_x, hiddenToVisible.x);
 					const int visiblePositionCenter_y = project(chunkCenter_y, hiddenToVisible.y);
@@ -1085,7 +1093,7 @@ namespace feynman {
 			Image2D &hiddenActivationsFront,
 			const int2 range)
 		{
-			// last checked: 23-nov
+			// last checked: 24-nov 2016
 			const int nElements = range.x * range.y;
 			for (int i = 0; i < nElements; ++i) {
 				const float hiddenStimulus = hiddenStimuli._data_float[i];
@@ -1102,7 +1110,7 @@ namespace feynman {
 			const int2 chunkSize,
 			const int2 range)
 		{
-			// last checked: 23-nov
+			// last checked: 24-nov 2016
 			for (int chunkPosition_x = 0; chunkPosition_x < range.x; ++chunkPosition_x) {
 				for (int chunkPosition_y = 0; chunkPosition_y < range.y; ++chunkPosition_y) {
 
@@ -1131,11 +1139,11 @@ namespace feynman {
 					}
 					write_2D(chunkWinners, chunkPosition_x, chunkPosition_y, maxDelta);
 
-					for (int dx = 0; dx < chunkSize.x; dx++) {
+					for (int dx = 0; dx < chunkSize.x; ++dx) {
 						const int hiddenPosition_x = hiddenStartPosition_x + dx;
 						if (inBounds(hiddenPosition_x, hiddenSize.x)) {
 
-							for (int dy = 0; dy < chunkSize.y; dy++) {
+							for (int dy = 0; dy < chunkSize.y; ++dy) {
 								const int hiddenPosition_y = hiddenStartPosition_y + dy;
 								if (inBounds(hiddenPosition_y, hiddenSize.y)) {
 
@@ -1157,7 +1165,7 @@ namespace feynman {
 			const int2 chunkSize,
 			const int2 range)
 		{
-			// last checked: 23-nov
+			// last checked: 24-nov 2016
 			for (int chunkPosition_x = 0; chunkPosition_x < range.x; ++chunkPosition_x) {
 				for (int chunkPosition_y = 0; chunkPosition_y < range.y; ++chunkPosition_y) {
 
@@ -1186,15 +1194,19 @@ namespace feynman {
 							}
 						}
 					}
+
+					if (maxValue == -99999.0f) 
+						std::cout << "WARNING: SparseFeaturesChunk: no activation is higher than " << maxValue << std::endl;
+
 					for (int dx = 0; dx < chunkSize.x; ++dx) {
 						const int hiddenPosition_x = hiddenStartPosition_x + dx;
 						if (inBounds(hiddenPosition_x, hiddenSize.x)) {
 
-							for (int dy = 0; dy < chunkSize.y; dy++) {
+							for (int dy = 0; dy < chunkSize.y; ++dy) {
 								const int hiddenPosition_y = hiddenStartPosition_y + dy;
 								if (inBounds(hiddenPosition_y, hiddenSize.y)) {
 
-									//float tracePrev = read_imagef(hiddenStatesBack, defaultSampler, hiddenPosition).y;
+									//const float tracePrev = read_imagef(hiddenStatesBack, defaultSampler, hiddenPosition).y;
 									const float newValue = ((dx == maxDelta_x) && (dy == maxDelta_y)) ? 1.0f : 0.0f;
 									write_2D(hiddenStatesFront, hiddenPosition_x, hiddenPosition_y, newValue);
 								}
@@ -1286,8 +1298,8 @@ namespace feynman {
 			const int chunkPosition_x = hiddenPosition_x / chunkSize.x;
 			const int chunkPosition_y = hiddenPosition_y / chunkSize.y;
 
-			const int chunkCenter_x = static_cast<int>(chunkPosition_x + 0.5f) * chunksToHidden.x;
-			const int chunkCenter_y = static_cast<int>(chunkPosition_y + 0.5f) * chunksToHidden.y;
+			const int chunkCenter_x = static_cast<int>((static_cast<float>(chunkPosition_x) + 0.5f) * chunksToHidden.x);
+			const int chunkCenter_y = static_cast<int>((static_cast<float>(chunkPosition_y) + 0.5f) * chunksToHidden.y);
 
 			const int visiblePositionCenter_x = project(chunkCenter_x, hiddenToVisible.x);
 			const int visiblePositionCenter_y = project(chunkCenter_y, hiddenToVisible.y);
@@ -1499,16 +1511,69 @@ namespace feynman {
 			const float gamma,
 			const int2 range)
 		{
-			//printf("hiddenStates.size=(%i,%i)\n", hiddenStates._size.x, hiddenStates._size.y);
-			//printf("visibleStates.size=(%i,%i)\n", visibleStates._size.x, visibleStates._size.y);
-			//printf("weightsBack.size=(%i,%i,%i)\n", weightsBack._size.x, weightsBack._size.y, weightsBack._size.z);
-			//printf("hiddenToVisible=(%f,%f)\n", hiddenToVisible.x, hiddenToVisible.y);
-
+			/*
 			switch (radius) {
 			case 6: sfcLearnWeights_v1<6>(hiddenStates, chunkWinners, samples, weightsBack, weightsFront, hiddenSize, visibleSize, hiddenToVisible, chunkSize, chunksToHidden, weightAlpha, numSamples, gamma, range); break;
 			case 8: sfcLearnWeights_v1<8>(hiddenStates, chunkWinners, samples, weightsBack, weightsFront, hiddenSize, visibleSize, hiddenToVisible, chunkSize, chunksToHidden, weightAlpha, numSamples, gamma, range); break;
 			case 20: sfcLearnWeights_v1<20>(hiddenStates, chunkWinners, samples, weightsBack, weightsFront, hiddenSize, visibleSize, hiddenToVisible, chunkSize, chunksToHidden, weightAlpha, numSamples, gamma, range); break;
 			default: printf("ERROR: SparseFeatures::sfcLearnWeights: provided radius %i is not implemented\n", radius); break;
+			}
+			*/
+			// last checked: 24-nov 2016
+			for (int hiddenPosition_x = 0; hiddenPosition_x < range.x; hiddenPosition_x++) {
+				for (int hiddenPosition_y = 0; hiddenPosition_y < range.y; hiddenPosition_y++) {
+
+					const int chunkPosition_x = hiddenPosition_x / chunkSize.x;
+					const int chunkPosition_y = hiddenPosition_y / chunkSize.y;
+
+					const int chunkCenter_x = static_cast<int>((static_cast<float>(chunkPosition_x) + 0.5f) * chunksToHidden.x);
+					const int chunkCenter_y = static_cast<int>((static_cast<float>(chunkPosition_y) + 0.5f) * chunksToHidden.y);
+
+					const int visiblePositionCenter_x = project(chunkCenter_x, hiddenToVisible.x);
+					const int visiblePositionCenter_y = project(chunkCenter_y, hiddenToVisible.y);
+
+					const int fieldLowerBound_x = visiblePositionCenter_x - radius;
+					const int fieldLowerBound_y = visiblePositionCenter_y - radius;
+
+					const int2 chunkWinner = read_2D(chunkWinners, chunkPosition_x, chunkPosition_y);
+
+					const int hiddenStartPosition_x = chunkPosition_x * chunkSize.x;
+					const int hiddenStartPosition_y = chunkPosition_y * chunkSize.y;
+
+					const int delta_x = (hiddenStartPosition_x + chunkWinner.x) - hiddenPosition_x;
+					const int delta_y = (hiddenStartPosition_y + chunkWinner.y) - hiddenPosition_y;
+
+					const float strength = exp(-(delta_x * delta_x + delta_y * delta_y) * gamma);
+
+					//float hiddenState = read_imagef(hiddenStates, defaultSampler, hiddenPosition).x;
+
+					for (int s = 0; s < numSamples; ++s) {
+
+						for (int dx = -radius; dx <= radius; dx++) {
+							const int visiblePosition_x = visiblePositionCenter_x + dx;
+							if (inBounds(visiblePosition_x, visibleSize.x)) {
+
+								for (int dy = -radius; dy <= radius; dy++) {
+									const int visiblePosition_y = visiblePositionCenter_y + dy;
+									if (inBounds(visiblePosition_y, visibleSize.y)) {
+
+										const int offset_x = visiblePosition_x - fieldLowerBound_x;
+										const int offset_y = visiblePosition_y - fieldLowerBound_y;
+										const int wi = s + numSamples * (offset_y + offset_x * (radius * 2 + 1));
+
+										const float weightPrev = read_3D(weightsBack, hiddenPosition_x, hiddenPosition_y, wi);
+										const float sample = read_3D(samples, visiblePosition_x, visiblePosition_y, s);
+										//float recon = read_imagef(recons, defaultSampler, (int4)(visiblePosition.x, visiblePosition.y, s, 0)).x;
+										const float sLearn = strength * (sample - weightPrev);
+
+										const float newValue = weightPrev + weightAlpha * sLearn;
+										write_3D(weightsFront, hiddenPosition_x, hiddenPosition_y, wi, newValue);
+									}
+								}
+							}
+						}
+					}
+				}
 			}
 		}
 
@@ -1521,7 +1586,7 @@ namespace feynman {
 			const float biasAlpha,
 			const int2 range)
 		{
-			// last checked: 23-nov
+			// last checked: 24-nov 2016
 			const int nElements = range.x * range.y;
 #			pragma ivdep
 			for (int i = 0; i < nElements; ++i) {
@@ -1535,19 +1600,20 @@ namespace feynman {
 
 		static void sfcDeriveInputs(
 			const Image2D &inputs,
-			const Image2D &outputsBack, // unused
-			Image2D &outputsFront, // write only
+			const Array2D2f &outputsBack, // unused
+			Array2D2f &outputsFront, // write only
 			const float lambda,
 			const int2 range)
 		{
-			// last checked: 23-nov
+			// last checked: 24-nov 2016
 			const int nElements = range.x * range.y;
 			for (int i = 0; i < nElements; ++i) {
 				const float input = inputs._data_float[i];
-				const float tracePrev = 0; //read_imagef(outputsBack, defaultSampler, position).y;
+				const float tracePrev = outputsBack._data_float[i].y;
+
 				const float newValueA = input;
 				const float newValueB = lambda * tracePrev + (1.0f - lambda) * input;
-				outputsFront._data_float[i] = newValueA;
+				outputsFront._data_float[i] = float2{ newValueA, newValueB };
 			}
 		}
 	};

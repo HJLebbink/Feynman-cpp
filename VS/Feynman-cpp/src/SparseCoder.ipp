@@ -39,7 +39,7 @@ namespace feynman {
 				: _size({ 8, 8 }),
 				_radius(6),
 				_ignoreMiddle(false),
-				_weightAlpha(0.02f)
+				_weightAlpha(0.001f)
 			{}
 		};
 

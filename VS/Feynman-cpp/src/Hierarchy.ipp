@@ -39,8 +39,11 @@ namespace feynman {
 			const std::vector<Image2D> &inputs,
 			const bool learn = true) 
 		{
+			// last checked: 24-nov 2016
+
 			// Write input
 			for (size_t i = 0; i < _inputImages.size(); ++i) {
+				//plots::plotImage(inputs[i], 4, "Hierarchy:simStep:input" + std::to_string(i));
 				copy(inputs[i], _inputImages[i]);
 			}
 
@@ -54,9 +57,8 @@ namespace feynman {
 					_readoutLayers[i].learn(_inputImages[i]);
 				}
 				_readoutLayers[i].stepEnd();
-
 				copy(_readoutLayers[i].getHiddenStates()[_back], _predictions[i]);
-				//plots::plotImage(_predictions[i], 4, "Hierarcy:pred" + std::to_string(i));
+				//plots::plotImage(_predictions[i], 4, "Hierarchy:pred" + std::to_string(i));
 			}
 		}
 

@@ -100,24 +100,29 @@ namespace feynman {
 
 	struct Image3D {
 		std::vector<float> _data_float;
-#ifdef USE_FIXED_POINT
+#		ifdef USE_FIXED_POINT
 		std::vector<FixedP> _data_fixP;
-#endif
+#		endif
 		int3 _size;
 
 		Image3D(int3 size) : _size(size)
 		{
 			const int nElements = size.x * size.y * size.z;
 			_data_float.resize(nElements);
-#ifdef USE_FIXED_POINT
+#			ifdef USE_FIXED_POINT
 			_data_fixP.resize(nElements);
-#endif
+#			endif
 		}
+
+		// default constructor
+		Image3D() : Image3D(int3{ 0, 0, 0 }) {}
+
+
 		void swap(Image3D& other) {
 			_data_float.swap(other._data_float);
-#ifdef USE_FIXED_POINT
+#			ifdef USE_FIXED_POINT
 			_data_fixP.swap(other._data_fixP);
-#endif
+#			endif
 			const int3 tmp = this->_size;
 			this->_size = other._size;
 			other._size = tmp;
@@ -128,6 +133,7 @@ namespace feynman {
 	//TODO rename Image2D to Array2Df
 	using Image2D = Array2D<float>;
 	using Array2Di2 = Array2D<int2>;
+	using Array2D2f = Array2D<float2>;
 
 	template <typename T>
 	T inline read_2D(const Array2D<T> &image, const int coord_x, const int coord_y)
@@ -264,10 +270,17 @@ namespace feynman {
 	using DoubleBuffer2D = std::vector<Image2D>;
 	using DoubleBuffer3D = std::vector<Image3D>;
 
+	using DoubleBuffer2D2f = std::vector<Array2D2f>;
+
+
 	//Double buffer initialization helpers
 	DoubleBuffer2D createDoubleBuffer2D(int2 size) {
 		return { Image2D(size), Image2D(size) };
 	}
+	DoubleBuffer2D2f createDoubleBuffer2D2f(int2 size) {
+		return{ Array2D2f(size), Array2D2f(size) };
+	}
+
 	DoubleBuffer3D createDoubleBuffer3D(int3 size) {
 		return { Image3D(size), Image3D(size) };
 	}
@@ -275,19 +288,15 @@ namespace feynman {
 	static void clear(Image2D &image) {
 		const size_t nBytes = image._size.x * image._size.y * sizeof(float);
 		memset(&image._data_float[0], 0, nBytes);
-#		ifdef USE_FIXED_POINT
-		const size_t nBytesFixPoint = image._size.x * image._size.y * sizeof(FixedP);
-		memset(&image._data_fixP[0], 0, nBytesFixPoint);
-#		endif
+	}
+	static void clear(Array2D2f &image) {
+		const size_t nBytes = image._size.x * image._size.y * sizeof(float) * 2;
+		memset(&image._data_float[0], 0, nBytes);
 	}
 
 	static void clear(Image3D &image) {
 		const size_t nBytes = image._size.x * image._size.y * image._size.z * sizeof(float);
 		memset(&image._data_float[0], 0, nBytes);
-#		ifdef USE_FIXED_POINT
-		const size_t nBytesFixPoint = image._size.x * image._size.y * image._size.z * sizeof(FixedP);
-		memset(&image._data_fixP[0], 0, nBytesFixPoint);
-#		endif
 	}
 
 	static void copy(const Image2D &src, Image2D &dst) {

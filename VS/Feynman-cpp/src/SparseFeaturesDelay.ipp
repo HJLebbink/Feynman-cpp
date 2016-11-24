@@ -19,7 +19,7 @@ namespace feynman {
 	\brief STDP encoder (sparse features)
 	Learns a sparse code that is then used to predict the next input. Can be used with multiple layers
 	*/
-	class SparseFeaturesSTDP : public SparseFeatures {
+	class SparseFeaturesDelay : public SparseFeatures {
 	public:
 
 		//Visible layer desc
@@ -61,7 +61,7 @@ namespace feynman {
 		};
 
 		//Sparse Features Chunk Descriptor
-		class SparseFeaturesSTDPDesc : public SparseFeatures::SparseFeaturesDesc {
+		class SparseFeaturesDelayDesc : public SparseFeatures::SparseFeaturesDesc {
 		public:
 			std::vector<VisibleLayerDesc> _visibleLayerDescs;
 			int2 _hiddenSize;
@@ -73,7 +73,7 @@ namespace feynman {
 			std::mt19937 _rng;
 
 			//Defaults
-			SparseFeaturesSTDPDesc()
+			SparseFeaturesDelayDesc()
 				: _hiddenSize({ 16, 16 }),
 				_inhibitionRadius(6),
 				_biasAlpha(0.01f), _activeRatio(0.02f), _gamma(0.9f),
@@ -123,7 +123,7 @@ namespace feynman {
 		float _gamma;
 
 		//Default constructor
-		SparseFeaturesSTDP() {};
+		SparseFeaturesDelay() {};
 
 		/*!
 		\brief Create a comparison sparse coder with random initialization
@@ -132,7 +132,7 @@ namespace feynman {
 		\param hiddenSize hidden layer (SDR) size (2D).
 		\param rng a random number generator.
 		*/
-		SparseFeaturesSTDP(
+		SparseFeaturesDelay(
 			const std::vector<VisibleLayerDesc> &visibleLayerDescs,
 			const int2 hiddenSize,
 			const int inhibitionRadius,

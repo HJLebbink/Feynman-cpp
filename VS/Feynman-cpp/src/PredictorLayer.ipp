@@ -88,23 +88,25 @@ namespace feynman {
 			const float2 initWeightRange,
 			std::mt19937 &rng)
 		{
+			// last checked: 24-nov 2016
+
 			_visibleLayerDescs = visibleLayerDescs;
 			_hiddenSize = hiddenSize;
 			_inhibitSparseFeatures = inhibitSparseFeatures;
 			_visibleLayers.resize(_visibleLayerDescs.size());
 
 			// Create layers
-			for (size_t vli = 0; vli < _visibleLayers.size(); vli++) {
+			for (size_t vli = 0; vli < _visibleLayers.size(); ++vli) {
 				VisibleLayer &vl = _visibleLayers[vli];
 				const VisibleLayerDesc &vld = _visibleLayerDescs[vli];
 
 				vl._hiddenToVisible = float2{ 
-					static_cast<float>(vld._size.x) / static_cast<float>(_hiddenSize.x),
-					static_cast<float>(vld._size.y) / static_cast<float>(_hiddenSize.y)
+					static_cast<float>(vld._size.x) / _hiddenSize.x,
+					static_cast<float>(vld._size.y) / _hiddenSize.y
 				};
 				vl._visibleToHidden = float2{ 
-					static_cast<float>(_hiddenSize.x) / static_cast<float>(vld._size.x),
-					static_cast<float>(_hiddenSize.y) / static_cast<float>(vld._size.y)
+					static_cast<float>(_hiddenSize.x) / vld._size.x,
+					static_cast<float>(_hiddenSize.y) / vld._size.y
 				};
 				vl._reverseRadii = int2{ 
 					static_cast<int>(std::ceil(vl._visibleToHidden.x * vld._radius) + 1),
@@ -136,6 +138,8 @@ namespace feynman {
 			const std::vector<Image2D> &visibleStates,
 			std::mt19937 &rng)
 		{
+			// last checked: 24-nov 2016
+
 			// Start by clearing stimulus summation buffer to biases
 			clear(_hiddenSummationTemp[_back]);
 
@@ -148,7 +152,9 @@ namespace feynman {
 				plDeriveInputs(
 					visibleStates[vli],				// in
 					vl._derivedInput[_back],		// in
-					vl._derivedInput[_front]);		// out
+					vl._derivedInput[_front],		// out
+					vld._size
+				);
 
 				plStimulus(
 					vl._derivedInput[_front],		// in
@@ -157,7 +163,9 @@ namespace feynman {
 					vl._weights[_back],				// in
 					vld._size,
 					vl._hiddenToVisible,
-					vld._radius);
+					vld._radius,
+					_hiddenSize
+				);
 
 				//plots::plotImage(_hiddenSummationTemp[_front], 4.0f, false, "PredictionLayer:_hiddenSummationTemp:");
 
@@ -167,29 +175,7 @@ namespace feynman {
 			if (_inhibitSparseFeatures != nullptr)
 				_inhibitSparseFeatures->inhibit(_hiddenSummationTemp[_back], _hiddenStates[_front], rng);
 			else {
-				// Copy to hidden states
-				if (false) //TODO ask whether forcing the hidden state to be in range [0..1] has known side effects
-				{
-					std::vector<float> &src = _hiddenSummationTemp[_back]._data_float;
-					std::vector<float> &dst = _hiddenStates[_front]._data_float;
-#					ifdef _USE_FIXED_POINT
-					std::vector<FixedP> &src2 = _hiddenSummationTemp[_back]._data_fixP;
-					std::vector<FixedP> &dst2 = _hiddenStates[_front]._data_fixP;
-#					endif
-
-					const int nElements = _hiddenSummationTemp[_back]._size.x * _hiddenSummationTemp[_back]._size.y;
-#					pragma ivdep
-					for (int i = 0; i < nElements; ++i) {
-						const float stimulus = src[i];
-						dst[i] = (stimulus < 0.0f) ? 0.0f : ((stimulus > 1.0f) ? 1.0f : stimulus);
-#						ifdef _USE_FIXED_POINT
-						dst2[i] = src2[i];
-#						endif
-					}
-				} else
-				{
-					copy(_hiddenSummationTemp[_back], _hiddenStates[_front]);
-				}
+				copy(_hiddenSummationTemp[_back], _hiddenStates[_front]);
 			}
 		}
 
@@ -438,14 +424,21 @@ namespace feynman {
 	private:
 
 		static void plDeriveInputs(
-			const Image2D &inputs, 
-			const Image2D &outputsBack, 
-			Image2D &outputsFront) 
+			const Image2D &inputs,
+			const Image2D &outputsBack,
+			Image2D &outputsFront,
+			const int2 range)
 		{
-			const int nElements = inputs._size.x * inputs._size.y;
-			for (int i = 0; i < nElements; ++i) {
-				const float input = inputs._data_float[i];
-				outputsFront._data_float[i] = input;
+			// last checked: 24-nov 2016
+			if (true) {
+				copy(inputs, outputsFront);
+			}
+			else {
+				const int nElements = range.x * range.y;
+				for (int i = 0; i < nElements; ++i) {
+					const float input = inputs._data_float[i];
+					outputsFront._data_float[i] = input;
+				}
 			}
 		}
 
@@ -558,20 +551,53 @@ namespace feynman {
 			const Image3D &weights,
 			const int2 visibleSize,
 			const float2 hiddenToVisible,
-			const int radius)
+			const int radius,
+			const int2 range)
 		{
-			//printf("visibleStates.size=(%i,%i)\n", visibleStates._size.x, visibleStates._size.y);
-			//printf("hiddenSummationTempBack.size=(%i,%i)\n", hiddenSummationTempBack._size.x, hiddenSummationTempBack._size.y);
-			//printf("hiddenSummationTempFront.size=(%i,%i)\n", hiddenSummationTempFront._size.x, hiddenSummationTempFront._size.y);
-			//printf("weights.size=(%i,%i,%i)\n", weights._size.x, weights._size.y, weights._size.z);
-			//printf("hiddenToVisible=(%f,%f)\n", hiddenToVisible.x, hiddenToVisible.y);
+			// last checked: 24-nov 2016
+			for (int hiddenPosition_x = 0; hiddenPosition_x < range.x; ++hiddenPosition_x) {
+				const int visiblePositionCenter_x = project(hiddenPosition_x, hiddenToVisible.x);
+				const int fieldLowerBound_x = visiblePositionCenter_x - radius;
 
+				for (int hiddenPosition_y = 0; hiddenPosition_y < range.y; ++hiddenPosition_y) {
+					const int visiblePositionCenter_y = project(hiddenPosition_y, hiddenToVisible.y);
+					const int fieldLowerBound_y = visiblePositionCenter_y - radius;
+
+					float subSum = 0.0f;
+
+					for (int dx = -radius; dx <= radius; dx++) {
+						const int visiblePosition_x = visiblePositionCenter_x + dx;
+						if (inBounds(visiblePosition_x, visibleSize.x)) {
+							const int offset_x = visiblePosition_x - fieldLowerBound_x;
+
+							for (int dy = -radius; dy <= radius; dy++) {
+								const int visiblePosition_y = visiblePositionCenter_y + dy;
+
+								if (inBounds(visiblePosition_y, visibleSize.y)) {
+									const int offset_y = visiblePosition_y - fieldLowerBound_y;
+
+									const int wi = offset_y + offset_x * (radius * 2 + 1);
+									const float weight = read_3D(weights, hiddenPosition_x, hiddenPosition_y, wi);
+									const float visibleState = read_2D(visibleStates, visiblePosition_x, visiblePosition_y);
+									subSum += visibleState * weight;
+								}
+							}
+						}
+					}
+					float sum = read_2D(hiddenSummationTempBack, hiddenPosition_x, hiddenPosition_y);
+					const float newValue = sum + subSum;
+					write_2D(hiddenSummationTempFront, hiddenPosition_x, hiddenPosition_y, newValue);
+				}
+			}
+
+			/*
 			switch (radius) {
 			case 6: plStimulus_v0<6>(visibleStates, hiddenSummationTempBack, hiddenSummationTempFront, weights, visibleSize, hiddenToVisible); break;
 			case 8: plStimulus_v0<8>(visibleStates, hiddenSummationTempBack, hiddenSummationTempFront, weights, visibleSize, hiddenToVisible); break;
 			case 20: plStimulus_v0<20>(visibleStates, hiddenSummationTempBack, hiddenSummationTempFront, weights, visibleSize, hiddenToVisible); break;
 			default: printf("ERROR: SparseFeatures::plStimulus: provided radius %i is not implemented\n", radius); break;
 			}
+			*/
 		}
 
 		static void plThreshold(

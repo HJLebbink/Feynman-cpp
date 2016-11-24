@@ -109,7 +109,7 @@
       <Optimization>MinSpace</Optimization>
       <PreprocessorDefinitions>_WINDOWS;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>C:\Dev\opencv-2.4.13\build\include;C:\Dev\SFML-2.4.0\include</AdditionalIncludeDirectories>
-      <EnableEnhancedInstructionSet>StreamingSIMDExtensions3</EnableEnhancedInstructionSet>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
       <UseProcessorExtensions>SSE41</UseProcessorExtensions>
       <DisableSpecificWarnings>4710;4820;4711;4062;4068;4625;4626;4365;869</DisableSpecificWarnings>
       <DisablePrecompiledHeaderMessages>true</DisablePrecompiledHeaderMessages>
@@ -150,18 +150,18 @@
     <ClCompile>
       <WarningLevel>EnableAllWarnings</WarningLevel>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <Optimization>MaxSpeedHighLevel</Optimization>
+      <Optimization>Disabled</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>_WINDOWS;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>C:\Dev\opencv-2.4.13\build\include;C:\Dev\SFML-2.4.0\include</AdditionalIncludeDirectories>
-      <EnableEnhancedInstructionSet>StreamingSIMDExtensions3</EnableEnhancedInstructionSet>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
       <Parallelization>false</Parallelization>
       <FloatingPointModel>Fast2</FloatingPointModel>
       <FlushDenormalResultsToZero>true</FlushDenormalResultsToZero>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <EnableAnsiAliasing>false</EnableAnsiAliasing>
-      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <UseProcessorExtensions>None</UseProcessorExtensions>
       <MultiProcessorCompilation>false</MultiProcessorCompilation>

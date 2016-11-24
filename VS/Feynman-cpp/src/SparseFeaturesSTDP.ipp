@@ -148,7 +148,7 @@ namespace feynman {
 			_activeRatio(activeRatio),
 			_gamma(gamma)
 		{
-			// last checked: 23-nov
+			// last checked: 23-nov 2016
 
 			_type = SparseFeaturesType::_stdp;
 			_visibleLayerDescs = visibleLayerDescs;
@@ -201,8 +201,6 @@ namespace feynman {
 
 		/*!
 		\brief Activate predictor
-		\param lambda decay of hidden unit traces.
-		\param activeRatio % active units.
 		\param rng a random number generator.
 		*/
 		void activate(
@@ -210,7 +208,7 @@ namespace feynman {
 			const Image2D &predictionsPrev,
 			std::mt19937 &rng) override
 		{
-			// last checked: 23-nov
+			// last checked: 24-nov 2016
 
 			// Start by clearing stimulus summation buffer
 			clear(_hiddenSummationTemp[_back]);
@@ -268,7 +266,7 @@ namespace feynman {
 		//End a simulation step
 		void stepEnd() override
 		{
-			// last checked: 23-nov
+			// last checked: 23-nov 2016
 			std::swap(_hiddenActivations[_front], _hiddenActivations[_back]);
 			std::swap(_hiddenStates[_front], _hiddenStates[_back]);
 
@@ -287,7 +285,7 @@ namespace feynman {
 		*/
 		void learn(std::mt19937 &rng) override 
 		{
-			// last checked: 23-nov
+			// last checked: 23-nov 2016
 			// Learn weights
 			for (size_t vli = 0; vli < _visibleLayers.size(); vli++) {
 				VisibleLayer &vl = _visibleLayers[vli];
@@ -329,7 +327,7 @@ namespace feynman {
 		*/
 		void inhibit(const Image2D &activations, Image2D &states, std::mt19937 &rng) override 
 		{
-			// last checked: 23-nov
+			// last checked: 23-nov 2016
 			sfsInhibitPred(
 				activations,
 				states,
@@ -379,7 +377,7 @@ namespace feynman {
 		\brief Clear the working memory
 		*/
 		void clearMemory() override {
-			// last checked: 23-nov
+			// last checked: 23-nov 2016
 			clear(_hiddenActivations[_back]);
 			clear(_hiddenStates[_back]);
 
@@ -855,11 +853,50 @@ namespace feynman {
 			const bool ignoreMiddle,
 			const int2 range)
 		{
+			// last checked: 24-nov 2016
+			/*
 			switch (radius) {
 			case 6: sfsStimulus_v0<6>(visibleStates, hiddenSummationTempBack, hiddenSummationTempFront, weights, visibleSize, hiddenToVisible, ignoreMiddle, range); break;
 			case 8: sfsStimulus_v0<8>(visibleStates, hiddenSummationTempBack, hiddenSummationTempFront, weights, visibleSize, hiddenToVisible, ignoreMiddle, range); break;
 			case 20: sfsStimulus_v0<20>(visibleStates, hiddenSummationTempBack, hiddenSummationTempFront, weights, visibleSize, hiddenToVisible, ignoreMiddle, range); break;
 			default: printf("ERROR: SparseFeaturesSTDP::sfsStimulus: provided radius %i is not implemented\n", radius); break;
+			}
+			*/
+			for (int hiddenPosition_x = 0; hiddenPosition_x < range.x; ++hiddenPosition_x) {
+				for (int hiddenPosition_y = 0; hiddenPosition_y < range.y; ++hiddenPosition_y) {
+					const int visiblePositionCenter_x = project(hiddenPosition_x, hiddenToVisible.x);
+					const int visiblePositionCenter_y = project(hiddenPosition_y, hiddenToVisible.y);
+
+					float subSum = 0.0f;
+					float count = 0.0f;
+
+					const int fieldLowerBound_x = visiblePositionCenter_x - radius;
+					const int fieldLowerBound_y = visiblePositionCenter_y - radius;
+
+					for (int dx = -radius; dx <= radius; dx++) {
+						const int visiblePosition_x = visiblePositionCenter_x + dx;
+						if (inBounds(visiblePosition_x, visibleSize.x)) {
+							for (int dy = -radius; dy <= radius; dy++) {
+								if (ignoreMiddle && dx == 0 && dy == 0) 
+									continue;
+
+								const int visiblePosition_y = visiblePositionCenter_y + dy;
+								if (inBounds(visiblePosition_y, visibleSize.y)) {
+									const int offset_x = visiblePosition_x - fieldLowerBound_x;
+									const int offset_y = visiblePosition_y - fieldLowerBound_y;
+									const int wi = offset_y + offset_x * (radius * 2 + 1);
+									const float weight = read_3D(weights, hiddenPosition_x, hiddenPosition_y, wi);
+									const float visibleState = read_2D(visibleStates, visiblePosition_x, visiblePosition_y);
+									subSum += weight * visibleState;
+									count += weight;
+								}
+							}
+						}
+					}
+					const float sum = read_2D(hiddenSummationTempBack, hiddenPosition_x, hiddenPosition_y);
+					const float newValue = sum + subSum / fmax(0.0001f, count);
+					write_2D(hiddenSummationTempFront, hiddenPosition_x, hiddenPosition_y, newValue);
+				}
 			}
 		}
 
@@ -872,6 +909,8 @@ namespace feynman {
 			const uint2 seed,
 			const int2 range)
 		{
+			// last checked: 24-nov 2016
+
 			//uint2 seedValue = seed + (uint2)(get_global_id(0) * 61 + 22, get_global_id(1) * 52 + 4) * 56;
 			const int nElements = range.x * range.y;
 			for (int i = 0; i < nElements; ++i) 
@@ -897,6 +936,8 @@ namespace feynman {
 			const float gamma,
 			const int2 range)
 		{
+			// last checked: 24-nov 2016
+
 			for (int hiddenPosition_x = 0; hiddenPosition_x < range.x; ++hiddenPosition_x) {
 				for (int hiddenPosition_y = 0; hiddenPosition_y < range.y; ++hiddenPosition_y) {
 
@@ -920,7 +961,7 @@ namespace feynman {
 									const int otherPosition_y = hiddenPosition_y + dy;
 									if (inBounds(otherPosition_y, hiddenSize.y)) {
 										const float otherActivation = read_2D(activations, otherPosition_x, otherPosition_y);
-										inhibition += (otherActivation >= activation) ? 1 : 0;
+										if (otherActivation >= activation) inhibition++;
 										count++;
 									}
 								}
@@ -1171,11 +1212,71 @@ namespace feynman {
 			const float weightAlpha,
 			const int2 range)
 		{
+			// last checked: 24-nov 2016
+			/*
 			switch (radius) {
 			case 6: sfsLearnWeights_v1<6>(hiddenStates, hiddenStatesPrev, visibleStates, visibleStatesPrev, weightsBack, weightsFront, visibleSize, hiddenToVisible, weightAlpha, range); break;
 			case 8: sfsLearnWeights_v1<8>(hiddenStates, hiddenStatesPrev, visibleStates, visibleStatesPrev, weightsBack, weightsFront, visibleSize, hiddenToVisible, weightAlpha, range); break;
 			case 20: sfsLearnWeights_v1<20>(hiddenStates, hiddenStatesPrev, visibleStates, visibleStatesPrev, weightsBack, weightsFront, visibleSize, hiddenToVisible, weightAlpha, range); break;
 			default: printf("ERROR: SparseFeaturesSTDP::sfsLearnWeights: provided radius %i is not implemented\n", radius); break;
+			}
+			*/
+			for (int hiddenPosition_x = 0; hiddenPosition_x < range.x; hiddenPosition_x++) {
+				for (int hiddenPosition_y = 0; hiddenPosition_y < range.y; hiddenPosition_y++) {
+					const int visiblePositionCenter_x = project(hiddenPosition_x, hiddenToVisible.x);
+					const int visiblePositionCenter_y = project(hiddenPosition_y, hiddenToVisible.y);
+
+					const int fieldLowerBound_x = visiblePositionCenter_x - radius;
+					const int fieldLowerBound_y = visiblePositionCenter_y - radius;
+
+					const float hiddenState = read_2D(hiddenStates, hiddenPosition_x, hiddenPosition_y);
+					const float hiddenStatePrev = read_2D(hiddenStatesPrev, hiddenPosition_x, hiddenPosition_y);
+
+					float weightSum = 0.0f;
+
+					for (int dx = -radius; dx <= radius; dx++) {
+						const int visiblePosition_x = visiblePositionCenter_x + dx;
+						if (inBounds(visiblePosition_x, visibleSize.x)) {
+							const int offset_x = visiblePosition_x - fieldLowerBound_x;
+
+							for (int dy = -radius; dy <= radius; dy++) {
+								const int visiblePosition_y = visiblePositionCenter_y + dy;
+								if (inBounds(visiblePosition_x, visibleSize.x)) {
+
+									const int offset_y = visiblePosition_y - fieldLowerBound_y;
+									const int wi = offset_y + offset_x * (radius * 2 + 1);
+									const float weightPrev = read_3D(weightsBack, hiddenPosition_x, hiddenPosition_y, wi);
+									weightSum += weightPrev;
+								}
+							}
+						}
+					}
+					const float scale = 1.0f / fmax(0.0001f, weightSum);
+
+					for (int dx = -radius; dx <= radius; dx++) {
+						const int visiblePosition_x = visiblePositionCenter_x + dx;
+						if (inBounds(visiblePosition_x, visibleSize.x)) {
+							const int offset_x = visiblePosition_x - fieldLowerBound_x;
+
+							for (int dy = -radius; dy <= radius; dy++) {
+								const int visiblePosition_y = visiblePositionCenter_y + dy;
+
+								if (inBounds(visiblePosition_y, visibleSize.y)) {
+									const int offset_y = visiblePosition_y - fieldLowerBound_y;
+
+									const int wi = offset_y + offset_x * (radius * 2 + 1);
+									const float weightPrev = read_3D(weightsBack, hiddenPosition_x, hiddenPosition_y, wi);
+									const float visibleState = read_2D(visibleStates, visiblePosition_x, visiblePosition_y);
+									const float visibleStatePrev = read_2D(visibleStatesPrev, visiblePosition_x, visiblePosition_y);
+
+									const float learn = hiddenStatePrev * visibleStatePrev - hiddenStatePrev * visibleState;
+									const float newValue = fmin(1.0f, fmax(0.0001f, weightPrev * scale + weightAlpha * learn));
+									write_3D(weightsFront, hiddenPosition_x, hiddenPosition_y, wi, newValue);
+								}
+							}
+						}
+					}
+				}
 			}
 		}
 
@@ -1187,11 +1288,13 @@ namespace feynman {
 			const float activeRatio,
 			const int2 range)
 		{
+			// last checked: 24-nov 2016
+
 			for (int hiddenPosition_x = 0; hiddenPosition_x < range.x; ++hiddenPosition_x) {
 				for (int hiddenPosition_y = 0; hiddenPosition_y < range.y; ++hiddenPosition_y) {
 					const float activation = read_2D(activations, hiddenPosition_x, hiddenPosition_y);
 
-					float inhibition = 0.0f;
+					int inhibition = 0;
 					int count = 0;
 
 					for (int dx = -radius; dx <= radius; dx++) {
@@ -1206,14 +1309,13 @@ namespace feynman {
 										continue;
 
 									const float otherActivation = read_2D(activations, otherPosition_x, otherPosition_y);
-									inhibition += (otherActivation >= activation) ? 1.0f : 0.0f;
+									if (otherActivation >= activation) inhibition++;
 									count++;
 								}
 							}
 						}
 					}
-					const float state = inhibition < activeRatio * count ? 1.0f : 0.0f;
-
+					const float state = inhibition < (activeRatio * count) ? 1.0f : 0.0f;
 					write_2D(hiddenStatesFront, hiddenPosition_x, hiddenPosition_y, state);
 				}
 			}
@@ -1221,10 +1323,10 @@ namespace feynman {
 
 		static void sfsDeriveInputs(
 			const Image2D &inputs,
-			//const Image2D /*&outputsBack*/, // unused
 			Image2D &outputsFront, // write only
 			const int2 range)
 		{
+			// last checked: 24-nov 2016
 			copy(inputs, outputsFront);
 		}
 
@@ -1237,6 +1339,8 @@ namespace feynman {
 			const float biasAlpha,
 			const int2 range) 
 		{
+			// last checked: 24-nov 2016
+
 			const int nElements = range.x * range.y;
 			for (int i = 0; i < nElements; ++i) {
 				const float stimulus = stimuli._data_float[i];

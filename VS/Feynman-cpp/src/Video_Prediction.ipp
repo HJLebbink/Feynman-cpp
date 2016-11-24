@@ -88,7 +88,7 @@ namespace video {
 
 		for (int l = 0; l < 1; l++)
 			arch.addHigherLayer({ 64, 64 }, feynman::_chunk)
-			.setValue("sfc_chunkSize", int2{ 6, 6 })
+			.setValue("sfc_chunkSize", int2{ 8, 8 })
 			.setValue("sfc_ff_radius", 8)
 			.setValue("hl_poolSteps", 2)
 			.setValue("sfc_numSamples", 2)
