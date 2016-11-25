@@ -104,17 +104,14 @@ namespace feynman {
 			std::mt19937 &rng,
 			const bool learn = true)
 		{
-			// last checked: 24-nov 2016
-
-			//plots::plotImage(inputCorrupted, 8.0f, false, "Predictor:inputCorrupted");
+			// last checked: 25-nov 2016
 			//TODO: consider using binary input instead of float
-			//const float2 minmax = find_min_max(inputCorrupted);
-			//printf("INFO: Predictor:simStep, min=%f; max=%f\n", minmax.x, minmax.y);
 
 			std::vector<Image2D> predictionsPrev(_pLayers.size());
 
 			for (size_t l = 0; l < predictionsPrev.size(); ++l) {
 				predictionsPrev[l] = _pLayers[l].getHiddenStates()[_back];
+				//plots::plotImage(predictionsPrev[l], 4, "Predictor:simStep:predictionsPrev" + std::to_string(l));
 			}
 
 			// Activate hierarchy
@@ -124,6 +121,7 @@ namespace feynman {
 			for (int l = static_cast<int>(_pLayers.size()) - 1; l >= 0; l--) {
 				if (_h.getLayer(l)._tpReset || _h.getLayer(l)._tpNextReset) {
 					Image2D target = _h.getLayer(l)._sf->getHiddenStates()[_back];
+					//plots::plotImage(target, 8, "Predictor:simStep:target" + std::to_string(l));
 
 					if (l != _pLayers.size() - 1) {
 						_pLayers[l].activate(std::vector<Image2D>{ _h.getLayer(l)._sf->getHiddenStates()[_back], _pLayers[l + 1].getHiddenStates()[_back] }, rng);
@@ -163,6 +161,7 @@ namespace feynman {
 
 		//Get the predictions
 		const DoubleBuffer2D &getHiddenPrediction() const {
+			// last checked: 25-nov 2016
 			return _pLayers.front().getHiddenStates();
 		}
 

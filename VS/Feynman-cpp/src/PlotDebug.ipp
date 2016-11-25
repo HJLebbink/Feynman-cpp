@@ -49,7 +49,13 @@ namespace plots {
 			for (int y = 0; y < hInHeight; ++y) {
 				float pixelValue = image._data_float[x + (y * hInWidth)];
 				sf::Color c;
-				c.r = c.g = c.b = static_cast<sf::Uint8>(255 * std::min(1.0f, std::max(0.0f, pixelValue)));
+				c.g = 0;
+				if (pixelValue > 0) {
+					c.r = static_cast<sf::Uint8>(255 * std::min(1.0f, std::max(0.0f, pixelValue)));
+				}
+				else {
+					c.b = static_cast<sf::Uint8>(255 * std::min(1.0f, std::max(0.0f, -pixelValue)));
+				}
 				sdrImg.setPixel(x, y, c);
 			}
 		}
@@ -91,5 +97,20 @@ namespace plots {
 		}
 		plotImage(image, { 0.0f, 0.0f }, scale2, *window);
 		window->display();
+	}
+
+	void plotImage(
+		const Image3D &image,
+		const float scale2,
+		const std::string name)
+	{
+		const int3 size = image.getSize();
+		Image2D image2 = Image2D(int2{ size.x, size.y });
+		for (int x = 0; x < size.x; ++x) {
+			for (int y = 0; y < size.y; ++y) {
+				write_2D(image2, x, y, read_3D(image, x, y, 0));
+			}
+		}
+		plotImage(image2, scale2, name);
 	}
 }

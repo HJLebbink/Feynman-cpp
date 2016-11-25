@@ -21,8 +21,9 @@
 
 
 #include "Helpers.ipp"
-#include "Predictor.ipp"
 #include "Architect.ipp"
+#include "Hierarchy.ipp"
+#include "SparseFeaturesSTDP.ipp"
 
 
 using namespace feynman;
@@ -87,8 +88,8 @@ namespace video {
 			.setValue("in_p_radius", 8);
 
 		for (int l = 0; l < 1; l++)
-			arch.addHigherLayer({ 64, 64 }, feynman::_chunk)
-			.setValue("sfc_chunkSize", int2{ 8, 8 })
+			arch.addHigherLayer(int2{ 64, 64 }, feynman::_chunk)
+			.setValue("sfc_chunkSize", int2{ 6, 6 })
 			.setValue("sfc_ff_radius", 8)
 			.setValue("hl_poolSteps", 2)
 			.setValue("sfc_numSamples", 2)
@@ -100,7 +101,7 @@ namespace video {
 			.setValue("p_radius", 8);
 
 		// 4 layers using chunk encoders
-		for (int l = 0; l < 4; l++)
+		for (int l = 0; l < 0; l++)
 			arch.addHigherLayer({ 64, 64 }, feynman::_stdp)
 			.setValue("sfs_ff_radius", 8)
 			.setValue("hl_poolSteps", 2)
@@ -169,9 +170,9 @@ namespace video {
 					img.create(frame.cols, frame.rows);
 					for (unsigned int x = 0; x < img.getSize().x; x++) {
 						for (unsigned int y = 0; y < img.getSize().y; y++) {
-							sf::Uint8 r = frame.data[(x + y * img.getSize().x) * 3 + 0];
+							sf::Uint8 r = frame.data[(x + y * img.getSize().x) * 3 + 2];
 							sf::Uint8 g = frame.data[(x + y * img.getSize().x) * 3 + 1];
-							sf::Uint8 b = frame.data[(x + y * img.getSize().x) * 3 + 2];
+							sf::Uint8 b = frame.data[(x + y * img.getSize().x) * 3 + 0];
 
 							img.setPixel(x, y, sf::Color(r, g, b));
 						}
@@ -218,7 +219,8 @@ namespace video {
 				std::vector<Image2D> inputVector = { inputFieldR, inputFieldG, inputFieldB };
 
 				// Run a simulation step of the hierarchy (learning enabled)
-				h->simStep(inputVector, true);
+				const bool learn = true;
+				h->simStep(inputVector, learn);
 
 				predFieldR = h->getPredictions()[0];
 				predFieldG = h->getPredictions()[1];
@@ -273,6 +275,8 @@ namespace video {
 						{
 						case sf::Event::Closed:
 							quit = true;
+							break;
+						default:
 							break;
 						}
 					}
@@ -329,6 +333,8 @@ namespace video {
 					{
 					case sf::Event::Closed:
 						quit = true;
+						break;
+					default:
 						break;
 					}
 				}

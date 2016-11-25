@@ -39,7 +39,7 @@ namespace feynman {
 			const std::vector<Image2D> &inputs,
 			const bool learn = true) 
 		{
-			// last checked: 24-nov 2016
+			// last checked: 25-nov 2016
 
 			// Write input
 			for (size_t i = 0; i < _inputImages.size(); ++i) {
@@ -51,6 +51,7 @@ namespace feynman {
 
 			// Get prediction
 			for (size_t i = 0; i < _predictions.size(); ++i) {
+				//plots::plotImage(_p.getHiddenPrediction()[_back], 4, "Hierarchy:simStep:hiddenPrediction" + std::to_string(i));
 				_readoutLayers[i].activate({ _p.getHiddenPrediction()[_back] }, _rng);
 
 				if (learn) {

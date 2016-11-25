@@ -232,6 +232,7 @@ namespace feynman {
 			}
 			case _delay:
 			{
+				throw 1;
 				/*
 				std::shared_ptr<SparseFeaturesDelay::SparseFeaturesDelayDesc> sfDescDelay = std::make_shared<SparseFeaturesDelay::SparseFeaturesDelayDesc>();
 
@@ -511,7 +512,7 @@ namespace feynman {
 			// Create readout layers
 			h->_readoutLayers.resize(h->_predictions.size());
 
-			for (size_t i = 0; i < h->_readoutLayers.size(); i++) {
+			for (int i = 0; i < h->_readoutLayers.size(); i++) {
 				std::vector<PredictorLayer::VisibleLayerDesc> vlds(1);
 
 				vlds.front()._size = { _higherLayers.front()._size.x, _higherLayers.front()._size.y };
@@ -581,22 +582,22 @@ namespace feynman {
 
 					for (size_t i = 0; i < _actionLayers.size(); i++) {
 						if (_actionLayers[i]._params.find("a_radius") != _actionLayers[i]._params.end())
-							aLayerDescs[l][i]._radius = std::stoi(_actionLayers[l]._params["a_radius"]);
+							aLayerDescs[l][i]._radius = std::stoi(_actionLayers[i]._params["a_radius"]);
 
 						if (_actionLayers[i]._params.find("a_qAlpha") != _actionLayers[i]._params.end())
-							aLayerDescs[l][i]._qAlpha = std::stof(_actionLayers[l]._params["a_qAlpha"]);
+							aLayerDescs[l][i]._qAlpha = std::stof(_actionLayers[i]._params["a_qAlpha"]);
 
 						if (_actionLayers[i]._params.find("a_actionAlpha") != _actionLayers[i]._params.end())
-							aLayerDescs[l][i]._actionAlpha = std::stof(_actionLayers[l]._params["a_actionAlpha"]);
+							aLayerDescs[l][i]._actionAlpha = std::stof(_actionLayers[i]._params["a_actionAlpha"]);
 
 						if (_actionLayers[i]._params.find("a_qGamma") != _actionLayers[i]._params.end())
-							aLayerDescs[l][i]._qGamma = std::stof(_actionLayers[l]._params["a_qGamma"]);
+							aLayerDescs[l][i]._qGamma = std::stof(_actionLayers[i]._params["a_qGamma"]);
 
 						if (_actionLayers[i]._params.find("a_qLambda") != _actionLayers[i]._params.end())
-							aLayerDescs[l][i]._qLambda = std::stof(_actionLayers[l]._params["a_qLambda"]);
+							aLayerDescs[l][i]._qLambda = std::stof(_actionLayers[i]._params["a_qLambda"]);
 
 						if (_actionLayers[i]._params.find("a_actionLambda") != _actionLayers[i]._params.end())
-							aLayerDescs[l][i]._actionLambda = std::stof(_actionLayers[l]._params["a_actionLambda"]);
+							aLayerDescs[l][i]._actionLambda = std::stof(_actionLayers[i]._params["a_actionLambda"]);
 					}
 				}
 				else {

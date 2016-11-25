@@ -99,6 +99,8 @@ namespace feynman {
 			const float2 initThresholdRange,
 			std::mt19937 &rng)
 		{
+			throw 1;
+
 			_visibleLayerDescs = visibleLayerDescs;
 			_hiddenSize = hiddenSize;
 			_inhibitionRadius = inhibitionRadius;

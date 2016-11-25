@@ -20,6 +20,7 @@
 #include "FeatureHierarchy.ipp"
 #include "Predictor.ipp"
 #include "SparseCoder.ipp"
+#include "Architect.ipp"
 
 using namespace feynman;
 
@@ -77,52 +78,37 @@ namespace mnist {
 		// Define a pseudo random number generator
 		std::mt19937 generator(static_cast<unsigned int>(time(nullptr)));
 
-		// --------------------------- Create the Sparse Coder ---------------------------
-		// Bottom input width and height (= Mnist data size)
-		int bottomWidth = 28; 
+		// --------------------------- Create the Hierarchy ---------------------------
+
+		// Bottom input width and height
+		int bottomWidth = 28;
 		int bottomHeight = 28;
 
-		// Predictor hierarchy input width and height (= sparse coder size)
-		int hInWidth = 32;
-		int hInHeight = 32;
+		feynman::Architect arch;
+		arch.initialize(1234);
 
-		SparseCoder sparseCoder;
-		{
-			std::vector<SparseCoder::VisibleLayerDesc> scLayerDescs(1);
-			scLayerDescs[0]._size = { bottomWidth, bottomHeight };
-			scLayerDescs[0]._radius = 8; // Receptive radius
-			scLayerDescs[0]._weightAlpha = 0.001f;
+		// 1 input layer
+		arch.addInputLayer(int2{bottomWidth, bottomHeight})
+			.setValue("in_p_alpha", 0.02f)
+			.setValue("in_p_radius", 12);
 
-			const int2 hiddenSize = { hInWidth, hInHeight };
-			const int inhibitionRadius = 6;
-			const float2 initWeightRange = { 0.0f, 0.001f };
-			const float2 initThresholdRange = { 0.0f, 0.001f };
+		// 8 layers using chunk encoders
+		for (int l = 0; l < 8; l++)
+			arch.addHigherLayer(int2{ 96, 96 }, feynman::_chunk)
+			.setValue("sfc_chunkSize", int2{ 6, 6 })
+			.setValue("sfc_ff_radius", 12)
+			.setValue("hl_poolSteps", 2)
+			.setValue("p_alpha", 0.08f)
+			.setValue("p_beta", 0.16f)
+			.setValue("p_radius", 12);
 
-			sparseCoder.createRandom(scLayerDescs, hiddenSize, inhibitionRadius, initWeightRange, initThresholdRange, generator);
-		}
+		// Generate the hierarchy
+		std::shared_ptr<feynman::Hierarchy> h = arch.generateHierarchy();
 
-		// --------------------------- Create the Predictor ---------------------------
-		Predictor predictor;
-		{
-			std::vector<Predictor::PredLayerDesc> predictiveLayerDescs(4); // Predictor layer descriptors
-			std::vector<FeatureHierarchy::LayerDesc> layerDescs(4); // Matching feature layer descriptors
+		// Input and prediction fields
+		Image2D inputField(int2{ bottomWidth, bottomHeight });
+		Image2D predField(int2{ bottomWidth, bottomHeight });
 
-			// Sizes
-			layerDescs[0]._size = { 64, 64 };
-			layerDescs[1]._size = { 48, 48 };
-			layerDescs[2]._size = { 32, 32 };
-			layerDescs[3]._size = { 24, 24 };
-
-			for (size_t l = 0; l < layerDescs.size(); l++) {
-				layerDescs[l]._spActiveRatio = 0.02f;
-			}
-			const int2 inputSize = { hInWidth, hInHeight };
-			const float2 initWeightRange = { 0.0f, 0.01f };
-
-			predictor.createRandom(inputSize, predictiveLayerDescs, layerDescs, initWeightRange, generator);
-		}
-
-		if (true) predictor.getMemoryUsage(true);
 
 		// --------------------------- Create the Windows ---------------------------
 
@@ -412,23 +398,14 @@ namespace mnist {
 				plots::plotImage(scInputImage, 8.0f, "scInputImage");
 			}
 
-			// Activate sparse coder
-			sparseCoder.activate({ scInputImage }, 0.9f, 0.02f, generator);
-			if (trainMode) {
-				const float thresholdAlpha = 0.00004f;
-				const float activeRatio = 0.02f;
-				sparseCoder.learn(thresholdAlpha, activeRatio);
-			}
-			sparseCoder.stepEnd();
-
 			// Compare (dot product)
 			float anomalyScore = 0.0f;
 
 			// Retrieve prediction
-			const Image2D &newSDR_image = sparseCoder.getHiddenStates()[_back];
-			const Image2D &predSDR_image = predictor.getPrediction();
+			predField = h->getPredictions().front();
+			const Image2D &newSDR_image = predField; //TODO sparseCoder.getHiddenStates()[_back];
 			const std::vector<float> &newSDR = newSDR_image._data_float;
-			const std::vector<float> &predSDR = predSDR_image._data_float;
+			const std::vector<float> &predSDR = predField._data_float;
 
 			for (size_t i = 0; i < newSDR.size(); i++) {
 				anomalyScore += newSDR[i] * predSDR[i];
@@ -448,7 +425,8 @@ namespace mnist {
 				averageScore = (averageDecay * averageScore) + ((1.0f - averageDecay) * anomalyScore);
 			}
 			// Hierarchy simulation step
-			predictor.simStep(newSDR_image, newSDR_image, generator, trainMode);
+			std::vector<Image2D> inputVector = { inputField };
+			h->simStep(inputVector, trainMode);
 
 			// Shift plot y values
 			for (int i = static_cast<int>(plot._curves[0]._points.size()) - 1; i >= 1; i--) {
@@ -566,24 +544,27 @@ namespace mnist {
 				// Show SDRs is corner bottom left
 				if (true) {
 					if (true) {
-						//const Image2D &newSDR_image = sparseCoder.getHiddenStates()[_back];
+						//const Image2D &newSDR_image = h->getPredictor().getPredLayer(0).getHiddenStates()[_back];
+						const Image2D &newSDR_image = h->getPredictions().front();
 						plots::plotImage(newSDR_image, 8.0f, "SDR Current");
 					}
 					if (true) {
 						Image2D image2 = Image2D(scInputImage._size);
 						std::vector<Image2D> reconstructions = { image2 };
-						sparseCoder.reconstruct(newSDR_image, reconstructions);
-						plots::plotImage(reconstructions.front(), 10.0f, "SDR Current Visual");
+
+						//h->getPredictor().getPredLayer(0).r
+						//sparseCoder.reconstruct(newSDR_image, reconstructions);
+						//plots::plotImage(reconstructions.front(), 10.0f, "SDR Current Visual");
 					}
 					if (true) {
 						//const Image2D &predSDR_image = predictor.getPrediction();
-						plots::plotImage(predSDR_image, 8.0f, "SDR Prediction");
+						//plots::plotImage(predSDR_image, 8.0f, "SDR Prediction");
 					}
 					if (true) {
 						Image2D image2 = Image2D(scInputImage._size);
 						std::vector<Image2D> reconstructions = { image2 };
-						sparseCoder.reconstruct(predSDR_image, reconstructions);
-						plots::plotImage(reconstructions.front(), 10.0f, "SDR Prediction Visual");
+						//sparseCoder.reconstruct(predSDR_image, reconstructions);
+						//plots::plotImage(reconstructions.front(), 10.0f, "SDR Prediction Visual");
 					}
 				}
 				window.display();

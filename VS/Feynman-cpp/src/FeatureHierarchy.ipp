@@ -13,6 +13,7 @@
 
 #include "Helpers.ipp"
 #include "SparseFeatures.ipp"
+#include "PlotDebug.ipp"
 
 namespace feynman {
 
@@ -80,7 +81,7 @@ namespace feynman {
 			const std::vector<LayerDesc> &layerDescs,
 			std::mt19937 &rng)
 		{
-			// last checked: 24-nov-2016
+			// last checked: 25-nov-2016
 			_layerDescs = layerDescs;
 			_layers.resize(_layerDescs.size());
 
@@ -109,7 +110,7 @@ namespace feynman {
 			std::mt19937 &rng,
 			const bool learn = true)
 		{
-			// last checked: 24-nov-2016
+			// last checked: 25-nov-2016
 
 			// Clear summation buffers if reset previously
 			for (size_t layer = 0; layer < _layers.size(); ++layer) {
@@ -122,65 +123,67 @@ namespace feynman {
 			// Activate
 			bool prevClockReset = true;
 
-			for (size_t layer = 0; layer < _layers.size(); ++layer) {
+			for (size_t l = 0; l < _layers.size(); l++) {
 				// Add input to pool
 				if (prevClockReset) {
-					_layers[layer]._clock++;
+					_layers[l]._clock++;
 
 					// Gather inputs for layer
 					std::vector<Image2D> visibleStates;
+					{
+						if (l == 0) {
+							std::vector<Image2D> inputsUse = inputs;
 
-					if (layer == 0) {
-						std::vector<Image2D> inputsUse = inputs;
+							if (_layerDescs.front()._sfDesc->_inputType == SparseFeatures::_feedForwardRecurrent)
+								inputsUse.push_back(_layers.front()._sf->getHiddenContext());
 
-						if (_layerDescs.front()._sfDesc->_inputType == SparseFeatures::_feedForwardRecurrent)
-							inputsUse.push_back(_layers.front()._sf->getHiddenContext());
-
-						visibleStates = inputsUse;
+							visibleStates = inputsUse;
+						}
+						else
+							visibleStates = _layerDescs[l]._sfDesc->_inputType == SparseFeatures::_feedForwardRecurrent ? std::vector<Image2D>{ _layers[l - 1]._tpBuffer[_back], _layers[l]._sf->getHiddenContext() } : std::vector<Image2D>{ _layers[l - 1]._tpBuffer[_back] };
 					}
-					else
-						visibleStates = (_layerDescs[layer]._sfDesc->_inputType == SparseFeatures::_feedForwardRecurrent) 
-							? std::vector<Image2D>{ _layers[layer - 1]._tpBuffer[_back], _layers[layer]._sf->getHiddenContext() } 
-							: std::vector<Image2D>{ _layers[layer - 1]._tpBuffer[_back] };
 
 					// Update layer
-					_layers[layer]._sf->activate(visibleStates, predictionsPrev[layer], rng);
+					_layers[l]._sf->activate(visibleStates, predictionsPrev[l], rng);
 
 					if (learn)
-						_layers[layer]._sf->learn(rng);
+						_layers[l]._sf->learn(rng);
 
-					_layers[layer]._sf->stepEnd();
+					_layers[l]._sf->stepEnd();
 
 					// Prediction error
 					fhPredError(
-						_layers[layer]._sf->getHiddenStates()[_back],
-						predictionsPrev[layer],
-						_layers[layer]._predErrors,
-						_layers[layer]._sf->getHiddenSize()
+						_layers[l]._sf->getHiddenStates()[_back],	// in
+						predictionsPrev[l],							// in
+						_layers[l]._predErrors,						// out
+						_layers[l]._sf->getHiddenSize()
 					);
+
+					//plots::plotImage(_layers[l]._predErrors, 8, "FeatureHierarchy:simStep:predErrors" + std::to_string(l));
 
 					// Add state to average
 					fhPool(
-						_layers[layer]._predErrors,
-						_layers[layer]._tpBuffer[_back],
-						_layers[layer]._tpBuffer[_front],
-						1.0f / std::max(1, _layerDescs[layer]._poolSteps),
-						_layers[layer]._sf->getHiddenSize()
+						_layers[l]._predErrors,
+						_layers[l]._tpBuffer[_back],
+						_layers[l]._tpBuffer[_front],
+						1.0f / std::max(1, _layerDescs[l]._poolSteps),
+						_layers[l]._sf->getHiddenSize()
 					);
 
-					std::swap(_layers[layer]._tpBuffer[_front], _layers[layer]._tpBuffer[_back]);
+					std::swap(_layers[l]._tpBuffer[_front], _layers[l]._tpBuffer[_back]);
 				}
 
-				_layers[layer]._tpReset = prevClockReset;
+				_layers[l]._tpReset = prevClockReset;
 
-				if (_layers[layer]._clock >= _layerDescs[layer]._poolSteps) {
-					_layers[layer]._clock = 0;
+				if (_layers[l]._clock >= _layerDescs[l]._poolSteps) {
+					_layers[l]._clock = 0;
+
 					prevClockReset = true;
 				}
-				else {
+				else
 					prevClockReset = false;
-				}
-				_layers[layer]._tpNextReset = prevClockReset;
+
+				_layers[l]._tpNextReset = prevClockReset;
 			}
 		}
 
@@ -207,7 +210,7 @@ namespace feynman {
 
 		//Clear the working memory
 		void clearMemory() {
-			// last checked: 24-nov-2016
+			// last checked: 25-nov-2016
 			for (size_t layer = 0; layer < _layers.size(); ++layer) {
 				_layers[layer]._sf->clearMemory();
 			}
@@ -222,7 +225,7 @@ namespace feynman {
 			const float scale,
 			const int2 range)
 		{
-			// last checked: 24-nov-2016
+			// last checked: 25-nov-2016
 			const int nElements = range.x * range.y;
 			for (int i = 0; i < nElements; ++i) {
 				const float state = states._data_float[i];
@@ -238,14 +241,14 @@ namespace feynman {
 			Image2D &errors,
 			const int2 range)
 		{
-			// last checked: 24-nov-2016
+			// last checked: 25-nov-2016
 			const int nElements = range.x * range.y;
 			for (int i = 0; i < nElements; ++i) {
 				const float state = states._data_float[i];
 				const float predictionPrev = predictionsPrev._data_float[i];
 				//write_imagef(errors, position, (float4)(state - predictionPrev, 0.0f, 0.0f, 0.0f));
 				//write_imagef(errors, position, (float4)(state, 0.0f, 0.0f, 0.0f));
-				const float newValue = (state * (1.0f - predictionPrev)) + ((1.0f - state) * predictionPrev);
+				const float newValue = state * (1.0f - predictionPrev) + (1.0f - state) * predictionPrev;
 				errors._data_float[i] = newValue;
 			}
 		}

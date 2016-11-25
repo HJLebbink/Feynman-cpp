@@ -127,6 +127,10 @@ namespace feynman {
 			this->_size = other._size;
 			other._size = tmp;
 		}
+
+		int3 getSize() const {
+			return _size;
+		}
 	};
 
 
