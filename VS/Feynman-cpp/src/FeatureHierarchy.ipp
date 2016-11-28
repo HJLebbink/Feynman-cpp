@@ -110,20 +110,20 @@ namespace feynman {
 			std::mt19937 &rng,
 			const bool learn = true)
 		{
-			// last checked: 25-nov-2016
+			// last checked: 28-nov-2016
 
 			// Clear summation buffers if reset previously
-			for (size_t layer = 0; layer < _layers.size(); ++layer) {
-				if (_layers[layer]._tpNextReset) {
+			for (size_t l = 0; l < _layers.size(); ++l) {
+				if (_layers[l]._tpNextReset) {
 					// Clear summation buffer
-					clear(_layers[layer]._tpBuffer[_back]);
+					clear(_layers[l]._tpBuffer[_back]);
 				}
 			}
 
 			// Activate
 			bool prevClockReset = true;
 
-			for (size_t l = 0; l < _layers.size(); l++) {
+			for (size_t l = 0; l < _layers.size(); ++l) {
 				// Add input to pool
 				if (prevClockReset) {
 					_layers[l]._clock++;
@@ -140,7 +140,9 @@ namespace feynman {
 							visibleStates = inputsUse;
 						}
 						else
-							visibleStates = _layerDescs[l]._sfDesc->_inputType == SparseFeatures::_feedForwardRecurrent ? std::vector<Image2D>{ _layers[l - 1]._tpBuffer[_back], _layers[l]._sf->getHiddenContext() } : std::vector<Image2D>{ _layers[l - 1]._tpBuffer[_back] };
+							visibleStates = (_layerDescs[l]._sfDesc->_inputType == SparseFeatures::_feedForwardRecurrent) 
+								? std::vector<Image2D>{ _layers[l - 1]._tpBuffer[_back], _layers[l]._sf->getHiddenContext() } 
+								: std::vector<Image2D>{ _layers[l - 1]._tpBuffer[_back] };
 					}
 
 					// Update layer
@@ -152,6 +154,8 @@ namespace feynman {
 					_layers[l]._sf->stepEnd();
 
 					// Prediction error
+					//plots::plotImage(_layers[l]._sf->getHiddenStates()[_back], 8, "FeatureHierarchy:simStep:hiddenState" + std::to_string(l));
+
 					fhPredError(
 						_layers[l]._sf->getHiddenStates()[_back],	// in
 						predictionsPrev[l],							// in

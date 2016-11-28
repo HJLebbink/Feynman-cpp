@@ -87,7 +87,7 @@ namespace feynman {
 			const float2 initWeightRange,
 			std::mt19937 &rng)
 		{
-			// last checked: 25-nov 2016
+			// last checked: 28-nov 2016
 
 			_visibleLayerDescs = visibleLayerDescs;
 			_hiddenSize = hiddenSize;
@@ -137,7 +137,7 @@ namespace feynman {
 			const std::vector<Image2D> &visibleStates,
 			std::mt19937 &rng)
 		{
-			// last checked: 25-nov 2016
+			// last checked: 28-nov 2016
 
 			// Start by clearing stimulus summation buffer to biases
 			clear(_hiddenSummationTemp[_back]);
@@ -145,7 +145,9 @@ namespace feynman {
 			// Find up stimulus
 			for (size_t vli = 0; vli < _visibleLayers.size(); ++vli) {
 				VisibleLayer &vl = _visibleLayers[vli];
-				VisibleLayerDesc &vld = _visibleLayerDescs[vli];
+				const VisibleLayerDesc &vld = _visibleLayerDescs[vli];
+
+				//plots::plotImage(visibleStates[vli], 8, "PredictorLayer:activate:visibleStates" + std::to_string(vli));
 
 				// Derive inputs
 				plDeriveInputs(
@@ -154,6 +156,8 @@ namespace feynman {
 					vl._derivedInput[_front],		// out
 					vld._size
 				);
+
+				plots::plotImage(vl._derivedInput[_front], 8, "PredictorLayer:activate:derivedInput" + std::to_string(vli));
 
 				plStimulus(
 					vl._derivedInput[_front],		// in
@@ -165,13 +169,16 @@ namespace feynman {
 					vld._radius,
 					_hiddenSize
 				);
-				//plots::plotImage(_hiddenSummationTemp[_front], 4.0f, "PredictionLayer:_hiddenSummationTemp:");
+
+				//plots::plotImage(_hiddenSummationTemp[_front], 8, "PredictorLayer:activate:hiddenSummationTemp" + std::to_string(vli));
+
 				std::swap(_hiddenSummationTemp[_front], _hiddenSummationTemp[_back]);
 			}
 
 			if (_inhibitSparseFeatures != nullptr) {
 				_inhibitSparseFeatures->inhibit(_hiddenSummationTemp[_back], _hiddenStates[_front], rng);
-				//plots::plotImage(_hiddenSummationTemp[_front], 8.0f, "PredictionLayer:activate:_hiddenStates");
+				//plots::plotImage(_hiddenSummationTemp[_back], 8, "PredictorLayer:activate:hiddenSummationTemp");
+				//plots::plotImage(_hiddenStates[_front], 8, "PredictionLayer:activate:hiddenStates");
 			} else {
 				//std::cout << "INFO: PredictorLayer:activate: _inhibitSparseFeatures=null" << std::endl;
 				copy(_hiddenSummationTemp[_back], _hiddenStates[_front]);
@@ -186,12 +193,12 @@ namespace feynman {
 		void learn(
 			const Image2D &targets)
 		{
-			// last checked: 25-nov 2016
+			// last checked: 28-nov 2016
 
 			// Learn weights
 			for (size_t vli = 0; vli < _visibleLayers.size(); ++vli) {
 				VisibleLayer &vl = _visibleLayers[vli];
-				VisibleLayerDesc &vld = _visibleLayerDescs[vli];
+				const VisibleLayerDesc &vld = _visibleLayerDescs[vli];
 
 				//plots::plotImage(_hiddenStates[_back], 8, "PredictorLayer:learn:hiddenState" + std::to_string(vli));
 
@@ -429,7 +436,7 @@ namespace feynman {
 		static void plDeriveInputs(
 			const Image2D &inputs,
 			const Image2D &outputsBack,
-			Image2D &outputsFront,
+			Image2D &outputsFront,			// write only
 			const int2 range)
 		{
 			// last checked: 24-nov 2016
@@ -553,7 +560,7 @@ namespace feynman {
 			const int radius,
 			const int2 range)
 		{
-			// last checked: 25-nov 2016
+			// last checked: 28-nov 2016
 			/*
 			switch (radius) {
 			case 6: plStimulus_v0<6>(visibleStates, hiddenSummationTempBack, hiddenSummationTempFront, weights, visibleSize, hiddenToVisible); break;
@@ -591,7 +598,7 @@ namespace feynman {
 							}
 						}
 					}
-					float sum = read_2D(hiddenSummationTempBack, hiddenPosition_x, hiddenPosition_y);
+					const float sum = read_2D(hiddenSummationTempBack, hiddenPosition_x, hiddenPosition_y);
 					const float newValue = sum + subSum;
 					write_2D(hiddenSummationTempFront, hiddenPosition_x, hiddenPosition_y, newValue);
 				}
@@ -761,7 +768,7 @@ namespace feynman {
 			const float alpha,
 			const int2 range)
 		{
-			// last checked: 25-nov 2016
+			// last checked: 28-nov 2016
 			/*
 			switch (radius) {
 			case 6: plLearnPredWeights_v1<6>(visibleStatesPrev, targets, hiddenStatesPrev, weightsBack, weightsFront, visibleSize, hiddenToVisible, weightAlpha); break;
@@ -779,14 +786,14 @@ namespace feynman {
 					const int fieldLowerBound_x = visiblePositionCenter_x - radius;
 					const int fieldLowerBound_y = visiblePositionCenter_y - radius;
 
-					for (int dx = -radius; dx <= radius; dx++) {
+					for (int dx = -radius; dx <= radius; ++dx) {
 						const int visiblePosition_x = visiblePositionCenter_x + dx;
 						if (inBounds(visiblePosition_x, visibleSize.x)) {
 							const int offset_x = visiblePosition_x - fieldLowerBound_x;
 
-							for (int dy = -radius; dy <= radius; dy++) {
+							for (int dy = -radius; dy <= radius; ++dy) {
 								const int visiblePosition_y = visiblePositionCenter_y + dy;
-								if (inBounds(visiblePosition_x, visibleSize.x)) {
+								if (inBounds(visiblePosition_y, visibleSize.y)) {
 									const int offset_y = visiblePosition_y - fieldLowerBound_y;
 
 									const int wi = offset_y + offset_x * (radius * 2 + 1);

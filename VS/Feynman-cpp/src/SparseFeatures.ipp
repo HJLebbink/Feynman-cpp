@@ -91,6 +91,7 @@ namespace feynman {
 
 		// Get context
 		virtual const Image2D &getHiddenContext() const {
+			/// last checked : 28-nov 2016
 			return getHiddenStates()[_back];
 		}
 

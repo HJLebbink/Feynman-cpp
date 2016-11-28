@@ -74,16 +74,18 @@ namespace video {
 		feynman::Architect arch;
 		arch.initialize(1234);
 
+		const int2 inputLayerSize = int2{ static_cast<int>(rescaleRT.getSize().x), static_cast<int>(rescaleRT.getSize().y) };
+
 		// 3 input layers for RGB
-		arch.addInputLayer(int2{ static_cast<int>(rescaleRT.getSize().x), static_cast<int>(rescaleRT.getSize().y) })
+		arch.addInputLayer(inputLayerSize)
 			.setValue("in_p_alpha", 0.02f)
 			.setValue("in_p_radius", 8);
 
-		arch.addInputLayer(int2{ static_cast<int>(rescaleRT.getSize().x), static_cast<int>(rescaleRT.getSize().y) })
+		arch.addInputLayer(inputLayerSize)
 			.setValue("in_p_alpha", 0.02f)
 			.setValue("in_p_radius", 8);
 
-		arch.addInputLayer(int2{ static_cast<int>(rescaleRT.getSize().x), static_cast<int>(rescaleRT.getSize().y) })
+		arch.addInputLayer(inputLayerSize)
 			.setValue("in_p_alpha", 0.02f)
 			.setValue("in_p_radius", 8);
 
@@ -92,7 +94,7 @@ namespace video {
 			.setValue("sfc_chunkSize", int2{ 6, 6 })
 			.setValue("sfc_ff_radius", 8)
 			.setValue("hl_poolSteps", 2)
-			.setValue("sfc_numSamples", 2)
+			.setValue("sfc_numSamples", 1)
 			.setValue("sfc_weightAlpha", 0.01f)
 			.setValue("sfc_biasAlpha", 0.1f)
 			.setValue("sfc_gamma", 0.92f)
@@ -118,18 +120,18 @@ namespace video {
 		std::shared_ptr<feynman::Hierarchy> h = arch.generateHierarchy();
 
 		// Input and prediction fields for color components
-		Image2D inputFieldR(rescaleRT.getSize().x, rescaleRT.getSize().y);
-		Image2D inputFieldG(rescaleRT.getSize().x, rescaleRT.getSize().y);
-		Image2D inputFieldB(rescaleRT.getSize().x, rescaleRT.getSize().y);
-		Image2D predFieldR(rescaleRT.getSize().x, rescaleRT.getSize().y);
-		Image2D predFieldG(rescaleRT.getSize().x, rescaleRT.getSize().y);
-		Image2D predFieldB(rescaleRT.getSize().x, rescaleRT.getSize().y);
+		Image2D inputFieldR(inputLayerSize);
+		Image2D inputFieldG(inputLayerSize);
+		Image2D inputFieldB(inputLayerSize);
+		Image2D predFieldR(inputLayerSize);
+		Image2D predFieldG(inputLayerSize);
+		Image2D predFieldB(inputLayerSize);
 
 		// Unit Gaussian noise for input corruption
 		std::normal_distribution<float> noiseDist(0.0f, 1.0f);
 
 		// Training time
-		const int numIter = 4;
+		const int numIter = 40;
 
 		// UI update resolution
 		const int progressBarLength = 40;
@@ -168,8 +170,8 @@ namespace video {
 				sf::Image img;
 				{
 					img.create(frame.cols, frame.rows);
-					for (unsigned int x = 0; x < img.getSize().x; x++) {
-						for (unsigned int y = 0; y < img.getSize().y; y++) {
+					for (unsigned int x = 0; x < img.getSize().x; ++x) {
+						for (unsigned int y = 0; y < img.getSize().y; ++y) {
 							sf::Uint8 r = frame.data[(x + y * img.getSize().x) * 3 + 2];
 							sf::Uint8 g = frame.data[(x + y * img.getSize().x) * 3 + 1];
 							sf::Uint8 b = frame.data[(x + y * img.getSize().x) * 3 + 0];
@@ -216,9 +218,8 @@ namespace video {
 					}
 				}
 
-				std::vector<Image2D> inputVector = { inputFieldR, inputFieldG, inputFieldB };
-
 				// Run a simulation step of the hierarchy (learning enabled)
+				std::vector<Image2D> inputVector = { inputFieldR, inputFieldG, inputFieldB };
 				const bool learn = true;
 				h->simStep(inputVector, learn);
 
@@ -346,7 +347,8 @@ namespace video {
 			window.clear();
 
 			std::vector<Image2D> inputVector = { predFieldR, predFieldG, predFieldB };
-			h->simStep(inputVector, false);
+			const bool learn = false;
+			h->simStep(inputVector, learn);
 
 			predFieldR = h->getPredictions()[0];
 			predFieldG = h->getPredictions()[1];

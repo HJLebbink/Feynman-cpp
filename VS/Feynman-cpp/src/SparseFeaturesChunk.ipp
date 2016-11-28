@@ -248,13 +248,13 @@ namespace feynman {
 			// last checked: 25-nov 2016
 
 			// Start by clearing stimulus summation buffer to biases
-			//clear(_hiddenSummationTemp[_back]);
-			copy(_hiddenBiases[_back], _hiddenSummationTemp[_back]);
+			clear(_hiddenSummationTemp[_back]);
+			//copy(_hiddenBiases[_back], _hiddenSummationTemp[_back]);
 
 			// Find up stimulus
 			for (size_t vli = 0; vli < _visibleLayers.size(); ++vli) {
 				VisibleLayer &vl = _visibleLayers[vli];
-				VisibleLayerDesc &vld = _visibleLayerDescs[vli];
+				const VisibleLayerDesc &vld = _visibleLayerDescs[vli];
 
 				//plots::plotImage(visibleStates[vli], 8, "SparseFeaturesChunk:activate:visibleStates" + std::to_string(vli));
 
@@ -294,7 +294,7 @@ namespace feynman {
 					_hiddenSize
 				);
 
-				plots::plotImage(_hiddenSummationTemp[_front], 8, "SparseFeaturesChunk:activate:hiddenSummationTemp" + std::to_string(vli));
+				//plots::plotImage(_hiddenSummationTemp[_front], 8, "SparseFeaturesChunk:activate:hiddenSummationTemp" + std::to_string(vli));
 
 				// Swap buffers
 				std::swap(_hiddenSummationTemp[_front], _hiddenSummationTemp[_back]);
@@ -308,6 +308,8 @@ namespace feynman {
 				_hiddenSize
 			);
 
+			//plots::plotImage(_hiddenActivations[_front], 8, "SparseFeaturesChunk:activate:hiddenActivations");
+
 			// Inhibit
 			const int chunksInX = static_cast<int>(std::ceil(static_cast<float>(_hiddenSize.x) / _chunkSize.x));
 			const int chunksInY = static_cast<int>(std::ceil(static_cast<float>(_hiddenSize.y) / _chunkSize.y));
@@ -319,18 +321,20 @@ namespace feynman {
 				_hiddenSize,
 				_chunkSize,
 				int2{ chunksInX , chunksInY });
+
+			//plots::plotImage(_hiddenStates[_front], 8, "SparseFeaturesChunk:activate:hiddenStates");
 		}
 		
 		//End a simulation step
 		void stepEnd() override
 		{
-			// last checked: 23-nov
+			// last checked: 28-nov 2016
 
 			std::swap(_hiddenStates[_front], _hiddenStates[_back]);
 			std::swap(_hiddenActivations[_front], _hiddenActivations[_back]);
 
 			// Swap buffers
-			for (size_t vli = 0; vli < _visibleLayers.size(); vli++) {
+			for (size_t vli = 0; vli < _visibleLayers.size(); ++vli) {
 				VisibleLayer &vl = _visibleLayers[vli];
 				//VisibleLayerDesc &vld = _visibleLayerDescs[vli];
 
@@ -347,12 +351,12 @@ namespace feynman {
 		*/
 		void learn(std::mt19937 &rng) override 
 		{
-			// last checked: 23-nov
+			// last checked: 27-nov
 
 			// Learn weights
-			for (size_t vli = 0; vli < _visibleLayers.size(); vli++) {
+			for (size_t vli = 0; vli < _visibleLayers.size(); ++vli) {
 				VisibleLayer &vl = _visibleLayers[vli];
-				VisibleLayerDesc &vld = _visibleLayerDescs[vli];
+				const VisibleLayerDesc &vld = _visibleLayerDescs[vli];
 
 				// Reconstruct
 				/*{
@@ -377,11 +381,11 @@ namespace feynman {
 
 				// Weight update
 				sfcLearnWeights(
-					_hiddenStates[_front],
-					_chunkWinners,
-					vl._samples[_front],
-					vl._weights[_back],
-					vl._weights[_front],
+					_hiddenStates[_front],	// in
+					_chunkWinners,			// in
+					vl._samples[_front],	// in
+					vl._weights[_back],		// in
+					vl._weights[_front],	// out
 					_hiddenSize,
 					vld._size,
 					vl._hiddenToVisible,
@@ -1544,7 +1548,7 @@ namespace feynman {
 			default: printf("ERROR: SparseFeatures::sfcLearnWeights: provided radius %i is not implemented\n", radius); break;
 			}
 			*/
-			// last checked: 24-nov 2016
+			// last checked: 27-nov 2016
 			for (int hiddenPosition_x = 0; hiddenPosition_x < range.x; hiddenPosition_x++) {
 				for (int hiddenPosition_y = 0; hiddenPosition_y < range.y; hiddenPosition_y++) {
 
@@ -1574,11 +1578,11 @@ namespace feynman {
 
 					for (int s = 0; s < numSamples; ++s) {
 
-						for (int dx = -radius; dx <= radius; dx++) {
+						for (int dx = -radius; dx <= radius; ++dx) {
 							const int visiblePosition_x = visiblePositionCenter_x + dx;
 							if (inBounds(visiblePosition_x, visibleSize.x)) {
 
-								for (int dy = -radius; dy <= radius; dy++) {
+								for (int dy = -radius; dy <= radius; ++dy) {
 									const int visiblePosition_y = visiblePositionCenter_y + dy;
 									if (inBounds(visiblePosition_y, visibleSize.y)) {
 

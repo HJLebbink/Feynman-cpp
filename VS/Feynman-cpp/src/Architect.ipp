@@ -512,7 +512,7 @@ namespace feynman {
 			// Create readout layers
 			h->_readoutLayers.resize(h->_predictions.size());
 
-			for (int i = 0; i < h->_readoutLayers.size(); i++) {
+			for (size_t i = 0; i < h->_readoutLayers.size(); i++) {
 				std::vector<PredictorLayer::VisibleLayerDesc> vlds(1);
 
 				vlds.front()._size = { _higherLayers.front()._size.x, _higherLayers.front()._size.y };

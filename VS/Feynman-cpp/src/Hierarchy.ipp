@@ -39,11 +39,12 @@ namespace feynman {
 			const std::vector<Image2D> &inputs,
 			const bool learn = true) 
 		{
-			// last checked: 25-nov 2016
+			// last checked: 28-nov 2016
 
 			// Write input
 			for (size_t i = 0; i < _inputImages.size(); ++i) {
 				//plots::plotImage(inputs[i], 4, "Hierarchy:simStep:input" + std::to_string(i));
+				//_resources->_cs->getQueue().enqueueWriteImage(_inputImages[i], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(inputs[i].getSize().x), static_cast<cl::size_type>(inputs[i].getSize().y), 1 }, 0, 0, inputs[i].getData().data());
 				copy(inputs[i], _inputImages[i]);
 			}
 
@@ -58,6 +59,8 @@ namespace feynman {
 					_readoutLayers[i].learn(_inputImages[i]);
 				}
 				_readoutLayers[i].stepEnd();
+
+				//_resources->_cs->getQueue().enqueueReadImage(_readoutLayers[i].getHiddenStates()[_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(_predictions[i].getSize().x), static_cast<cl::size_type>(_predictions[i].getSize().y), 1 }, 0, 0, _predictions[i].getData().data());
 				copy(_readoutLayers[i].getHiddenStates()[_back], _predictions[i]);
 				//plots::plotImage(_predictions[i], 4, "Hierarchy:pred" + std::to_string(i));
 			}
