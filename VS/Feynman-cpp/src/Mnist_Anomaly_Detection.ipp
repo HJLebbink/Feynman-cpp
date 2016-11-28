@@ -106,8 +106,8 @@ namespace mnist {
 		std::shared_ptr<feynman::Hierarchy> h = arch.generateHierarchy();
 
 		// Input and prediction fields
-		Image2D inputField(int2{ bottomWidth, bottomHeight });
-		Image2D predField(int2{ bottomWidth, bottomHeight });
+		Array2D2f inputField(int2{ bottomWidth, bottomHeight });
+		Array2D2f predField(int2{ bottomWidth, bottomHeight });
 
 
 		// --------------------------- Create the Windows ---------------------------
@@ -403,12 +403,12 @@ namespace mnist {
 
 			// Retrieve prediction
 			predField = h->getPredictions().front();
-			const Image2D &newSDR_image = predField; //TODO sparseCoder.getHiddenStates()[_back];
-			const std::vector<float> &newSDR = newSDR_image._data_float;
-			const std::vector<float> &predSDR = predField._data_float;
+			const Array2D2f &newSDR_image = predField; //TODO sparseCoder.getHiddenStates()[_back];
+			const std::vector<float2> &newSDR = newSDR_image._data_float;
+			const std::vector<float2> &predSDR = predField._data_float;
 
 			for (size_t i = 0; i < newSDR.size(); i++) {
-				anomalyScore += newSDR[i] * predSDR[i];
+				anomalyScore += newSDR[i].x * predSDR[i].x;
 			}
 
 			// Detection
@@ -425,7 +425,7 @@ namespace mnist {
 				averageScore = (averageDecay * averageScore) + ((1.0f - averageDecay) * anomalyScore);
 			}
 			// Hierarchy simulation step
-			std::vector<Image2D> inputVector = { inputField };
+			std::vector<Array2D2f> inputVector = { inputField };
 			h->simStep(inputVector, trainMode);
 
 			// Shift plot y values
@@ -545,7 +545,7 @@ namespace mnist {
 				if (true) {
 					if (true) {
 						//const Image2D &newSDR_image = h->getPredictor().getPredLayer(0).getHiddenStates()[_back];
-						const Image2D &newSDR_image = h->getPredictions().front();
+						const Array2D2f &newSDR_image = h->getPredictions().front();
 						plots::plotImage(newSDR_image, 8.0f, "SDR Current");
 					}
 					if (true) {

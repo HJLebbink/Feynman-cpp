@@ -456,6 +456,8 @@ namespace feynman {
 		std::shared_ptr<class Hierarchy> generateHierarchy(
 			std::unordered_map<std::string, std::string> &additionalParams) 
 		{
+			// last checked: 28-nov 2016
+
 			std::shared_ptr<Hierarchy> h = std::make_shared<Hierarchy>();
 
 			h->_rng = _rng;
@@ -463,8 +465,8 @@ namespace feynman {
 
 			std::vector<bool> shouldPredict(_inputLayers.size());
 
-			for (size_t i = 0; i < _inputLayers.size(); i++) {
-				h->_inputImages[i] = Image2D(_inputLayers[i]._size);
+			for (size_t i = 0; i < _inputLayers.size(); ++i) {
+				h->_inputImages[i] = Array2D2f(_inputLayers[i]._size);
 
 				/*if (_inputLayers[i]._params.find("in_predict") != _inputLayers[i]._params.end()) {
 				if (_inputLayers[i]._params["in_predict"] == ParameterModifier::_boolTrue) {
@@ -476,7 +478,7 @@ namespace feynman {
 				shouldPredict[i] = false;
 				}
 				else {*/
-				h->_predictions.push_back(Image2D(_inputLayers[i]._size));
+				h->_predictions.push_back(Array2D2f(_inputLayers[i]._size));
 
 				shouldPredict[i] = true;
 				//}
@@ -485,11 +487,9 @@ namespace feynman {
 			std::vector<Predictor::PredLayerDesc> pLayerDescs(_higherLayers.size());
 			std::vector<FeatureHierarchy::LayerDesc> hLayerDescs(_higherLayers.size());
 
-			float2 initWeightRange = { -0.01f, 0.01f };
-
+			float2 initWeightRange = float2{ -0.01f, 0.01f };
 			if (additionalParams.find("ad_initWeightRange") != additionalParams.end()) {
-				float2 range = ParameterModifier::parseFloat2(additionalParams["ad_initWeightRange"]);
-				initWeightRange = { range.x, range.y };
+				initWeightRange = ParameterModifier::parseFloat2(additionalParams["ad_initWeightRange"]);
 			}
 
 			// Fill out layer descs
@@ -512,7 +512,7 @@ namespace feynman {
 			// Create readout layers
 			h->_readoutLayers.resize(h->_predictions.size());
 
-			for (size_t i = 0; i < h->_readoutLayers.size(); i++) {
+			for (size_t i = 0; i < h->_readoutLayers.size(); ++i) {
 				std::vector<PredictorLayer::VisibleLayerDesc> vlds(1);
 
 				vlds.front()._size = { _higherLayers.front()._size.x, _higherLayers.front()._size.y };
@@ -538,7 +538,7 @@ namespace feynman {
 			a->_inputImages.resize(_inputLayers.size());
 
 			for (size_t i = 0; i < _inputLayers.size(); i++)
-				a->_inputImages[i] = Image2D(_inputLayers[i]._size);
+				a->_inputImages[i] = Array2D2f(_inputLayers[i]._size);
 
 			std::vector<int2> actionSizes(_actionLayers.size());
 			std::vector<int2> actionTileSizes(_actionLayers.size());

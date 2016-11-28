@@ -120,12 +120,12 @@ namespace video {
 		std::shared_ptr<feynman::Hierarchy> h = arch.generateHierarchy();
 
 		// Input and prediction fields for color components
-		Image2D inputFieldR(inputLayerSize);
-		Image2D inputFieldG(inputLayerSize);
-		Image2D inputFieldB(inputLayerSize);
-		Image2D predFieldR(inputLayerSize);
-		Image2D predFieldG(inputLayerSize);
-		Image2D predFieldB(inputLayerSize);
+		Array2D2f inputFieldR(inputLayerSize);
+		Array2D2f inputFieldG(inputLayerSize);
+		Array2D2f inputFieldB(inputLayerSize);
+		Array2D2f predFieldR(inputLayerSize);
+		Array2D2f predFieldG(inputLayerSize);
+		Array2D2f predFieldB(inputLayerSize);
 
 		// Unit Gaussian noise for input corruption
 		std::normal_distribution<float> noiseDist(0.0f, 1.0f);
@@ -211,15 +211,17 @@ namespace video {
 						for (unsigned int y = 0; y < reImg.getSize().y; y++) {
 							sf::Color c = reImg.getPixel(x, y);
 
-							write_2D(inputFieldR, x, y, c.r / 255.0f * (1.0f - blendPred) + read_2D(predFieldR, x, y) * blendPred);
-							write_2D(inputFieldG, x, y, c.r / 255.0f * (1.0f - blendPred) + read_2D(predFieldG, x, y) * blendPred);
-							write_2D(inputFieldB, x, y, c.r / 255.0f * (1.0f - blendPred) + read_2D(predFieldB, x, y) * blendPred);
+							write_2D(inputFieldR, x, y, float2{ c.r / 255.0f * (1.0f - blendPred) + read_2D(predFieldR, x, y).x * blendPred, 0.0f });
+							write_2D(inputFieldG, x, y, float2{ c.r / 255.0f * (1.0f - blendPred) + read_2D(predFieldG, x, y).x * blendPred, 0.0f });
+							write_2D(inputFieldB, x, y, float2{ c.r / 255.0f * (1.0f - blendPred) + read_2D(predFieldB, x, y).x * blendPred, 0.0f });
 						}
 					}
 				}
 
 				// Run a simulation step of the hierarchy (learning enabled)
-				std::vector<Image2D> inputVector = { inputFieldR, inputFieldG, inputFieldB };
+				inputFieldR._name = "inputR";
+
+				std::vector<Array2D2f> inputVector = { inputFieldR, inputFieldG, inputFieldB };
 				const bool learn = true;
 				h->simStep(inputVector, learn);
 
@@ -235,9 +237,9 @@ namespace video {
 					for (size_t x = 0; x < rescaleRT.getSize().x; x++) {
 						for (size_t y = 0; y < rescaleRT.getSize().y; y++) {
 							sf::Color c;
-							c.r = 255.0f * std::min(1.0f, std::max(0.0f, read_2D(predFieldR, x, y)));
-							c.g = 255.0f * std::min(1.0f, std::max(0.0f, read_2D(predFieldG, x, y)));
-							c.b = 255.0f * std::min(1.0f, std::max(0.0f, read_2D(predFieldB, x, y)));
+							c.r = 255.0f * std::min(1.0f, std::max(0.0f, read_2D(predFieldR, x, y).x));
+							c.g = 255.0f * std::min(1.0f, std::max(0.0f, read_2D(predFieldG, x, y).x));
+							c.b = 255.0f * std::min(1.0f, std::max(0.0f, read_2D(predFieldB, x, y).x));
 							img.setPixel(x, y, c);
 						}
 					}
@@ -346,7 +348,7 @@ namespace video {
 			
 			window.clear();
 
-			std::vector<Image2D> inputVector = { predFieldR, predFieldG, predFieldB };
+			std::vector<Array2D2f> inputVector = { predFieldR, predFieldG, predFieldB };
 			const bool learn = false;
 			h->simStep(inputVector, learn);
 
@@ -360,9 +362,9 @@ namespace video {
 			for (size_t x = 0; x < rescaleRT.getSize().x; x++) {
 				for (size_t y = 0; y < rescaleRT.getSize().y; y++) {
 					sf::Color c;
-					c.r = 255.0f * std::min(1.0f, std::max(0.0f, read_2D(predFieldR, x, y)));
-					c.g = 255.0f * std::min(1.0f, std::max(0.0f, read_2D(predFieldG, x, y)));
-					c.b = 255.0f * std::min(1.0f, std::max(0.0f, read_2D(predFieldB, x, y)));
+					c.r = 255.0f * std::min(1.0f, std::max(0.0f, read_2D(predFieldR, x, y).x));
+					c.g = 255.0f * std::min(1.0f, std::max(0.0f, read_2D(predFieldG, x, y).x));
+					c.b = 255.0f * std::min(1.0f, std::max(0.0f, read_2D(predFieldB, x, y).x));
 					img.setPixel(x, y, c);
 				}
 			}

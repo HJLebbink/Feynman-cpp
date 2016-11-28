@@ -66,8 +66,8 @@ namespace feynman {
 		\param rng a random number generator.
 		*/
 		virtual void activate(
-			const std::vector<Image2D> &visibleStates,
-			const Image2D &predictionsPrev,
+			const std::vector<Array2D2f> &visibleStates,
+			const Array2D2f &predictionsPrev,
 			std::mt19937 &rng) = 0;
 
 		//End a simulation step
@@ -79,18 +79,18 @@ namespace feynman {
 
 		//Inhibition
 		virtual void inhibit(
-			const Image2D &activations,
-			Image2D &states,
+			const Array2D2f &activations,
+			Array2D2f &states,
 			std::mt19937 &rng) = 0;
 
 		//Get hidden size
 		virtual int2 getHiddenSize() const = 0;
 
 		//Get hidden states
-		virtual const DoubleBuffer2D &getHiddenStates() const = 0;
+		virtual const DoubleBuffer2D2f &getHiddenStates() const = 0;
 
 		// Get context
-		virtual const Image2D &getHiddenContext() const {
+		virtual const Array2D2f &getHiddenContext() const {
 			/// last checked : 28-nov 2016
 			return getHiddenStates()[_back];
 		}

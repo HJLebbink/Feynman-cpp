@@ -27,7 +27,7 @@ namespace feynman {
 		std::mt19937 _rng;
 		Image2D _inputImage;
 
-		std::vector<Image2D> _inputImages;
+		std::vector<Array2D2f> _inputImages;
 		std::vector<Image2D> _actions;
 
 	public:
@@ -35,7 +35,7 @@ namespace feynman {
 		//Run a single simulation tick
 		void simStep(
 			const float reward, 
-			const std::vector<Image2D> &inputs,
+			const std::vector<Array2D2f> &inputs,
 			const bool learn = true)
 		{
 			for (size_t i = 0; i < _inputImages.size(); ++i) {

@@ -24,8 +24,8 @@ namespace feynman {
 
 		Predictor _p;
 		std::mt19937 _rng;
-		std::vector<Image2D> _inputImages;
-		std::vector<Image2D> _predictions;
+		std::vector<Array2D2f> _inputImages;
+		std::vector<Array2D2f> _predictions;
 		std::vector<PredictorLayer> _readoutLayers;
 
 	public:
@@ -36,7 +36,7 @@ namespace feynman {
 		\param learn optional argument to disable learning.
 		*/
 		void simStep(
-			const std::vector<Image2D> &inputs,
+			const std::vector<Array2D2f> &inputs,
 			const bool learn = true) 
 		{
 			// last checked: 28-nov 2016
@@ -45,6 +45,7 @@ namespace feynman {
 			for (size_t i = 0; i < _inputImages.size(); ++i) {
 				//plots::plotImage(inputs[i], 4, "Hierarchy:simStep:input" + std::to_string(i));
 				//_resources->_cs->getQueue().enqueueWriteImage(_inputImages[i], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(inputs[i].getSize().x), static_cast<cl::size_type>(inputs[i].getSize().y), 1 }, 0, 0, inputs[i].getData().data());
+				//TODO: unnecesary copy
 				copy(inputs[i], _inputImages[i]);
 			}
 
@@ -67,7 +68,7 @@ namespace feynman {
 		}
 
 		//Get the current prediction vector
-		const std::vector<Image2D> &getPredictions() const {
+		const std::vector<Array2D2f> &getPredictions() const {
 			return _predictions;
 		}
 

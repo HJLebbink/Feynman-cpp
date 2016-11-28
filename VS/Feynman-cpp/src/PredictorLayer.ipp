@@ -44,7 +44,7 @@ namespace feynman {
 		struct VisibleLayer {
 
 			//Layer parameters
-			DoubleBuffer2D _derivedInput;
+			DoubleBuffer2D2f _derivedInput;
 			DoubleBuffer3D _weights;
 
 			float2 _hiddenToVisible;
@@ -58,10 +58,10 @@ namespace feynman {
 		int2 _hiddenSize;
 
 		//Hidden stimulus summation temporary buffer
-		DoubleBuffer2D _hiddenSummationTemp;
+		DoubleBuffer2D2f _hiddenSummationTemp;
 
 		//Predictions
-		DoubleBuffer2D _hiddenStates;
+		DoubleBuffer2D2f _hiddenStates;
 
 		//Encoder corresponding to this decoder, if available (else nullptr)
 		std::shared_ptr<SparseFeatures> _inhibitSparseFeatures;
@@ -118,12 +118,12 @@ namespace feynman {
 					vl._weights = createDoubleBuffer3D(weightsSize);
 					randomUniform3D(vl._weights[_back], weightsSize, initWeightRange, rng);
 				}
-				vl._derivedInput = createDoubleBuffer2D(vld._size);
+				vl._derivedInput = createDoubleBuffer2D2f(vld._size);
 				clear(vl._derivedInput[_back]);
 			}
 			// Hidden state data
-			_hiddenStates = createDoubleBuffer2D(_hiddenSize);
-			_hiddenSummationTemp = createDoubleBuffer2D(_hiddenSize);
+			_hiddenStates = createDoubleBuffer2D2f(_hiddenSize);
+			_hiddenSummationTemp = createDoubleBuffer2D2f(_hiddenSize);
 
 			clear(_hiddenStates[_back]);
 		}
@@ -134,7 +134,7 @@ namespace feynman {
 		\param threshold whether or not the output should be thresholded (binary).
 		*/
 		void activate(
-			const std::vector<Image2D> &visibleStates,
+			const std::vector<Array2D2f> &visibleStates,
 			std::mt19937 &rng)
 		{
 			// last checked: 28-nov 2016
@@ -157,7 +157,7 @@ namespace feynman {
 					vld._size
 				);
 
-				plots::plotImage(vl._derivedInput[_front], 8, "PredictorLayer:activate:derivedInput" + std::to_string(vli));
+				//plots::plotImage(vl._derivedInput[_front], 8, "PredictorLayer:activate:derivedInput" + std::to_string(vli));
 
 				plStimulus(
 					vl._derivedInput[_front],		// in
@@ -191,7 +191,7 @@ namespace feynman {
 		\param visibleStatesPrev the input states of the !previous! timestep.
 		*/
 		void learn(
-			const Image2D &targets)
+			const Array2D2f &targets)
 		{
 			// last checked: 28-nov 2016
 
@@ -253,7 +253,7 @@ namespace feynman {
 		}
 
 		//Get the predictions
-		const DoubleBuffer2D &getHiddenStates() const {
+		const DoubleBuffer2D2f &getHiddenStates() const {
 			return _hiddenStates;
 		}
 
@@ -434,9 +434,9 @@ namespace feynman {
 	private:
 
 		static void plDeriveInputs(
-			const Image2D &inputs,
-			const Image2D &outputsBack,
-			Image2D &outputsFront,			// write only
+			const Array2D2f &inputs,
+			const Array2D2f &outputsBack,
+			Array2D2f &outputsFront,			// write only
 			const int2 range)
 		{
 			// last checked: 24-nov 2016
@@ -551,9 +551,9 @@ namespace feynman {
 		}
 
 		static void plStimulus(
-			const Image2D &visibleStates,
-			const Image2D &hiddenSummationTempBack,
-			Image2D &hiddenSummationTempFront, // write only
+			const Array2D2f &visibleStates,
+			const Array2D2f &hiddenSummationTempBack,
+			Array2D2f &hiddenSummationTempFront, // write only
 			const Image3D &weights,
 			const int2 visibleSize,
 			const float2 hiddenToVisible,
@@ -592,15 +592,15 @@ namespace feynman {
 
 									const int wi = offset_y + offset_x * (radius * 2 + 1);
 									const float weight = read_3D(weights, hiddenPosition_x, hiddenPosition_y, wi);
-									const float visibleState = read_2D(visibleStates, visiblePosition_x, visiblePosition_y);
+									const float visibleState = read_2D(visibleStates, visiblePosition_x, visiblePosition_y).x;
 									subSum += visibleState * weight;
 								}
 							}
 						}
 					}
-					const float sum = read_2D(hiddenSummationTempBack, hiddenPosition_x, hiddenPosition_y);
+					const float sum = read_2D(hiddenSummationTempBack, hiddenPosition_x, hiddenPosition_y).x;
 					const float newValue = sum + subSum;
-					write_2D(hiddenSummationTempFront, hiddenPosition_x, hiddenPosition_y, newValue);
+					write_2D(hiddenSummationTempFront, hiddenPosition_x, hiddenPosition_y, { newValue, 0.0f });
 				}
 			}
 		}
@@ -757,9 +757,9 @@ namespace feynman {
 		}
 
 		static void plLearnPredWeights(
-			const Image2D &visibleStatesPrev,
-			const Image2D &targets,
-			const Image2D &hiddenStatesPrev,
+			const Array2D2f &visibleStatesPrev,
+			const Array2D2f &targets,
+			const Array2D2f &hiddenStatesPrev,
 			const Image3D &weightsBack,
 			Image3D &weightsFront, //write only
 			const int2 visibleSize,
@@ -782,7 +782,7 @@ namespace feynman {
 					const int visiblePositionCenter_x = project(hiddenPosition_x, hiddenToVisible.x);
 					const int visiblePositionCenter_y = project(hiddenPosition_y, hiddenToVisible.y);
 
-					const float error = read_2D(targets, hiddenPosition_x, hiddenPosition_y) - read_2D(hiddenStatesPrev, hiddenPosition_x, hiddenPosition_y);
+					const float error = read_2D(targets, hiddenPosition_x, hiddenPosition_y).x - read_2D(hiddenStatesPrev, hiddenPosition_x, hiddenPosition_y).x;
 					const int fieldLowerBound_x = visiblePositionCenter_x - radius;
 					const int fieldLowerBound_y = visiblePositionCenter_y - radius;
 
@@ -798,7 +798,7 @@ namespace feynman {
 
 									const int wi = offset_y + offset_x * (radius * 2 + 1);
 									const float weightPrev = read_3D(weightsBack, hiddenPosition_x, hiddenPosition_y, wi);
-									const float visibleStatePrev = read_2D(visibleStatesPrev, visiblePosition_x, visiblePosition_y);
+									const float visibleStatePrev = read_2D(visibleStatesPrev, visiblePosition_x, visiblePosition_y).x;
 									const float weight = weightPrev + alpha * error * visibleStatePrev;
 									write_3D(weightsFront, hiddenPosition_x, hiddenPosition_y, wi, weight);
 								}

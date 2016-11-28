@@ -113,4 +113,18 @@ namespace plots {
 		}
 		plotImage(image2, scale2, name);
 	}
+	void plotImage(
+		const Array2D2f &image,
+		const float scale2,
+		const std::string name)
+	{
+		const int2 size = image.getSize();
+		Image2D image2 = Image2D(size);
+		for (int x = 0; x < size.x; ++x) {
+			for (int y = 0; y < size.y; ++y) {
+				write_2D(image2, x, y, read_2D(image, x, y).x);
+			}
+		}
+		plotImage(image2, scale2, name);
+	}
 }

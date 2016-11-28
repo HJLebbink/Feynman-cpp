@@ -53,6 +53,7 @@ namespace feynman {
 		std::vector<FixedP> _data_fixP;
 #		endif
 		int2 _size;
+		std::string _name = ""; // used for debugging purposes
 
 
 		Array2D(int2 size) : _size(size)
@@ -103,6 +104,7 @@ namespace feynman {
 #		ifdef USE_FIXED_POINT
 		std::vector<FixedP> _data_fixP;
 #		endif
+		std::string _name = ""; // used for debugging purposes
 		int3 _size;
 
 		Image3D(int3 size) : _size(size)
@@ -303,9 +305,17 @@ namespace feynman {
 		memset(&image._data_float[0], 0, nBytes);
 	}
 
+
+	static void copy(const Array2D2f &src, Array2D2f &dst) {
+		const size_t nBytes = src._size.x * src._size.y * sizeof(float) * 2;
+		memcpy(&dst._data_float[0], &src._data_float[0], nBytes);
+	}
+
 	static void copy(const Image2D &src, Image2D &dst) {
 		const size_t nBytes = src._size.x * src._size.y * sizeof(float);
 		memcpy(&dst._data_float[0], &src._data_float[0], nBytes);
+		dst._name = src._name;
+
 #		ifdef USE_FIXED_POINT
 		const size_t nBytesFixP = src._size.x * src._size.y * sizeof(FixedP);
 		memcpy(&dst._data_fixP[0], &src._data_fixP[0], nBytesFixP);
@@ -424,16 +434,19 @@ namespace feynman {
 	}
 
 
+	inline int project(const int position, const float toScalars) {
+		return static_cast<int>(std::round(position * toScalars) + 0.5f);
+	}
 
 	inline int2 project(int2 position, float2 toScalars) {
 		int2 r;
-		r.x = static_cast<int>((position.x * toScalars.x) + 0.5f);
-		r.y = static_cast<int>((position.y * toScalars.y) + 0.5f);
+		r.x = project(position.x, toScalars.x);
+		r.y = project(position.y, toScalars.y);
 		return r;
 	}
 
-	inline int project(const int position, const float toScalars) {
-		return static_cast<int>((position * toScalars) + 0.5f);
+	inline int getChunkCenter(int chunkPosition, float chunksToHidden) {
+		return static_cast<int>(std::round((static_cast<float>(chunkPosition) + 0.5f) * chunksToHidden));
 	}
 
 	static std::tuple<int2, int2> cornerCaseRange(

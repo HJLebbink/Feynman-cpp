@@ -99,15 +99,15 @@ namespace feynman {
 		\param learn optional argument to disable learning.
 		*/
 		void simStep(
-			const std::vector<Image2D> &inputs,
-			const std::vector<Image2D> &inputsCorrupted,
+			const std::vector<Array2D2f> /*&inputs*/, // ununused
+			const std::vector<Array2D2f> &inputsCorrupted,
 			std::mt19937 &rng,
 			const bool learn = true)
 		{
 			// last checked: 28-nov 2016
 			//TODO: consider using binary input instead of float
 
-			std::vector<Image2D> predictionsPrev(_pLayers.size());
+			std::vector<Array2D2f> predictionsPrev(_pLayers.size());
 
 			for (size_t l = 0; l < predictionsPrev.size(); ++l) {
 				predictionsPrev[l] = _pLayers[l].getHiddenStates()[_back];
@@ -121,11 +121,11 @@ namespace feynman {
 			// Forward pass through predictor to get next prediction
 			for (int l = static_cast<int>(_pLayers.size()) - 1; l >= 0; l--) {
 				if (_h.getLayer(l)._tpReset || _h.getLayer(l)._tpNextReset) {
-					Image2D target = _h.getLayer(l)._sf->getHiddenStates()[_back];
+					Array2D2f target = _h.getLayer(l)._sf->getHiddenStates()[_back];
 					//plots::plotImage(target, 8, "Predictor:simStep:target" + std::to_string(l));
 
 					if (l != _pLayers.size() - 1) {
-						_pLayers[l].activate(std::vector<Image2D>{ 
+						_pLayers[l].activate(std::vector<Array2D2f>{
 							_h.getLayer(l)._sf->getHiddenStates()[_back], 
 							_pLayers[l + 1].getHiddenStates()[_back] 
 						},
@@ -135,7 +135,7 @@ namespace feynman {
 							_pLayers[l].learn(target);
 					}
 					else {
-						_pLayers[l].activate(std::vector<Image2D>{ _h.getLayer(l)._sf->getHiddenStates()[_back] }, rng);
+						_pLayers[l].activate(std::vector<Array2D2f>{ _h.getLayer(l)._sf->getHiddenStates()[_back] }, rng);
 
 						if (learn)
 							_pLayers[l].learn(target);
@@ -165,7 +165,7 @@ namespace feynman {
 		}
 
 		//Get the predictions
-		const DoubleBuffer2D &getHiddenPrediction() const {
+		const DoubleBuffer2D2f &getHiddenPrediction() const {
 			// last checked: 28-nov 2016
 			return _pLayers.front().getHiddenStates();
 		}

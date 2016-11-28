@@ -53,7 +53,7 @@ namespace feynman {
 		std::vector<float> _rewardCounts;
 
 		// All ones image for first layer modulation
-		std::vector<Image2D> _ones;
+		std::vector<Array2D2f> _ones;
 
 	public:
 
@@ -121,8 +121,8 @@ namespace feynman {
 
 			for (size_t i = 0; i < _ones.size(); ++i) 
 			{
-				_ones[i] = Image2D(actionSizes[i]);
-				_ones[i].fill(1.0f);
+				_ones[i] = Array2D2f(actionSizes[i]);
+				_ones[i].fill(float2{ 1.0f, 1.0f });
 			}
 
 			_rewardSums.clear();
@@ -142,8 +142,8 @@ namespace feynman {
 		*/
 		void simStep(
 			const float reward,
-			const std::vector<Image2D> &inputs,
-			const std::vector<Image2D> &inputsCorrupted,
+			const std::vector<Array2D2f> &inputs,
+			const std::vector<Array2D2f> &inputsCorrupted,
 			std::mt19937 &rng,
 			const bool learn = true) 
 		{
@@ -158,14 +158,14 @@ namespace feynman {
 				float totalReward = _rewardSums[layer] / _rewardCounts[layer];
 
 				for (size_t i = 0; i < _aLayers[layer].size(); i++) {
-					Image2D inputs = (layer == 0) 
+					Array2D2f inputs = (layer == 0)
 						? _p.getHierarchy().getLayer(layer)._sf->getHiddenStates()[_back] 
 						: _aLayers[layer - 1].front().getOneHotActions();
 
 					if (layer == _aLayers.size() - 1) {
 						_aLayers[layer][i].simStep(
 							totalReward, 
-							std::vector<Image2D>(1, inputs),
+							std::vector<Array2D2f>(1, inputs),
 							_ones[i], 
 							_aLayerDescs[layer][i]._qGamma,
 							_aLayerDescs[layer][i]._qLambda, 
@@ -176,7 +176,8 @@ namespace feynman {
 					} 
 					else {
 						_aLayers[layer][i].simStep(
-							totalReward, std::vector<Image2D>(1, inputs), 
+							totalReward, 
+							std::vector<Array2D2f>(1, inputs),
 							_p.getHierarchy().getLayer(layer + 1)._sf->getHiddenStates()[_back], 
 							_aLayerDescs[layer][i]._qGamma, 
 							_aLayerDescs[layer][i]._qLambda,

@@ -44,7 +44,7 @@ namespace feynman {
 			int _clock;
 
 			//brief Temporal pooling buffer
-			DoubleBuffer2D _tpBuffer;
+			DoubleBuffer2D2f _tpBuffer;
 
 			//brief Prediction error temporary buffer
 			Image2D _predErrors;
@@ -90,7 +90,7 @@ namespace feynman {
 				_layers[layer]._sf = _layerDescs[layer]._sfDesc->sparseFeaturesFactory();
 
 				// Create temporal pooling buffer
-				_layers[layer]._tpBuffer = createDoubleBuffer2D(_layers[layer]._sf->getHiddenSize());
+				_layers[layer]._tpBuffer = createDoubleBuffer2D2f(_layers[layer]._sf->getHiddenSize());
 
 				// Prediction error
 				_layers[layer]._predErrors = Image2D(_layers[layer]._sf->getHiddenSize());
@@ -105,8 +105,8 @@ namespace feynman {
 		\param learn optional argument to disable learning.
 		*/
 		void simStep(
-			const std::vector<Image2D> &inputs,
-			const std::vector<Image2D> &predictionsPrev,
+			const std::vector<Array2D2f> &inputs,
+			const std::vector<Array2D2f> &predictionsPrev,
 			std::mt19937 &rng,
 			const bool learn = true)
 		{
@@ -129,10 +129,10 @@ namespace feynman {
 					_layers[l]._clock++;
 
 					// Gather inputs for layer
-					std::vector<Image2D> visibleStates;
+					std::vector<Array2D2f> visibleStates;
 					{
 						if (l == 0) {
-							std::vector<Image2D> inputsUse = inputs;
+							std::vector<Array2D2f> inputsUse = inputs;
 
 							if (_layerDescs.front()._sfDesc->_inputType == SparseFeatures::_feedForwardRecurrent)
 								inputsUse.push_back(_layers.front()._sf->getHiddenContext());
@@ -141,8 +141,8 @@ namespace feynman {
 						}
 						else
 							visibleStates = (_layerDescs[l]._sfDesc->_inputType == SparseFeatures::_feedForwardRecurrent) 
-								? std::vector<Image2D>{ _layers[l - 1]._tpBuffer[_back], _layers[l]._sf->getHiddenContext() } 
-								: std::vector<Image2D>{ _layers[l - 1]._tpBuffer[_back] };
+								? std::vector<Array2D2f>{ _layers[l - 1]._tpBuffer[_back], _layers[l]._sf->getHiddenContext() }
+								: std::vector<Array2D2f>{ _layers[l - 1]._tpBuffer[_back] };
 					}
 
 					// Update layer
@@ -224,32 +224,32 @@ namespace feynman {
 
 		static void fhPool(
 			const Image2D &states,
-			const Image2D &outputsBack,
-			Image2D &outputsFront,
+			const Array2D2f &outputsBack,
+			Array2D2f &outputsFront,
 			const float scale,
 			const int2 range)
 		{
-			// last checked: 25-nov-2016
+			// last checked: 28-nov-2016
 			const int nElements = range.x * range.y;
 			for (int i = 0; i < nElements; ++i) {
 				const float state = states._data_float[i];
-				const float outputPrev = outputsBack._data_float[i];
+				const float outputPrev = outputsBack._data_float[i].x;
 				const float newValue = (outputPrev > state) ? outputPrev : state;
-				outputsFront._data_float[i] = newValue;
+				outputsFront._data_float[i] = { newValue, 0.0f };
 			}
 		}
 
 		static void fhPredError(
-			const Image2D &states,
-			const Image2D &predictionsPrev,
+			const Array2D2f &states,
+			const Array2D2f &predictionsPrev,
 			Image2D &errors,
 			const int2 range)
 		{
-			// last checked: 25-nov-2016
+			// last checked: 28-nov-2016
 			const int nElements = range.x * range.y;
 			for (int i = 0; i < nElements; ++i) {
-				const float state = states._data_float[i];
-				const float predictionPrev = predictionsPrev._data_float[i];
+				const float state = states._data_float[i].x;
+				const float predictionPrev = predictionsPrev._data_float[i].x;
 				//write_imagef(errors, position, (float4)(state - predictionPrev, 0.0f, 0.0f, 0.0f));
 				//write_imagef(errors, position, (float4)(state, 0.0f, 0.0f, 0.0f));
 				const float newValue = state * (1.0f - predictionPrev) + (1.0f - state) * predictionPrev;

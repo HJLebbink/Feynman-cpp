@@ -49,7 +49,7 @@ namespace feynman {
 		//Visible layer
 		struct VisibleLayer {
 			//Possibly manipulated input
-			DoubleBuffer2D _derivedInput;
+			DoubleBuffer2D2f _derivedInput;
 
 			//Weights
 			DoubleBuffer3D _weights; // Encoding weights (creates spatio-temporal sparse code)
@@ -105,7 +105,7 @@ namespace feynman {
 
 		//Activations, states, biases
 		DoubleBuffer2D _hiddenActivations;
-		DoubleBuffer2D _hiddenStates;
+		DoubleBuffer2D2f _hiddenStates;
 		DoubleBuffer2D _hiddenBiases;
 
 		int2 _hiddenSize;
@@ -178,13 +178,13 @@ namespace feynman {
 					vl._weights = createDoubleBuffer3D(weightsSize);
 					randomUniform3D(vl._weights[_back], weightsSize, initWeightRange, rng);
 				}
-				vl._derivedInput = createDoubleBuffer2D(vld._size);
+				vl._derivedInput = createDoubleBuffer2D2f(vld._size);
 				clear(vl._derivedInput[_back]);
 			}
 
 			// Hidden state data
 			_hiddenActivations = createDoubleBuffer2D(_hiddenSize);
-			_hiddenStates = createDoubleBuffer2D(_hiddenSize);
+			_hiddenStates = createDoubleBuffer2D2f(_hiddenSize);
 			_hiddenBiases = createDoubleBuffer2D(_hiddenSize);
 			_hiddenSummationTemp = createDoubleBuffer2D(_hiddenSize);
 
@@ -204,8 +204,8 @@ namespace feynman {
 		\param rng a random number generator.
 		*/
 		void activate(
-			const std::vector<Image2D> &visibleStates,
-			const Image2D &predictionsPrev,
+			const std::vector<Array2D2f> &visibleStates,
+			const Array2D2f &predictionsPrev,
 			std::mt19937 &rng) override
 		{
 			// last checked: 24-nov 2016
@@ -325,7 +325,10 @@ namespace feynman {
 		\brief Inhibit
 		Inhibits given activations using this encoder's inhibitory pattern
 		*/
-		void inhibit(const Image2D &activations, Image2D &states, std::mt19937 &rng) override 
+		void inhibit(
+			const Array2D2f &activations,
+			Array2D2f &states, 
+			std::mt19937 &rng) override
 		{
 			// last checked: 23-nov 2016
 			sfsInhibitPred(
@@ -369,7 +372,7 @@ namespace feynman {
 		/*!
 		\brief Get hidden states
 		*/
-		const DoubleBuffer2D &getHiddenStates() const override {
+		const DoubleBuffer2D2f &getHiddenStates() const override {
 			return _hiddenStates;
 		}
 
@@ -843,7 +846,7 @@ namespace feynman {
 		}
 
 		static void sfsStimulus(
-			const Image2D &visibleStates,
+			const Array2D2f &visibleStates,
 			const Image2D &hiddenSummationTempBack,
 			Image2D &hiddenSummationTempFront, // write only
 			const Image3D &weights,
@@ -886,7 +889,7 @@ namespace feynman {
 									const int offset_y = visiblePosition_y - fieldLowerBound_y;
 									const int wi = offset_y + offset_x * (radius * 2 + 1);
 									const float weight = read_3D(weights, hiddenPosition_x, hiddenPosition_y, wi);
-									const float visibleState = read_2D(visibleStates, visiblePosition_x, visiblePosition_y);
+									const float visibleState = read_2D(visibleStates, visiblePosition_x, visiblePosition_y).x;
 									subSum += weight * visibleState;
 									count += weight;
 								}
@@ -902,7 +905,7 @@ namespace feynman {
 
 		static void sfsActivate(
 			const Image2D &stimuli,
-			const Image2D &hiddenStatesPrev,
+			const Array2D2f &hiddenStatesPrev,
 			const Image2D &biases,
 			const Image2D &hiddenActivationsBack,
 			Image2D &hiddenActivationsFront, // write only
@@ -917,7 +920,7 @@ namespace feynman {
 			{
 				const float stimulus = stimuli._data_float[i];
 				const float activationPrev = hiddenActivationsBack._data_float[i];
-				const float tracePrev = hiddenStatesPrev._data_float[i];
+				const float tracePrev = hiddenStatesPrev._data_float[i].x;
 				const float bias = biases._data_float[i];
 
 				//float activation = (stimulus + bias) * (1.0f - tracePrev);
@@ -928,8 +931,8 @@ namespace feynman {
 
 		static void sfsInhibit(
 			const Image2D &activations,
-			const Image2D &hiddenStatesBack,
-			Image2D &hiddenStatesFront, // write only
+			const Array2D2f &hiddenStatesBack,
+			Array2D2f &hiddenStatesFront, // write only
 			const int2 hiddenSize,
 			const int radius,
 			const float activeRatio,
@@ -969,10 +972,10 @@ namespace feynman {
 						}
 					}
 					const float state = (inhibition < (activeRatio * count)) ? 1.0f : 0.0f;
-					const float tracePrev = read_2D(hiddenStatesBack, hiddenPosition_x, hiddenPosition_y);
+					const float tracePrev = read_2D(hiddenStatesBack, hiddenPosition_x, hiddenPosition_y).x;
 					const float gammaTracePrev = gamma * tracePrev;
 					const float newValue = (gammaTracePrev > state) ? gammaTracePrev : state;
-					write_2D(hiddenStatesFront, hiddenPosition_x, hiddenPosition_y, newValue);
+					write_2D(hiddenStatesFront, hiddenPosition_x, hiddenPosition_y, float2{ newValue, 0.0f });
 				}
 			}
 		}
@@ -1200,10 +1203,10 @@ namespace feynman {
 		}
 
 		static void sfsLearnWeights(
-			const Image2D &hiddenStates,
-			const Image2D &hiddenStatesPrev,
-			const Image2D &visibleStates,
-			const Image2D &visibleStatesPrev,
+			const Array2D2f &hiddenStates,
+			const Array2D2f &hiddenStatesPrev,
+			const Array2D2f &visibleStates,
+			const Array2D2f &visibleStatesPrev,
 			const Image3D &weightsBack,
 			Image3D &weightsFront,			// write only
 			const int2 visibleSize,
@@ -1229,8 +1232,8 @@ namespace feynman {
 					const int fieldLowerBound_x = visiblePositionCenter_x - radius;
 					const int fieldLowerBound_y = visiblePositionCenter_y - radius;
 
-					const float hiddenState = read_2D(hiddenStates, hiddenPosition_x, hiddenPosition_y);
-					const float hiddenStatePrev = read_2D(hiddenStatesPrev, hiddenPosition_x, hiddenPosition_y);
+					const float hiddenState = read_2D(hiddenStates, hiddenPosition_x, hiddenPosition_y).x;
+					const float hiddenStatePrev = read_2D(hiddenStatesPrev, hiddenPosition_x, hiddenPosition_y).x;
 
 					float weightSum = 0.0f;
 
@@ -1266,8 +1269,8 @@ namespace feynman {
 
 									const int wi = offset_y + offset_x * (radius * 2 + 1);
 									const float weightPrev = read_3D(weightsBack, hiddenPosition_x, hiddenPosition_y, wi);
-									const float visibleState = read_2D(visibleStates, visiblePosition_x, visiblePosition_y);
-									const float visibleStatePrev = read_2D(visibleStatesPrev, visiblePosition_x, visiblePosition_y);
+									const float visibleState = read_2D(visibleStates, visiblePosition_x, visiblePosition_y).x;
+									const float visibleStatePrev = read_2D(visibleStatesPrev, visiblePosition_x, visiblePosition_y).x;
 
 									const float learn = hiddenStatePrev * visibleStatePrev - hiddenStatePrev * visibleState;
 									const float newValue = fmin(1.0f, fmax(0.0001f, weightPrev * scale + weightAlpha * learn));
@@ -1281,8 +1284,8 @@ namespace feynman {
 		}
 
 		static void sfsInhibitPred(
-			const Image2D &activations,
-			Image2D &hiddenStatesFront,
+			const Array2D2f &activations,
+			Array2D2f &hiddenStatesFront,
 			const int2 hiddenSize,
 			const int radius,
 			const float activeRatio,
@@ -1292,7 +1295,7 @@ namespace feynman {
 
 			for (int hiddenPosition_x = 0; hiddenPosition_x < range.x; ++hiddenPosition_x) {
 				for (int hiddenPosition_y = 0; hiddenPosition_y < range.y; ++hiddenPosition_y) {
-					const float activation = read_2D(activations, hiddenPosition_x, hiddenPosition_y);
+					const float activation = read_2D(activations, hiddenPosition_x, hiddenPosition_y).x;
 
 					int inhibition = 0;
 					int count = 0;
@@ -1308,7 +1311,7 @@ namespace feynman {
 									if (dx == 0 && dy == 0)
 										continue;
 
-									const float otherActivation = read_2D(activations, otherPosition_x, otherPosition_y);
+									const float otherActivation = read_2D(activations, otherPosition_x, otherPosition_y).x;
 									if (otherActivation >= activation) inhibition++;
 									count++;
 								}
@@ -1316,14 +1319,14 @@ namespace feynman {
 						}
 					}
 					const float state = inhibition < (activeRatio * count) ? 1.0f : 0.0f;
-					write_2D(hiddenStatesFront, hiddenPosition_x, hiddenPosition_y, state);
+					write_2D(hiddenStatesFront, hiddenPosition_x, hiddenPosition_y, { state, 0.0f });
 				}
 			}
 		}
 
 		static void sfsDeriveInputs(
-			const Image2D &inputs,
-			Image2D &outputsFront, // write only
+			const Array2D2f &inputs,
+			Array2D2f &outputsFront, // write only
 			const int2 range)
 		{
 			// last checked: 24-nov 2016
@@ -1332,7 +1335,7 @@ namespace feynman {
 
 		static void sfsLearnBiases(
 			const Image2D &stimuli, 
-			const Image2D &hiddenStates, 
+			const Array2D2f &hiddenStates,
 			const Image2D &hiddenBiasesBack, 
 			Image2D &hiddenBiasesFront, 
 			const float activeRatio, 
@@ -1344,7 +1347,7 @@ namespace feynman {
 			const int nElements = range.x * range.y;
 			for (int i = 0; i < nElements; ++i) {
 				const float stimulus = stimuli._data_float[i];
-				const float hiddenState = hiddenStates._data_float[i];
+				const float hiddenState = hiddenStates._data_float[i].x;
 				const float hiddenBiasPrev = hiddenBiasesBack._data_float[i];
 				const float newValue = fmax(0.0001f, hiddenBiasPrev * (1.0f - hiddenState) + biasAlpha);
 				hiddenBiasesFront._data_float[i] = newValue;
