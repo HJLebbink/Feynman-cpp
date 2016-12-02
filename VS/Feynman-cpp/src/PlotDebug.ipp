@@ -6,6 +6,8 @@
 #include <fstream>
 #include <sstream>      // std::ostringstream
 #include <SFML/Graphics.hpp>
+#include <algorithm>
+
 
 #include "FixedPoint.ipp"
 #include "Helpers.ipp"
@@ -15,6 +17,20 @@ using namespace feynman;
 namespace plots {
 
 	static std::map<std::string, sf::RenderWindow *> all_windows;
+
+	sf::RenderWindow *getWindowCache(const std::string &name, const int2 size, const float scale)
+	{
+		sf::RenderWindow * window = new sf::RenderWindow();
+
+		if (all_windows.find(name) == all_windows.end()) {
+			window->create(sf::VideoMode(static_cast<unsigned int>(size.x * scale), static_cast<unsigned int>(size.y * scale)), name);
+			all_windows[name] = window;
+		}
+		else {
+			window = all_windows[name];
+		}
+		return window;
+	}
 
 	void plotImage(
 		const sf::Image &image,
@@ -34,20 +50,41 @@ namespace plots {
 	}
 
 	void plotImage(
+		const sf::Image &image,
+		const int2 sizeImage,
+		const float scale,
+		const std::string name)
+	{
+		sf::RenderWindow * window = getWindowCache(name, sizeImage, scale);
+		plotImage(image, sizeImage, { 0.0f, 0.0f }, scale, *window);
+		window->display();
+	}
+
+	void plotImage(
 		const Image2D &image,
 		const float2 pos,
-		const float scale2,
+		const float scale,
 		sf::RenderWindow &window)
 	{
 		const int hInWidth = image._size.x;
 		const int hInHeight = image._size.y;
+
+		const float maxValue = image.getMaxValue();
+		const float minValue = image.getMinValue();
+		std::cout << "INFO: PlotDebug:plotImage: maxValue=" << maxValue << "; minValue=" << minValue << std::endl;
+
+		int offset = 0;
+		if ((maxValue > 1.0f) || (minValue < -1.0f) || (maxValue == minValue)) {
+			std::cout << "WARNING: PlotDebug:plotImage: maxValue=" << maxValue << "; minValue=" << minValue << std::endl;
+			//offset = 1;
+		}
 
 		sf::Image sdrImg;
 		sdrImg.create(hInWidth, hInHeight);
 
 		for (int x = 0; x < hInWidth; ++x) {
 			for (int y = 0; y < hInHeight; ++y) {
-				float pixelValue = image._data_float[x + (y * hInWidth)];
+				float pixelValue = image._data_float[y + (x * hInHeight)] + offset;
 				sf::Color c;
 				c.g = 0;
 				if (pixelValue > 0) {
@@ -59,43 +96,16 @@ namespace plots {
 				sdrImg.setPixel(x, y, c);
 			}
 		}
-		plotImage(sdrImg, image._size, pos, scale2, window);
-	}
-
-	void plotImage(
-		const sf::Image &image,
-		const int2 sizeImage,
-		const float scale2,
-		const std::string name)
-	{
-		sf::RenderWindow * window = new sf::RenderWindow();
-
-		if (all_windows.find(name) == all_windows.end()) {
-			window->create(sf::VideoMode(static_cast<unsigned int>(sizeImage.x * scale2), static_cast<unsigned int>(sizeImage.y * scale2)), name);
-			all_windows[name] = window;
-		}
-		else {
-			window = all_windows[name];
-		}
-		plotImage(image, sizeImage, float2{ 0.0f, 0.0f }, scale2, *window);
-		window->display();
+		plotImage(sdrImg, image._size, pos, scale, window);
 	}
 
 	void plotImage(
 		const Image2D &image,
-		const float scale2,
+		const float scale,
 		const std::string name)
 	{
-		sf::RenderWindow * window = new sf::RenderWindow();
-
-		if (all_windows.find(name) == all_windows.end()) {
-			window->create(sf::VideoMode(static_cast<unsigned int>(image._size.x * scale2), static_cast<unsigned int>(image._size.y * scale2)), name);
-			all_windows[name] = window;
-		}
-		else {
-			window = all_windows[name];
-		}
-		plotImage(image, { 0.0f, 0.0f }, scale2, *window);
+		sf::RenderWindow * window = getWindowCache(name, image.getSize(), scale);
+		plotImage(image, { 0.0f, 0.0f }, scale, *window);
 		window->display();
 	}
 
@@ -104,15 +114,20 @@ namespace plots {
 		const float scale2,
 		const std::string name)
 	{
+		const int nSlices = 1;
+
 		const int3 size = image.getSize();
-		Image2D image2 = Image2D(int2{ size.x, size.y });
-		for (int x = 0; x < size.x; ++x) {
-			for (int y = 0; y < size.y; ++y) {
-				write_2D(image2, x, y, read_3D(image, x, y, 0));
+		for (int z = 0; z < std::min(nSlices, size.z); ++z) {
+			Image2D image2 = Image2D(int2{ size.x, size.y });
+			for (int x = 0; x < size.x; ++x) {
+				for (int y = 0; y < size.y; ++y) {
+					write_2D(image2, x, y, read_3D(image, x, y, z));
+				}
 			}
+			plotImage(image2, scale2, name + "z=" + std::to_string(z));
 		}
-		plotImage(image2, scale2, name);
 	}
+
 	void plotImage(
 		const Array2D2f &image,
 		const float scale2,

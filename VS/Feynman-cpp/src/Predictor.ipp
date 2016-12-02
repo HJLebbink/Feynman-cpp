@@ -111,18 +111,18 @@ namespace feynman {
 
 			for (size_t l = 0; l < predictionsPrev.size(); ++l) {
 				predictionsPrev[l] = _pLayers[l].getHiddenStates()[_back];
-				//plots::plotImage(predictionsPrev[l], 8, "Predictor:simStep:predictionsPrev" + std::to_string(l));
+				//plots::plotImage(predictionsPrev[l], 6, "Predictor:simStep:predictionsPrev" + std::to_string(l));
 			}
 
 			// Activate hierarchy
-			//plots::plotImage(inputsCorrupted[0], 8.0f, "Predictor:simStep:inputsCorrupted");
+			//plots::plotImage(inputsCorrupted[0], 6, "Predictor:simStep:inputsCorrupted");
 			_h.simStep(inputsCorrupted, predictionsPrev, rng, learn);
 
 			// Forward pass through predictor to get next prediction
 			for (int l = static_cast<int>(_pLayers.size()) - 1; l >= 0; l--) {
 				if (_h.getLayer(l)._tpReset || _h.getLayer(l)._tpNextReset) {
 					Array2D2f target = _h.getLayer(l)._sf->getHiddenStates()[_back];
-					//plots::plotImage(target, 8, "Predictor:simStep:target" + std::to_string(l));
+					//plots::plotImage(target, 6, "Predictor:simStep:target" + std::to_string(l));
 
 					if (l != _pLayers.size() - 1) {
 						_pLayers[l].activate(std::vector<Array2D2f>{
@@ -135,6 +135,7 @@ namespace feynman {
 							_pLayers[l].learn(target);
 					}
 					else {
+						//plots::plotImage(_h.getLayer(l)._sf->getHiddenStates()[_back], 6, "Predictor:simStep:hiddenStates" + std::to_string(l));
 						_pLayers[l].activate(std::vector<Array2D2f>{ _h.getLayer(l)._sf->getHiddenStates()[_back] }, rng);
 
 						if (learn)

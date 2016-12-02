@@ -53,7 +53,7 @@ namespace feynman {
 
 			// Get prediction
 			for (size_t i = 0; i < _predictions.size(); ++i) {
-				//plots::plotImage(_p.getHiddenPrediction()[_back], 4, "Hierarchy:simStep:hiddenPrediction" + std::to_string(i));
+				//plots::plotImage(_p.getHiddenPrediction()[_back], 6, "Hierarchy:simStep:hiddenPrediction" + std::to_string(i));
 				_readoutLayers[i].activate({ _p.getHiddenPrediction()[_back] }, _rng);
 
 				if (learn) {
@@ -63,7 +63,7 @@ namespace feynman {
 
 				//_resources->_cs->getQueue().enqueueReadImage(_readoutLayers[i].getHiddenStates()[_back], CL_TRUE, { 0, 0, 0 }, { static_cast<cl::size_type>(_predictions[i].getSize().x), static_cast<cl::size_type>(_predictions[i].getSize().y), 1 }, 0, 0, _predictions[i].getData().data());
 				copy(_readoutLayers[i].getHiddenStates()[_back], _predictions[i]);
-				//plots::plotImage(_predictions[i], 4, "Hierarchy:pred" + std::to_string(i));
+				//plots::plotImage(_predictions[i], 6, "Hierarchy:pred" + std::to_string(i));
 			}
 		}
 

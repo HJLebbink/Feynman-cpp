@@ -42,7 +42,7 @@ namespace feynman {
 			//Initialize defaults
 			VisibleLayerDesc()
 				: _size({ 8, 8 }), _radius(8), _ignoreMiddle(false),
-				_weightAlpha(0.01f), _lambda(0.0f)
+				_weightAlpha(0.1f), _lambda(0.0f)
 			{}
 		};
 
@@ -205,6 +205,7 @@ namespace feynman {
 
 					//std::cout << "INFO: SparseFeaturesChunk:constructor: initWeightRange=" << initWeightRange.x << "," << initWeightRange.y << std::endl;
 					randomUniform3D(vl._weights[_back], weightsSize, initWeightRange, rng);
+					//plots::plotImage(vl._weights[_back], 6, "SFChunk:constructor:weights" + std::to_string(vli));
 				}
 				vl._derivedInput = createDoubleBuffer2D2f(vld._size);
 				clear(vl._derivedInput[_back]);
@@ -256,7 +257,7 @@ namespace feynman {
 				VisibleLayer &vl = _visibleLayers[vli];
 				const VisibleLayerDesc &vld = _visibleLayerDescs[vli];
 
-				//if (visibleStates[vli]._name == "inputR") plots::plotImage(visibleStates[vli], 4, "SparseFeaturesChunk:activate:visibleStates" + std::to_string(vli));
+				//plots::plotImage(visibleStates[vli], 6, "SFChunk:activate:visibleStates" + std::to_string(vli));
 
 				sfcDeriveInputs(
 					visibleStates[vli],			// in
@@ -266,7 +267,7 @@ namespace feynman {
 					vld._size
 				);
 
-				//if (visibleStates[vli]._name == "inputR") plots::plotImage(vl._derivedInput[_front], 8, "SparseFeaturesChunk:activate:derivedInput" + std::to_string(vli));
+				//plots::plotImage(vl._derivedInput[_front], 6, "SFChunk:activate:derivedInput" + std::to_string(vli));
 
 				// Add sample
 				sfcAddSample(
@@ -277,11 +278,8 @@ namespace feynman {
 					vld._size
 				);
 
-				if (visibleStates[vli]._name == "inputR") plots::plotImage(vl._samples[_front], 4, "SparseFeaturesChunk:activate:samples" + std::to_string(vli));
-
-				if (visibleStates[vli]._name == "inputR") {
-					vl._samples[_front]._name = visibleStates[vli]._name;
-				}
+				//plots::plotImage(vl._samples[_front], 6, "SFChunk:activate:samples" + std::to_string(vli));
+				//plots::plotImage(vl._weights[_back], 6, "SFChunk:activate:weights" + std::to_string(vli));
 
 				sfcStimulus(
 					vl._samples[_front],			// in
@@ -298,7 +296,7 @@ namespace feynman {
 					_hiddenSize
 				);
 
-				if (visibleStates[vli]._name == "inputR") plots::plotImage(_hiddenSummationTemp[_front], 8, "SparseFeaturesChunk:activate:hiddenSummationTemp" + std::to_string(vli));
+				//plots::plotImage(_hiddenSummationTemp[_front], 8, "SFChunk:activate:hiddenSummationTemp" + std::to_string(vli));
 
 				// Swap buffers
 				std::swap(_hiddenSummationTemp[_front], _hiddenSummationTemp[_back]);
@@ -311,8 +309,9 @@ namespace feynman {
 				_hiddenActivations[_front],		// out
 				_hiddenSize
 			);
+			//plots::plotImage(_hiddenSummationTemp[_back], 6, "SFChunk:activate:hiddenSummationTemp");
+			//plots::plotImage(_hiddenActivations[_front], 6, "SFChunk:activate:hiddenActivations");
 
-			//plots::plotImage(_hiddenActivations[_front], 8, "SparseFeaturesChunk:activate:hiddenActivations");
 
 			// Inhibit
 			const int chunksInX = static_cast<int>(std::ceil(static_cast<float>(_hiddenSize.x) / _chunkSize.x));
@@ -324,9 +323,10 @@ namespace feynman {
 				_chunkWinners,
 				_hiddenSize,
 				_chunkSize,
-				int2{ chunksInX , chunksInY });
-
-			//plots::plotImage(_hiddenStates[_front], 8, "SparseFeaturesChunk:activate:hiddenStates");
+				int2{ chunksInX , chunksInY }
+			);
+			plots::plotImage(_hiddenActivations[_front], 6, "SFChunk:activate:hiddenActivations");
+			plots::plotImage(_hiddenStates[_front], 6, "SFChunk:activate:hiddenStates");
 		}
 		
 		//End a simulation step
@@ -382,6 +382,8 @@ namespace feynman {
 
 				cs.getQueue().enqueueNDRangeKernel(_reconstructKernel, cl::NullRange, cl::NDRange(vld._size.x, vld._size.y));
 				}*/
+
+				std::cout << "INFO: SFChunk:learn: vld._weightAlpha=" << vld._weightAlpha << "; _gamma="<< _gamma <<std::endl;
 
 				// Weight update
 				sfcLearnWeights(
@@ -1056,10 +1058,6 @@ namespace feynman {
 			}
 			*/
 
-			if (samples._name == "inputR") {
-				std::cout << "INFO" << std::endl;
-			}
-
 			for (int hiddenPosition_x = 0; hiddenPosition_x < range.x; ++hiddenPosition_x) {
 				for (int hiddenPosition_y = 0; hiddenPosition_y < range.y; ++hiddenPosition_y) {
 
@@ -1141,6 +1139,8 @@ namespace feynman {
 			const int2 chunkSize,
 			const int2 range)
 		{
+			//std::cout << "INFO: SparseFeaturesChunk:sfcInhibit: hiddenSize=" << hiddenSize.x << "," << hiddenSize.y << "; chunkSize=" << chunkSize.x << "," << chunkSize.y << "; range=" << range.x << "," << range.y << std::endl;
+
 			// last checked: 28-nov 2016
 			for (int chunkPosition_x = 0; chunkPosition_x < range.x; ++chunkPosition_x) {
 				for (int chunkPosition_y = 0; chunkPosition_y < range.y; ++chunkPosition_y) {
@@ -1172,11 +1172,11 @@ namespace feynman {
 					write_2D(chunkWinners, chunkPosition_x, chunkPosition_y, maxDelta);
 
 					for (int dx = 0; dx < chunkSize.x; ++dx) {
-						const int hiddenPosition_x = hiddenStartPosition_x + dx;
-						if (inBounds(hiddenPosition_x, hiddenSize.x)) {
+						for (int dy = 0; dy < chunkSize.y; ++dy) {
+							const int hiddenPosition_x = hiddenStartPosition_x + dx;
+							const int hiddenPosition_y = hiddenStartPosition_y + dy;
 
-							for (int dy = 0; dy < chunkSize.y; ++dy) {
-								const int hiddenPosition_y = hiddenStartPosition_y + dy;
+							if (inBounds(hiddenPosition_x, hiddenSize.x)) {
 								if (inBounds(hiddenPosition_y, hiddenSize.y)) {
 
 									//float tracePrev = read_imagef(hiddenStatesBack, defaultSampler, hiddenPosition).y;

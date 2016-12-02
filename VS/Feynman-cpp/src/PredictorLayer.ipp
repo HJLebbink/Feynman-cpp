@@ -147,7 +147,7 @@ namespace feynman {
 				VisibleLayer &vl = _visibleLayers[vli];
 				const VisibleLayerDesc &vld = _visibleLayerDescs[vli];
 
-				//plots::plotImage(visibleStates[vli], 8, "PredictorLayer:activate:visibleStates" + std::to_string(vli));
+				//plots::plotImage(visibleStates[vli], 6, "PredictorLayer:activate:visibleStates" + std::to_string(vli));
 
 				// Derive inputs
 				plDeriveInputs(
@@ -157,7 +157,7 @@ namespace feynman {
 					vld._size
 				);
 
-				//plots::plotImage(vl._derivedInput[_front], 8, "PredictorLayer:activate:derivedInput" + std::to_string(vli));
+				//plots::plotImage(vl._derivedInput[_front], 6, "PredictorLayer:activate:derivedInput" + std::to_string(vli));
 
 				plStimulus(
 					vl._derivedInput[_front],		// in
@@ -178,11 +178,11 @@ namespace feynman {
 			if (_inhibitSparseFeatures != nullptr) {
 				_inhibitSparseFeatures->inhibit(_hiddenSummationTemp[_back], _hiddenStates[_front], rng);
 				//plots::plotImage(_hiddenSummationTemp[_back], 8, "PredictorLayer:activate:hiddenSummationTemp");
-				//plots::plotImage(_hiddenStates[_front], 8, "PredictionLayer:activate:hiddenStates");
 			} else {
 				//std::cout << "INFO: PredictorLayer:activate: _inhibitSparseFeatures=null" << std::endl;
 				copy(_hiddenSummationTemp[_back], _hiddenStates[_front]);
 			}
+			//plots::plotImage(_hiddenStates[_front], 6, "PredictionLayer:activate:hiddenStates");
 		}
 
 		/*!

@@ -94,7 +94,7 @@ namespace video {
 			.setValue("sfc_chunkSize", int2{ 6, 6 })
 			.setValue("sfc_ff_radius", 8)
 			.setValue("hl_poolSteps", 2)
-			.setValue("sfc_numSamples", 1)
+			.setValue("sfc_numSamples", 2)
 			.setValue("sfc_weightAlpha", 0.01f)
 			.setValue("sfc_biasAlpha", 0.1f)
 			.setValue("sfc_gamma", 0.92f)
@@ -212,10 +212,14 @@ namespace video {
 							sf::Color c = reImg.getPixel(x, y);
 
 							write_2D(inputFieldR, x, y, float2{ c.r / 255.0f * (1.0f - blendPred) + read_2D(predFieldR, x, y).x * blendPred, 0.0f });
-							write_2D(inputFieldG, x, y, float2{ c.r / 255.0f * (1.0f - blendPred) + read_2D(predFieldG, x, y).x * blendPred, 0.0f });
-							write_2D(inputFieldB, x, y, float2{ c.r / 255.0f * (1.0f - blendPred) + read_2D(predFieldB, x, y).x * blendPred, 0.0f });
+							write_2D(inputFieldG, x, y, float2{ c.g / 255.0f * (1.0f - blendPred) + read_2D(predFieldG, x, y).x * blendPred, 0.0f });
+							write_2D(inputFieldB, x, y, float2{ c.b / 255.0f * (1.0f - blendPred) + read_2D(predFieldB, x, y).x * blendPred, 0.0f });
 						}
 					}
+					//plots::plotImage(reImg, {static_cast<int>(reImg.getSize().x), static_cast<int>(reImg.getSize().y) }, 4, "data");
+					//plots::plotImage(inputFieldR, 4, "dataR");
+					//plots::plotImage(inputFieldG, 4, "dataG");
+					//plots::plotImage(inputFieldB, 4, "dataB");
 				}
 
 				// Run a simulation step of the hierarchy (learning enabled)
@@ -229,22 +233,24 @@ namespace video {
 				predFieldG = h->getPredictions()[1];
 				predFieldB = h->getPredictions()[2];
 
-
 				// show visual prediction
 				if (true) {
+					//plots::plotImage(predFieldR, 3, "PredictionR");
+					//plots::plotImage(predFieldG, 3, "PredictionG");
+					//plots::plotImage(predFieldB, 3, "PredictionB");
 
-					img.create(rescaleRT.getSize().x, rescaleRT.getSize().y);
+					sf::Image prediction_img;
+					prediction_img.create(rescaleRT.getSize().x, rescaleRT.getSize().y);
 					for (size_t x = 0; x < rescaleRT.getSize().x; x++) {
 						for (size_t y = 0; y < rescaleRT.getSize().y; y++) {
 							sf::Color c;
 							c.r = 255.0f * std::min(1.0f, std::max(0.0f, read_2D(predFieldR, x, y).x));
 							c.g = 255.0f * std::min(1.0f, std::max(0.0f, read_2D(predFieldG, x, y).x));
 							c.b = 255.0f * std::min(1.0f, std::max(0.0f, read_2D(predFieldB, x, y).x));
-							img.setPixel(x, y, c);
+							prediction_img.setPixel(x, y, c);
 						}
 					}
-
-					plots::plotImage(img, predFieldR._size, 3, "Prediction");
+					plots::plotImage(prediction_img, predFieldR._size, 3, "Prediction");
 				}
 
 				// Show progress bar

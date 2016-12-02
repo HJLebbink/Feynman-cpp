@@ -68,7 +68,7 @@ namespace feynman {
 		// default constructor
 		Array2D() : Array2D(int2{ 0, 0 }) {}
 		Array2D(int x, int y) : Array2D(int2{ x, y }) {}
-	
+
 		void fill(T value) {
 			const int nElements = _size.x * _size.y;
 			for (int i = 0; i < nElements; ++i) {
@@ -83,7 +83,7 @@ namespace feynman {
 		float get(int x, int y) const {
 			return _data_float[pos(x, y, _size.y)];
 		}
-	
+
 		void swap(Array2D<T>& other) {
 			_data_float.swap(other._data_float);
 #			ifdef USE_FIXED_POINT
@@ -97,6 +97,23 @@ namespace feynman {
 		int2 getSize() const {
 			return _size;
 		}
+
+		T getMaxValue() const {
+			T maxValue = this->_data_float[0];
+			for (size_t i = 1; i < this->_data_float.size(); ++i) {
+				if (this->_data_float[i] > maxValue) maxValue = this->_data_float[i];
+			}
+			return maxValue;
+		}
+
+		T getMinValue() const {
+			T minValue = this->_data_float[0];
+			for (size_t i = 1; i < this->_data_float.size(); ++i) {
+				if (this->_data_float[i] < minValue) minValue = this->_data_float[i];
+			}
+			return minValue;
+		}
+
 	};
 
 	struct Image3D {
@@ -376,16 +393,16 @@ namespace feynman {
 		std::mt19937 &rng)
 	{
 		std::uniform_int_distribution<int> seedDist(0, 999);
-		const unsigned int seedx = static_cast<unsigned int>(seedDist(rng));
-		const unsigned int seedy = static_cast<unsigned int>(seedDist(rng));;
+		const unsigned int seed_x = static_cast<unsigned int>(seedDist(rng));
+		const unsigned int seed_y = static_cast<unsigned int>(seedDist(rng));
 
 		for (int x = 0; x < range.x; ++x) {
 			for (int y = 0; y < range.y; ++y) {
 #				pragma ivdep
 				for (int z = 0; z < range.z; ++z) {
 					uint2 seedValue;
-					seedValue.x = seedx + (((x * 12) + 76 + z) * 3) * 12;
-					seedValue.y = seedy + (((x * 21) + 42 + z) * 7) * 12;
+					seedValue.x = seed_x + (((x * 12) + 76 + z) * 3) * 12;
+					seedValue.y = seed_y + (((y * 21) + 42 + z) * 7) * 12;
 					const float value = randFloat(&seedValue) * (minMax.y - minMax.x) + minMax.x;
 					write_3D(values, x, y, z, value);
 				}
