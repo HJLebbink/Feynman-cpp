@@ -93,7 +93,7 @@ namespace mnist {
 			.setValue("in_p_radius", 12);
 
 		// 8 layers using chunk encoders
-		for (int l = 0; l < 8; l++)
+		for (int l = 0; l < 2; l++)
 			arch.addHigherLayer(int2{ 96, 96 }, feynman::_chunk)
 			.setValue("sfc_chunkSize", int2{ 6, 6 })
 			.setValue("sfc_ff_radius", 12)
@@ -392,10 +392,10 @@ namespace mnist {
 					for (unsigned int y = 0; y < renderTextureImg.getSize().y; y++) {
 						sf::Color c = renderTextureImg.getPixel(x, y);
 						const float mono = 0.333f * (c.r / 255.0f + c.b / 255.0f + c.g / 255.0f);
-						write_2D(scInputImage, y, x, mono);
+						write_2D(scInputImage, x, y, mono);
 					}
 				}
-				plots::plotImage(scInputImage, 8.0f, "scInputImage");
+				//plots::plotImage(scInputImage, 16, "scInputImage");
 			}
 
 			// Compare (dot product)
@@ -544,9 +544,9 @@ namespace mnist {
 				// Show SDRs is corner bottom left
 				if (true) {
 					if (true) {
-						//const Image2D &newSDR_image = h->getPredictor().getPredLayer(0).getHiddenStates()[_back];
+						//const Array2D2f &newSDR_image = h->getPredictor().getPredLayer(0).getHiddenStates()[_back];
 						const Array2D2f &newSDR_image = h->getPredictions().front();
-						plots::plotImage(newSDR_image, 8.0f, "SDR Current");
+						plots::plotImage(newSDR_image, 16, "SDR Current");
 					}
 					if (true) {
 						Image2D image2 = Image2D(scInputImage._size);

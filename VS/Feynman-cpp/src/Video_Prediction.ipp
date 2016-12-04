@@ -34,7 +34,9 @@ namespace video {
 	void video_Prediction() {
 
 		// Initialize a random number generator
-		std::mt19937 generator(static_cast<unsigned int>(time(nullptr)));
+		//std::mt19937 generator(static_cast<unsigned int>(time(nullptr)));
+		std::mt19937 generator(0xDEADBEEF);
+
 
 		// Uniform distribution in [0, 1]
 		std::uniform_real_distribution<float> dist01(0.0f, 1.0f);
@@ -103,7 +105,7 @@ namespace video {
 			.setValue("p_radius", 8);
 
 		// 4 layers using chunk encoders
-		for (int l = 0; l < 0; l++)
+		for (int l = 0; l < 4; l++)
 			arch.addHigherLayer({ 64, 64 }, feynman::_stdp)
 			.setValue("sfs_ff_radius", 8)
 			.setValue("hl_poolSteps", 2)

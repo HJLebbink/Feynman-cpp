@@ -71,7 +71,7 @@ namespace plots {
 
 		const float maxValue = image.getMaxValue();
 		const float minValue = image.getMinValue();
-		std::cout << "INFO: PlotDebug:plotImage: maxValue=" << maxValue << "; minValue=" << minValue << std::endl;
+		//std::cout << "INFO: PlotDebug:plotImage: maxValue=" << maxValue << "; minValue=" << minValue << std::endl;
 
 		int offset = 0;
 		if ((maxValue > 1.0f) || (minValue < -1.0f) || (maxValue == minValue)) {
