@@ -24,8 +24,8 @@ namespace feynman {
 
 		Predictor _p;
 		std::mt19937 _rng;
-		std::vector<Array2D2f> _inputImages;
-		std::vector<Array2D2f> _predictions;
+		std::vector<Array2D<float2>> _inputImages;
+		std::vector<Array2D<float2>> _predictions;
 		std::vector<PredictorLayer> _readoutLayers;
 
 	public:
@@ -36,7 +36,7 @@ namespace feynman {
 		\param learn optional argument to disable learning.
 		*/
 		void simStep(
-			const std::vector<Array2D2f> &inputs,
+			const std::vector<Array2D<float2>> &inputs,
 			const bool learn = true) 
 		{
 			// last checked: 28-nov 2016
@@ -68,7 +68,7 @@ namespace feynman {
 		}
 
 		//Get the current prediction vector
-		const std::vector<Array2D2f> &getPredictions() const {
+		const std::vector<Array2D<float2>> &getPredictions() const {
 			return _predictions;
 		}
 

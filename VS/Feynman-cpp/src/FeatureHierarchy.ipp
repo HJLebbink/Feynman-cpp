@@ -44,10 +44,10 @@ namespace feynman {
 			int _clock;
 
 			//brief Temporal pooling buffer
-			DoubleBuffer2D2f _tpBuffer;
+			DoubleBuffer2D<float2> _tpBuffer;
 
 			//brief Prediction error temporary buffer
-			Image2D _predErrors;
+			Array2D<float> _predErrors;
 
 			//Flags for use by other systems
 			bool _tpReset;
@@ -90,10 +90,10 @@ namespace feynman {
 				_layers[layer]._sf = _layerDescs[layer]._sfDesc->sparseFeaturesFactory();
 
 				// Create temporal pooling buffer
-				_layers[layer]._tpBuffer = createDoubleBuffer2D2f(_layers[layer]._sf->getHiddenSize());
+				_layers[layer]._tpBuffer = createDoubleBuffer2D<float2>(_layers[layer]._sf->getHiddenSize());
 
 				// Prediction error
-				_layers[layer]._predErrors = Image2D(_layers[layer]._sf->getHiddenSize());
+				_layers[layer]._predErrors = Array2D<float>(_layers[layer]._sf->getHiddenSize());
 			}
 		}
 
@@ -105,8 +105,8 @@ namespace feynman {
 		\param learn optional argument to disable learning.
 		*/
 		void simStep(
-			const std::vector<Array2D2f> &inputs,
-			const std::vector<Array2D2f> &predictionsPrev,
+			const std::vector<Array2D<float2>> &inputs,
+			const std::vector<Array2D<float2>> &predictionsPrev,
 			std::mt19937 &rng,
 			const bool learn = true)
 		{
@@ -129,10 +129,10 @@ namespace feynman {
 					_layers[l]._clock++;
 
 					// Gather inputs for layer
-					std::vector<Array2D2f> visibleStates;
+					std::vector<Array2D<float2>> visibleStates;
 					{
 						if (l == 0) {
-							std::vector<Array2D2f> inputsUse = inputs;
+							std::vector<Array2D<float2>> inputsUse = inputs;
 
 							if (_layerDescs.front()._sfDesc->_inputType == SparseFeatures::_feedForwardRecurrent)
 								inputsUse.push_back(_layers.front()._sf->getHiddenContext());
@@ -141,8 +141,8 @@ namespace feynman {
 						}
 						else
 							visibleStates = (_layerDescs[l]._sfDesc->_inputType == SparseFeatures::_feedForwardRecurrent) 
-								? std::vector<Array2D2f>{ _layers[l - 1]._tpBuffer[_back], _layers[l]._sf->getHiddenContext() }
-								: std::vector<Array2D2f>{ _layers[l - 1]._tpBuffer[_back] };
+								? std::vector<Array2D<float2>>{ _layers[l - 1]._tpBuffer[_back], _layers[l]._sf->getHiddenContext() }
+								: std::vector<Array2D<float2>>{ _layers[l - 1]._tpBuffer[_back] };
 					}
 
 					// Update layer
@@ -223,9 +223,9 @@ namespace feynman {
 	private:
 
 		static void fhPool(
-			const Image2D &states,
-			const Array2D2f &outputsBack,
-			Array2D2f &outputsFront,
+			const Array2D<float> &states,
+			const Array2D<float2> &outputsBack,
+			Array2D<float2> &outputsFront,
 			const float scale,
 			const int2 range)
 		{
@@ -240,9 +240,9 @@ namespace feynman {
 		}
 
 		static void fhPredError(
-			const Array2D2f &states,
-			const Array2D2f &predictionsPrev,
-			Image2D &errors,
+			const Array2D<float2> &states,
+			const Array2D<float2> &predictionsPrev,
+			Array2D<float> &errors,
 			const int2 range)
 		{
 			// last checked: 28-nov-2016

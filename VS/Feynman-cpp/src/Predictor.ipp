@@ -99,15 +99,15 @@ namespace feynman {
 		\param learn optional argument to disable learning.
 		*/
 		void simStep(
-			const std::vector<Array2D2f> /*&inputs*/, // ununused
-			const std::vector<Array2D2f> &inputsCorrupted,
+			const std::vector<Array2D<float2>> /*&inputs*/, // ununused
+			const std::vector<Array2D<float2>> &inputsCorrupted,
 			std::mt19937 &rng,
 			const bool learn = true)
 		{
 			// last checked: 28-nov 2016
 			//TODO: consider using binary input instead of float
 
-			std::vector<Array2D2f> predictionsPrev(_pLayers.size());
+			std::vector<Array2D<float2>> predictionsPrev(_pLayers.size());
 
 			for (size_t l = 0; l < predictionsPrev.size(); ++l) {
 				predictionsPrev[l] = _pLayers[l].getHiddenStates()[_back];
@@ -121,11 +121,11 @@ namespace feynman {
 			// Forward pass through predictor to get next prediction
 			for (int l = static_cast<int>(_pLayers.size()) - 1; l >= 0; l--) {
 				if (_h.getLayer(l)._tpReset || _h.getLayer(l)._tpNextReset) {
-					Array2D2f target = _h.getLayer(l)._sf->getHiddenStates()[_back];
+					Array2D<float2> target = _h.getLayer(l)._sf->getHiddenStates()[_back];
 					//plots::plotImage(target, 6, "Predictor:simStep:target" + std::to_string(l));
 
 					if (l != _pLayers.size() - 1) {
-						_pLayers[l].activate(std::vector<Array2D2f>{
+						_pLayers[l].activate(std::vector<Array2D<float2>>{
 							_h.getLayer(l)._sf->getHiddenStates()[_back], 
 							_pLayers[l + 1].getHiddenStates()[_back] 
 						},
@@ -136,7 +136,7 @@ namespace feynman {
 					}
 					else {
 						//plots::plotImage(_h.getLayer(l)._sf->getHiddenStates()[_back], 6, "Predictor:simStep:hiddenStates" + std::to_string(l));
-						_pLayers[l].activate(std::vector<Array2D2f>{ _h.getLayer(l)._sf->getHiddenStates()[_back] }, rng);
+						_pLayers[l].activate(std::vector<Array2D<float2>>{ _h.getLayer(l)._sf->getHiddenStates()[_back] }, rng);
 
 						if (learn)
 							_pLayers[l].learn(target);
@@ -166,7 +166,7 @@ namespace feynman {
 		}
 
 		//Get the predictions
-		const DoubleBuffer2D2f &getHiddenPrediction() const {
+		const DoubleBuffer2D<float2> &getHiddenPrediction() const {
 			// last checked: 28-nov 2016
 			return _pLayers.front().getHiddenStates();
 		}

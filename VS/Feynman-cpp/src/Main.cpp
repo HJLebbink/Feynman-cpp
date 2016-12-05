@@ -18,8 +18,8 @@ int main()
 		//SparseFeatures::speedTest(1000);
 		//PredictorLayer::speedTest(1000);
 	}
-	if (true) mnist::mnist_Anomaly_Detection();
-	//if (true) video::video_Prediction();
+	if (false) mnist::mnist_Anomaly_Detection();
+	if (true) video::video_Prediction();
 	//if (false) sequenceRecall();
 	//if (false) recallTest_AAAX();
 	//if (false) sparseCoderTests::SparseCoderTests();

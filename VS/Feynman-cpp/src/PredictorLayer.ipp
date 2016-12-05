@@ -44,8 +44,8 @@ namespace feynman {
 		struct VisibleLayer {
 
 			//Layer parameters
-			DoubleBuffer2D2f _derivedInput;
-			DoubleBuffer3D _weights;
+			DoubleBuffer2D<float2> _derivedInput;
+			DoubleBuffer3D<float> _weights;
 
 			float2 _hiddenToVisible;
 			float2 _visibleToHidden;
@@ -58,10 +58,10 @@ namespace feynman {
 		int2 _hiddenSize;
 
 		//Hidden stimulus summation temporary buffer
-		DoubleBuffer2D2f _hiddenSummationTemp;
+		DoubleBuffer2D<float2> _hiddenSummationTemp;
 
 		//Predictions
-		DoubleBuffer2D2f _hiddenStates;
+		DoubleBuffer2D<float2> _hiddenStates;
 
 		//Encoder corresponding to this decoder, if available (else nullptr)
 		std::shared_ptr<SparseFeatures> _inhibitSparseFeatures;
@@ -115,15 +115,15 @@ namespace feynman {
 					const int weightDiam = vld._radius * 2 + 1;
 					const int numWeights = weightDiam * weightDiam;
 					const int3 weightsSize = { _hiddenSize.x, _hiddenSize.y, numWeights };
-					vl._weights = createDoubleBuffer3D(weightsSize);
-					randomUniform3D(vl._weights[_back], weightsSize, initWeightRange, rng);
+					vl._weights = createDoubleBuffer3D<float>(weightsSize);
+					randomUniform3D(vl._weights[_back], initWeightRange, rng);
 				}
-				vl._derivedInput = createDoubleBuffer2D2f(vld._size);
+				vl._derivedInput = createDoubleBuffer2D<float2>(vld._size);
 				clear(vl._derivedInput[_back]);
 			}
 			// Hidden state data
-			_hiddenStates = createDoubleBuffer2D2f(_hiddenSize);
-			_hiddenSummationTemp = createDoubleBuffer2D2f(_hiddenSize);
+			_hiddenStates = createDoubleBuffer2D<float2>(_hiddenSize);
+			_hiddenSummationTemp = createDoubleBuffer2D<float2>(_hiddenSize);
 
 			clear(_hiddenStates[_back]);
 		}
@@ -134,7 +134,7 @@ namespace feynman {
 		\param threshold whether or not the output should be thresholded (binary).
 		*/
 		void activate(
-			const std::vector<Array2D2f> &visibleStates,
+			const std::vector<Array2D<float2>> &visibleStates,
 			std::mt19937 &rng)
 		{
 			// last checked: 28-nov 2016
@@ -191,7 +191,7 @@ namespace feynman {
 		\param visibleStatesPrev the input states of the !previous! timestep.
 		*/
 		void learn(
-			const Array2D2f &targets)
+			const Array2D<float2> &targets)
 		{
 			// last checked: 28-nov 2016
 
@@ -253,7 +253,7 @@ namespace feynman {
 		}
 
 		//Get the predictions
-		const DoubleBuffer2D2f &getHiddenStates() const {
+		const DoubleBuffer2D<float2> &getHiddenStates() const {
 			return _hiddenStates;
 		}
 
@@ -284,12 +284,12 @@ namespace feynman {
 			const int numWeights = weightDiam * weightDiam;
 			const int3 weightsSize = { hiddenSize.x, hiddenSize.y, numWeights };
 
-			Image2D visibleStatesPrev = Image2D(visibleSize);
-			Image2D targets = Image2D(hiddenSize);
-			Image2D hiddenStatesPrev = Image2D(hiddenSize);
-			Image3D weightsBack = Image3D(weightsSize);
-			Image3D weightsFront0 = Image3D(weightsSize);
-			Image3D weightsFront1 = Image3D(weightsSize);
+			Array2D<float> visibleStatesPrev = Array2D<float>(visibleSize);
+			Array2D<float> targets = Array2D<float>(hiddenSize);
+			Array2D<float> hiddenStatesPrev = Array2D<float>(hiddenSize);
+			Array3D<float> weightsBack = Array3D<float>(weightsSize);
+			Array3D<float> weightsFront0 = Array3D<float>(weightsSize);
+			Array3D<float> weightsFront1 = Array3D<float>(weightsSize);
 			const float2 hiddenToVisible = float2{
 				static_cast<float>(visibleSize.x) / static_cast<float>(hiddenSize.x),
 				static_cast<float>(visibleSize.y) / static_cast<float>(hiddenSize.y)
@@ -297,10 +297,10 @@ namespace feynman {
 
 			//----------------------------------------------------------------------------------
 			const float2 initRange = { -0.001f, 0.001f };
-			randomUniform2D(visibleStatesPrev, visibleSize, initRange, generator);
-			randomUniform2D(targets, hiddenSize, initRange, generator);
-			randomUniform2D(hiddenStatesPrev, hiddenSize, initRange, generator);
-			randomUniform3D(weightsBack, weightsSize, initRange, generator);
+			randomUniform2D(visibleStatesPrev, initRange, generator);
+			randomUniform2D(targets, initRange, generator);
+			randomUniform2D(hiddenStatesPrev, initRange, generator);
+			randomUniform3D(weightsBack, initRange, generator);
 
 			//----------------------------------------------------------------------------------
 			double min0 = std::numeric_limits<double>::max();
@@ -367,11 +367,11 @@ namespace feynman {
 			const int numWeights = weightDiam * weightDiam;
 			const int3 weightsSize = { hiddenSize.x, hiddenSize.y, numWeights };
 
-			Image2D visibleStates = Image2D(visibleSize);
-			Image2D hiddenSummationTempBack = Image2D(hiddenSize);
-			Image2D hiddenSummationTempFront = Image2D(hiddenSize);
-			Image3D weights0 = Image3D(weightsSize);
-			Image3D weights1 = Image3D(weightsSize);
+			Array2D<float> visibleStates = Array2D<float>(visibleSize);
+			Array2D<float> hiddenSummationTempBack = Array2D<float>(hiddenSize);
+			Array2D<float> hiddenSummationTempFront = Array2D<float>(hiddenSize);
+			Array3D<float> weights0 = Array3D<float>(weightsSize);
+			Array3D<float> weights1 = Array3D<float>(weightsSize);
 			const float2 hiddenToVisible = float2{
 				static_cast<float>(visibleSize.x) / static_cast<float>(hiddenSize.x),
 				static_cast<float>(visibleSize.y) / static_cast<float>(hiddenSize.y)
@@ -379,9 +379,9 @@ namespace feynman {
 
 			//----------------------------------------------------------------------------------
 			const float2 initRange = { 0.0f, 0.001f };
-			randomUniform2D(visibleStates, visibleSize, initRange, generator);
-			randomUniform2D(hiddenSummationTempBack, hiddenSize, initRange, generator);
-			randomUniform2D(hiddenSummationTempFront, hiddenSize, initRange, generator);
+			randomUniform2D(visibleStates, initRange, generator);
+			randomUniform2D(hiddenSummationTempBack, initRange, generator);
+			randomUniform2D(hiddenSummationTempFront, initRange, generator);
 
 			//----------------------------------------------------------------------------------
 			double min0 = std::numeric_limits<double>::max();
@@ -434,9 +434,9 @@ namespace feynman {
 	private:
 
 		static void plDeriveInputs(
-			const Array2D2f &inputs,
-			const Array2D2f &outputsBack,
-			Array2D2f &outputsFront,			// write only
+			const Array2D<float2> &inputs,
+			const Array2D<float2> &outputsBack,
+			Array2D<float2> &outputsFront,			// write only
 			const int2 range)
 		{
 			// last checked: 24-nov 2016
@@ -447,10 +447,10 @@ namespace feynman {
 		static void plStimulus_kernel(
 			const int hiddenPosition_x,
 			const int hiddenPosition_y,
-			const Image2D &visibleStates,
-			const Image2D &hiddenSummationTempBack,
-			Image2D &hiddenSummationTempFront, // write only
-			const Image3D &weights,
+			const Array2D<float> &visibleStates,
+			const Array2D<float> &hiddenSummationTempBack,
+			Array2D<float> &hiddenSummationTempFront, // write only
+			const Array3D<float> &weights,
 			const int2 visibleSize,
 			const float2 hiddenToVisible)
 		{
@@ -491,10 +491,10 @@ namespace feynman {
 
 		template <int RADIUS>
 		static void plStimulus_v0(
-			const Image2D &visibleStates,
-			const Image2D &hiddenSummationTempBack,
-			Image2D &hiddenSummationTempFront, // write only
-			const Image3D &weights,
+			const Array2D<float> &visibleStates,
+			const Array2D<float> &hiddenSummationTempBack,
+			Array2D<float> &hiddenSummationTempFront, // write only
+			const Array3D<float> &weights,
 			const int2 visibleSize,
 			const float2 hiddenToVisible)
 		{
@@ -509,10 +509,10 @@ namespace feynman {
 
 		template <int RADIUS>
 		static void plStimulus_v1(
-			const Image2D &visibleStates,
-			const Image2D &hiddenSummationTempBack,
-			Image2D &hiddenSummationTempFront, // write only
-			const Image3D &weights,
+			const Array2D<float> &visibleStates,
+			const Array2D<float> &hiddenSummationTempBack,
+			Array2D<float> &hiddenSummationTempFront, // write only
+			const Array3D<float> &weights,
 			const int2 visibleSize,
 			const float2 hiddenToVisible)
 		{
@@ -551,10 +551,10 @@ namespace feynman {
 		}
 
 		static void plStimulus(
-			const Array2D2f &visibleStates,
-			const Array2D2f &hiddenSummationTempBack,
-			Array2D2f &hiddenSummationTempFront, // write only
-			const Image3D &weights,
+			const Array2D<float2> &visibleStates,
+			const Array2D<float2> &hiddenSummationTempBack,
+			Array2D<float2> &hiddenSummationTempFront, // write only
+			const Array3D<float> &weights,
 			const int2 visibleSize,
 			const float2 hiddenToVisible,
 			const int radius,
@@ -606,8 +606,8 @@ namespace feynman {
 		}
 
 		static void plThreshold(
-			const Image2D &stimuli,
-			Image2D &thresholded, // write only
+			const Array2D<float> &stimuli,
+			Array2D<float> &thresholded, // write only
 			const int2 range)
 		{
 			// last checked: 25-nov 2016
@@ -625,11 +625,11 @@ namespace feynman {
 			const int hiddenPosition_y,
 			const float2 hiddenToVisible,
 			const float weightAlpha,
-			const Image2D &visibleStatesPrev,
-			const Image2D &targets,
-			const Image2D &hiddenStatesPrev,
-			const Image3D &weightsBack,
-			Image3D &weightsFront) //write only
+			const Array2D<float> &visibleStatesPrev,
+			const Array2D<float> &targets,
+			const Array2D<float> &hiddenStatesPrev,
+			const Array3D<float> &weightsBack,
+			Array3D<float> &weightsFront) //write only
 		{
 			throw 1;
 			const int visiblePositionCenter_x = project(hiddenPosition_x, hiddenToVisible.x);
@@ -694,11 +694,11 @@ namespace feynman {
 
 		template <int RADIUS>
 		static void plLearnPredWeights_v1(
-			const Image2D &visibleStatesPrev,
-			const Image2D &targets,
-			const Image2D &hiddenStatesPrev,
-			const Image3D &weightsBack,
-			Image3D &weightsFront, //write only
+			const Array2D<float> &visibleStatesPrev,
+			const Array2D<float> &targets,
+			const Array2D<float> &hiddenStatesPrev,
+			const Array3D<float> &weightsBack,
+			Array3D<float> &weightsFront, //write only
 			const int2 /*visibleSize*/,
 			const float2 hiddenToVisible,
 			const float weightAlpha)
@@ -739,11 +739,11 @@ namespace feynman {
 
 		template <int RADIUS>
 		static void plLearnPredWeights_v0(
-			const Image2D &visibleStatesPrev,
-			const Image2D &targets,
-			const Image2D &hiddenStatesPrev,
-			const Image3D &weightsBack,
-			Image3D &weightsFront, //write only
+			const Array2D<float> &visibleStatesPrev,
+			const Array2D<float> &targets,
+			const Array2D<float> &hiddenStatesPrev,
+			const Array3D<float> &weightsBack,
+			Array3D<float> &weightsFront, //write only
 			const int2 /*visibleSize*/,
 			const float2 hiddenToVisible,
 			const float weightAlpha)
@@ -757,11 +757,11 @@ namespace feynman {
 		}
 
 		static void plLearnPredWeights(
-			const Array2D2f &visibleStatesPrev,
-			const Array2D2f &targets,
-			const Array2D2f &hiddenStatesPrev,
-			const Image3D &weightsBack,
-			Image3D &weightsFront, //write only
+			const Array2D<float2> &visibleStatesPrev,
+			const Array2D<float2> &targets,
+			const Array2D<float2> &hiddenStatesPrev,
+			const Array3D<float> &weightsBack,
+			Array3D<float> &weightsFront, //write only
 			const int2 visibleSize,
 			const float2 hiddenToVisible,
 			const int radius,

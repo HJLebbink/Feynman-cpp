@@ -61,7 +61,7 @@ namespace plots {
 	}
 
 	void plotImage(
-		const Image2D &image,
+		const Array2D<float> &image,
 		const float2 pos,
 		const float scale,
 		sf::RenderWindow &window)
@@ -100,7 +100,7 @@ namespace plots {
 	}
 
 	void plotImage(
-		const Image2D &image,
+		const Array2D<float> &image,
 		const float scale,
 		const std::string name)
 	{
@@ -110,7 +110,7 @@ namespace plots {
 	}
 
 	void plotImage(
-		const Image3D &image,
+		const Array3D<float> &image,
 		const float scale2,
 		const std::string name)
 	{
@@ -118,7 +118,7 @@ namespace plots {
 
 		const int3 size = image.getSize();
 		for (int z = 0; z < std::min(nSlices, size.z); ++z) {
-			Image2D image2 = Image2D(int2{ size.x, size.y });
+			Array2D<float> image2 = Array2D<float>(int2{ size.x, size.y });
 			for (int x = 0; x < size.x; ++x) {
 				for (int y = 0; y < size.y; ++y) {
 					write_2D(image2, x, y, read_3D(image, x, y, z));
@@ -129,12 +129,12 @@ namespace plots {
 	}
 
 	void plotImage(
-		const Array2D2f &image,
+		const Array2D<float2> &image,
 		const float scale2,
 		const std::string name)
 	{
 		const int2 size = image.getSize();
-		Image2D image2 = Image2D(size);
+		Array2D<float> image2 = Array2D<float>(size);
 		for (int x = 0; x < size.x; ++x) {
 			for (int y = 0; y < size.y; ++y) {
 				write_2D(image2, x, y, read_2D(image, x, y).x);

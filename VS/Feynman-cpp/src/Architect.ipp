@@ -16,7 +16,7 @@
 
 // Encoders
 #include "SparseFeaturesChunk.ipp"
-//#include "SparseFeaturesDelay.h"
+//#include "SparseFeaturesDelay.ipp"
 #include "SparseFeaturesSTDP.ipp"
 
 #include <iostream>
@@ -233,7 +233,7 @@ namespace feynman {
 			case _delay:
 			{
 				throw 1;
-				/*
+/*
 				std::shared_ptr<SparseFeaturesDelay::SparseFeaturesDelayDesc> sfDescDelay = std::make_shared<SparseFeaturesDelay::SparseFeaturesDelayDesc>();
 
 				sfDescDelay->_inputType = SparseFeatures::_feedForward;
@@ -244,7 +244,7 @@ namespace feynman {
 					sfDescDelay->_inhibitionRadius = std::stoi(params["sfd_inhibitionRadius"]);
 
 				if (params.find("sfd_initWeightRange") != params.end()) {
-					float2 initWeightRange = ParameterModifier::parseVec2f(params["sfd_initWeightRange"]);
+					float2 initWeightRange = ParameterModifier::parseFloat2(params["sfd_initWeightRange"]);
 					sfDescDelay->_initWeightRange = { initWeightRange.x, initWeightRange.y };
 				}
 
@@ -257,7 +257,7 @@ namespace feynman {
 				if (layerIndex == 0) {
 					sfDescDelay->_visibleLayerDescs.resize(_inputLayers.size());
 
-					for (int i = 0; i < _inputLayers.size(); i++) {
+					for (size_t i = 0; i < _inputLayers.size(); i++) {
 						sfDescDelay->_visibleLayerDescs[i]._ignoreMiddle = false;
 
 						sfDescDelay->_visibleLayerDescs[i]._size = { _inputLayers[i]._size.x, _inputLayers[i]._size.y };
@@ -466,7 +466,7 @@ namespace feynman {
 			std::vector<bool> shouldPredict(_inputLayers.size());
 
 			for (size_t i = 0; i < _inputLayers.size(); ++i) {
-				h->_inputImages[i] = Array2D2f(_inputLayers[i]._size);
+				h->_inputImages[i] = Array2D<float2>(_inputLayers[i]._size);
 
 				/*if (_inputLayers[i]._params.find("in_predict") != _inputLayers[i]._params.end()) {
 				if (_inputLayers[i]._params["in_predict"] == ParameterModifier::_boolTrue) {
@@ -478,7 +478,7 @@ namespace feynman {
 				shouldPredict[i] = false;
 				}
 				else {*/
-				h->_predictions.push_back(Array2D2f(_inputLayers[i]._size));
+				h->_predictions.push_back(Array2D<float2>(_inputLayers[i]._size));
 
 				shouldPredict[i] = true;
 				//}
@@ -538,13 +538,13 @@ namespace feynman {
 			a->_inputImages.resize(_inputLayers.size());
 
 			for (size_t i = 0; i < _inputLayers.size(); i++)
-				a->_inputImages[i] = Array2D2f(_inputLayers[i]._size);
+				a->_inputImages[i] = Array2D<float2>(_inputLayers[i]._size);
 
 			std::vector<int2> actionSizes(_actionLayers.size());
 			std::vector<int2> actionTileSizes(_actionLayers.size());
 
 			for (size_t i = 0; i < _actionLayers.size(); i++) {
-				a->_actions.push_back(Image2D(_actionLayers[i]._size));
+				a->_actions.push_back(Array2D<float>(_actionLayers[i]._size));
 
 				actionSizes[i] = { _actionLayers[i]._size.x, _actionLayers[i]._size.y };
 				actionTileSizes[i] = { _actionLayers[i]._tileSize.x, _actionLayers[i]._tileSize.y };

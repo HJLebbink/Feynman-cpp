@@ -29,6 +29,8 @@ namespace feynman {
 	struct int3 { int x, y, z; };
 	struct uint2 { unsigned int x, y; };
 	struct float2 { float x, y; };
+	struct float3 { float x, y, z; };
+
 
 	int inline pos(const int2 coord, const int2 size) {
 		return (coord.x * size.y) + coord.y;
@@ -116,28 +118,21 @@ namespace feynman {
 
 	};
 
-	struct Image3D {
-		std::vector<float> _data_float;
-#		ifdef USE_FIXED_POINT
-		std::vector<FixedP> _data_fixP;
-#		endif
-		std::string _name = ""; // used for debugging purposes
+	template <typename T>
+	struct Array3D {
+		std::vector<T> _data_float;
 		int3 _size;
 
-		Image3D(int3 size) : _size(size)
+		Array3D(int3 size) : _size(size)
 		{
 			const int nElements = size.x * size.y * size.z;
 			_data_float.resize(nElements);
-#			ifdef USE_FIXED_POINT
-			_data_fixP.resize(nElements);
-#			endif
 		}
 
 		// default constructor
-		Image3D() : Image3D(int3{ 0, 0, 0 }) {}
+		Array3D() : Array3D(int3{ 0, 0, 0 }) {}
 
-
-		void swap(Image3D& other) {
+		void swap(Array3D<T>& other) {
 			_data_float.swap(other._data_float);
 #			ifdef USE_FIXED_POINT
 			_data_fixP.swap(other._data_fixP);
@@ -151,12 +146,6 @@ namespace feynman {
 			return _size;
 		}
 	};
-
-
-	//TODO rename Image2D to Array2Df
-	using Image2D = Array2D<float>;
-	using Array2Di2 = Array2D<int2>;
-	using Array2D2f = Array2D<float2>;
 
 	template <typename T>
 	T inline read_2D(const Array2D<T> &image, const int coord_x, const int coord_y)
@@ -186,12 +175,13 @@ namespace feynman {
 	}
 
 	template <typename T>
-	float inline read_2D(const Array2D<T> &image, const int2 coord)
+	T inline read_2D(const Array2D<T> &image, const int2 coord)
 	{
 		return read_2D(image, coord.x, coord.y);
 	}
 
-	FixedP inline read_2D_fixp(const Image2D &image, const int coord_x, const int coord_y)
+	template <typename T>
+	FixedP inline read_2D_fixp(const Array2D<T> &image, const int coord_x, const int coord_y)
 	{
 		const int idx = pos(coord_x, coord_y, image._size.y);
 #		ifdef USE_FIXED_POINT
@@ -211,7 +201,8 @@ namespace feynman {
 		return value;
 	}
 
-	float inline read_3D(const Image3D &image, const int coord_x, const int coord_y, const int coord_z) {
+	template <typename T>
+	T inline read_3D(const Array3D<T> &image, const int coord_x, const int coord_y, const int coord_z) {
 		const int idx = pos(coord_x, coord_y, coord_z, image._size.y, image._size.z);
 		//std::cout << "read_3D: idx=" << idx << "; x=" << coord_x << "; y=" << coord_y << "; z=" << coord_z << std::endl;
 		const float value = image._data_float[idx];
@@ -226,7 +217,8 @@ namespace feynman {
 		return value;
 	}
 
-	FixedP inline read_3D_fixp(const Image3D &image, const int coord_x, const int coord_y, const int coord_z) {
+	template <typename T>
+	FixedP inline read_3D_fixp(const Array3D<T> &image, const int coord_x, const int coord_y, const int coord_z) {
 		const int idx = pos(coord_x, coord_y, coord_z, image._size.y, image._size.z);
 #		ifdef USE_FIXED_POINT
 		FixedP value = image._data_fixP[idx];
@@ -247,28 +239,30 @@ namespace feynman {
 
 	template <typename T>
 	void inline write_2D(Array2D<T> &image, const int coord_x, const int coord_y, const T value) {
-
 		image._data_float[pos(coord_x, coord_y, image._size.y)] = value;
 #		ifdef USE_FIXED_POINT
 		image._data_fixP[pos(coord_x, coord_y, image._size.y)] = toFixedP(value);
 #		endif
 	}
 
-	void inline write_2D_fixp(Image2D &image, const int coord_x, const int coord_y, const FixedP value) {
+	template <typename T>
+	void inline write_2D_fixp(Array2D<T> &image, const int coord_x, const int coord_y, const FixedP value) {
 #		ifdef USE_FIXED_POINT
 		image._data_fixP[pos(coord_x, coord_y, image._size.y)] = value;
 #		endif
 		image._data_float[pos(coord_x, coord_y, image._size.y)] = toFloat(value);
 	}
 
-	void inline write_3D(Image3D &image, const int coord_x, const int coord_y, const int coord_z, float value) {
+	template <typename T>
+	void inline write_3D(Array3D<T> &image, const int coord_x, const int coord_y, const int coord_z, T value) {
 		image._data_float[pos(coord_x, coord_y, coord_z, image._size.y, image._size.z)] = value;
 #		ifdef USE_FIXED_POINT
 		image._data_fixP[pos(coord_x, coord_y, coord_z, image._size.y, image._size.z)] = toFixedP(value);
 #		endif
 	}
 
-	void inline write_3D_fixp(Image3D &image, const int coord_x, const int coord_y, const int coord_z, const FixedP value) {
+	template <typename T>
+	void inline write_3D_fixp(Array3D<T> &image, const int coord_x, const int coord_y, const int coord_z, const FixedP value) {
 #		ifdef USE_FIXED_POINT
 		image._data_fixP[pos(coord_x, coord_y, coord_z, image._size.y, image._size.z)] = value;
 #		endif
@@ -290,46 +284,38 @@ namespace feynman {
 	};
 
 	//Double buffer types
-	using DoubleBuffer2D = std::vector<Image2D>;
-	using DoubleBuffer3D = std::vector<Image3D>;
+	template <typename T>
+	using DoubleBuffer2D = std::vector<Array2D<T>>;
 
-	using DoubleBuffer2D2f = std::vector<Array2D2f>;
-
+	template <typename T>
+	using DoubleBuffer3D = std::vector<Array3D<T>>;
 
 	//Double buffer initialization helpers
-	DoubleBuffer2D createDoubleBuffer2D(int2 size) {
-		return { Image2D(size), Image2D(size) };
-	}
-	DoubleBuffer2D2f createDoubleBuffer2D2f(int2 size) {
-		return{ Array2D2f(size), Array2D2f(size) };
+	template <typename T>
+	DoubleBuffer2D<T> createDoubleBuffer2D(int2 size) {
+		return { Array2D<T>(size), Array2D<T>(size) };
 	}
 
-	DoubleBuffer3D createDoubleBuffer3D(int3 size) {
-		return { Image3D(size), Image3D(size) };
+	template <typename T>
+	DoubleBuffer3D<T> createDoubleBuffer3D(int3 size) {
+		return { Array3D<T>(size), Array3D<T>(size) };
 	}
 
-	static void clear(Image2D &image) {
-		const size_t nBytes = image._size.x * image._size.y * sizeof(float);
-		memset(&image._data_float[0], 0, nBytes);
-	}
-	static void clear(Array2D2f &image) {
-		const size_t nBytes = image._size.x * image._size.y * sizeof(float) * 2;
+	template <typename T>
+	static void clear(Array2D<T> &image) {
+		const size_t nBytes = image._size.x * image._size.y * sizeof(T);
 		memset(&image._data_float[0], 0, nBytes);
 	}
 
-	static void clear(Image3D &image) {
-		const size_t nBytes = image._size.x * image._size.y * image._size.z * sizeof(float);
+	template <typename T>
+	static void clear(Array3D<T> &image) {
+		const size_t nBytes = image._size.x * image._size.y * image._size.z * sizeof(T);
 		memset(&image._data_float[0], 0, nBytes);
 	}
 
-
-	static void copy(const Array2D2f &src, Array2D2f &dst) {
-		const size_t nBytes = src._size.x * src._size.y * sizeof(float) * 2;
-		memcpy(&dst._data_float[0], &src._data_float[0], nBytes);
-	}
-
-	static void copy(const Image2D &src, Image2D &dst) {
-		const size_t nBytes = src._size.x * src._size.y * sizeof(float);
+	template <typename T>
+	static void copy(const Array2D<T> &src, Array2D<T> &dst) {
+		const size_t nBytes = src._size.x * src._size.y * sizeof(T);
 		memcpy(&dst._data_float[0], &src._data_float[0], nBytes);
 		dst._name = src._name;
 
@@ -338,11 +324,14 @@ namespace feynman {
 		memcpy(&dst._data_fixP[0], &src._data_fixP[0], nBytesFixP);
 #		endif
 	}
-	static void copy(const Image2D &src, std::vector<float> &dst) {
+
+	static void copy(const Array2D<float> &src, std::vector<float> &dst) {
 		const size_t nBytes = src._size.x * src._size.y * sizeof(float);
 		memcpy(&dst[0], &src._data_float[0], nBytes);
 	}
-	static void copy(const std::vector<float> &src, Image2D &dst) {
+
+	template <typename T>
+	static void copy(const std::vector<float> &src, Array2D<float> &dst) {
 		const size_t nBytes = dst._size.x * dst._size.y * sizeof(float);
 		memcpy(&dst._data_float[0], &src[0], nBytes);
 #		ifdef USE_FIXED_POINT
@@ -351,8 +340,10 @@ namespace feynman {
 		}
 #		endif
 	}
-	static void copy(const Image3D &src, Image3D &dst) {
-		const size_t nBytes = src._size.x * src._size.y * src._size.z * sizeof(float);
+
+	template <typename T>
+	static void copy(const Array3D<T> &src, Array3D<T> &dst) {
+		const size_t nBytes = src._size.x * src._size.y * src._size.z * sizeof(T);
 		memcpy(&dst._data_float[0], &src._data_float[0], nBytes);
 #		ifdef USE_FIXED_POINT
 		const size_t nBytesFixP = src._size.x * src._size.y * src._size.z * sizeof(FixedP);
@@ -362,33 +353,29 @@ namespace feynman {
 
 	// Initialize a random uniform 2D image (X field)
 	void randomUniform2D(
-		Image2D &image2D, 
-		const int2 range, 
+		Array2D<float> &values,
 		const float2 minMax,
 		std::mt19937 &rng) 
 	{
-		//TODO remove range
-
 		std::uniform_int_distribution<int> seedDist(0, 999);
 		const unsigned int seedx = static_cast<unsigned int>(seedDist(rng));
 		const unsigned int seedy = static_cast<unsigned int>(seedDist(rng));;
 
-		for (int x = 0; x < range.x; ++x) {
-			for (int y = 0; y < range.y; ++y) {
+		for (int x = 0; x < values._size.x; ++x) {
+			for (int y = 0; y < values._size.y; ++y) {
 
 				uint2 seedValue;
 				seedValue.x = seedx + ((x * 29) + 12) * 36;
 				seedValue.y = seedy + ((y * 16) + 23) * 36;
 				const float value = randFloat(&seedValue) * (minMax.y - minMax.x) + minMax.x;
-				write_2D(image2D, x, y, value);
+				write_2D(values, x, y, value);
 			}
 		}
 	}
 
 	// Initialize a random uniform 3D image (X field)
 	void randomUniform3D(
-		Image3D &values,
-		const int3 range,
+		Array3D<float> &values,
 		const float2 minMax,
 		std::mt19937 &rng)
 	{
@@ -396,10 +383,10 @@ namespace feynman {
 		const unsigned int seed_x = static_cast<unsigned int>(seedDist(rng));
 		const unsigned int seed_y = static_cast<unsigned int>(seedDist(rng));
 
-		for (int x = 0; x < range.x; ++x) {
-			for (int y = 0; y < range.y; ++y) {
+		for (int x = 0; x < values._size.x; ++x) {
+			for (int y = 0; y < values._size.y; ++y) {
 #				pragma ivdep
-				for (int z = 0; z < range.z; ++z) {
+				for (int z = 0; z < values._size.z; ++z) {
 					uint2 seedValue;
 					seedValue.x = seed_x + (((x * 12) + 76 + z) * 3) * 12;
 					seedValue.y = seed_y + (((y * 21) + 42 + z) * 7) * 12;

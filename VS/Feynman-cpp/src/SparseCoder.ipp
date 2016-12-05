@@ -47,13 +47,13 @@ namespace feynman {
 		struct VisibleLayer {
 
 			//Possibly manipulated input
-			DoubleBuffer2D _derivedInput;
+			DoubleBuffer2D<float> _derivedInput;
 
 			//Temporary buffer for reconstruction error
-			Image2D _reconError;
+			Array2D<float> _reconError;
 
 			//Weights
-			DoubleBuffer3D _weights; // Encoding weights (creates spatio-temporal sparse code)
+			DoubleBuffer3D<float> _weights; // Encoding weights (creates spatio-temporal sparse code)
 
 			//Transformations
 			float2 _hiddenToVisible;
@@ -64,8 +64,8 @@ namespace feynman {
 	private:
 
 		//Hidden states, thresholds (similar to biases)
-		DoubleBuffer2D _hiddenStates;
-		DoubleBuffer2D _hiddenThresholds;
+		DoubleBuffer2D<float> _hiddenStates;
+		DoubleBuffer2D<float> _hiddenThresholds;
 
 		//Hidden size
 		int2 _hiddenSize;
@@ -74,7 +74,7 @@ namespace feynman {
 		int _inhibitionRadius = 0;
 
 		//Hidden stimulus summation temporary buffer
-		DoubleBuffer2D _hiddenStimulusSummationTemp;
+		DoubleBuffer2D<float> _hiddenStimulusSummationTemp;
 
 		//Layers and descs
 		std::vector<VisibleLayerDesc> _visibleLayerDescs;
@@ -131,22 +131,22 @@ namespace feynman {
 					const int weightDiam = vld._radius * 2 + 1;
 					const int numWeights = weightDiam * weightDiam;
 					const int3 weightsSize = { _hiddenSize.x, _hiddenSize.y, numWeights };
-					vl._weights = createDoubleBuffer3D(weightsSize);
-					randomUniform3D(vl._weights[_back], weightsSize, initWeightRange, rng);
+					vl._weights = createDoubleBuffer3D<float>(weightsSize);
+					randomUniform3D(vl._weights[_back], initWeightRange, rng);
 				}
 
-				vl._derivedInput = createDoubleBuffer2D(vld._size);
+				vl._derivedInput = createDoubleBuffer2D<float>(vld._size);
 				clear(vl._derivedInput[_back]);
-				vl._reconError = Image2D(vld._size);
+				vl._reconError = Array2D<float>(vld._size);
 			}
 
 			// Hidden state data
-			_hiddenStates = createDoubleBuffer2D(_hiddenSize);
-			_hiddenThresholds = createDoubleBuffer2D(_hiddenSize);
-			_hiddenStimulusSummationTemp = createDoubleBuffer2D(_hiddenSize);
+			_hiddenStates = createDoubleBuffer2D<float>(_hiddenSize);
+			_hiddenThresholds = createDoubleBuffer2D<float>(_hiddenSize);
+			_hiddenStimulusSummationTemp = createDoubleBuffer2D<float>(_hiddenSize);
 			clear(_hiddenStates[_back]);
 
-			randomUniform2D(_hiddenThresholds[_back], _hiddenSize, initThresholdRange, rng);
+			randomUniform2D(_hiddenThresholds[_back], initThresholdRange, rng);
 		}
 
 		/*!
@@ -157,7 +157,7 @@ namespace feynman {
 		\param rng a random number generator.
 		*/
 		void activate(
-			const std::vector<Image2D> &visibleStates,
+			const std::vector<Array2D<float>> &visibleStates,
 			const float /*inputTraceDecay*/, // unused
 			const float activeRatio,
 			std::mt19937 /*&rng*/)	// unused
@@ -295,8 +295,8 @@ namespace feynman {
 
 		//Reconstruct image from an SDR
 		void reconstruct(
-			const Image2D &hiddenStates,
-			std::vector<Image2D> &reconstructions)
+			const Array2D<float> &hiddenStates,
+			std::vector<Array2D<float>> &reconstructions)
 		{
 			if (reconstructions.size() != _visibleLayers.size()) {
 				printf("WARNING: SparseCoder:reconstruct: incorrect number of reconstructions");
@@ -341,12 +341,12 @@ namespace feynman {
 		}
 
 		//Get hidden states
-		const DoubleBuffer2D &getHiddenStates() const {
+		const DoubleBuffer2D<float> &getHiddenStates() const {
 			return _hiddenStates;
 		}
 
 		// Get hidden biases
-		const DoubleBuffer2D &getHiddenThresholds() const {
+		const DoubleBuffer2D<float> &getHiddenThresholds() const {
 			return _hiddenThresholds;
 		}
 
@@ -363,10 +363,10 @@ namespace feynman {
 	private:
 
 		static void scStimulus(
-			const Image2D &visibleStates, // was float2
-			const Image2D &hiddenSummationTempBack,
-			Image2D &hiddenSummationTempFront, // write only
-			const Image3D &weights,
+			const Array2D<float> &visibleStates, // was float2
+			const Array2D<float> &hiddenSummationTempBack,
+			Array2D<float> &hiddenSummationTempFront, // write only
+			const Array3D<float> &weights,
 			const int2 visibleSize,
 			const float2 hiddenToVisible,
 			const int radius,
@@ -383,10 +383,10 @@ namespace feynman {
 		*/
 		template <bool IGNORE_MIDDLE>
 		static void scStimulus(
-			const Image2D &visibleStates, // was float2
-			const Image2D &hiddenSummationTempBack,
-			Image2D &hiddenSummationTempFront, // write only
-			const Image3D &weights,
+			const Array2D<float> &visibleStates, // was float2
+			const Array2D<float> &hiddenSummationTempBack,
+			Array2D<float> &hiddenSummationTempFront, // write only
+			const Array3D<float> &weights,
 			const int2 visibleSize,
 			const float2 hiddenToVisible,
 			const int radius)
@@ -445,10 +445,10 @@ namespace feynman {
 		}
 
 		static void scReverse(
-			const Image2D &hiddenStates,
-			const Image2D &visibleStates, // was float2
-			Image2D &reconErrors,		// write only
-			const Image3D &weights,
+			const Array2D<float> &hiddenStates,
+			const Array2D<float> &visibleStates, // was float2
+			Array2D<float> &reconErrors,		// write only
+			const Array3D<float> &weights,
 			const int2 visibleSize,
 			const int2 hiddenSize,
 			const float2 visibleToHidden,
@@ -513,10 +513,10 @@ namespace feynman {
 		}
 
 		static void scReverse_NEW(
-			const Image2D &hiddenStates,
-			const Image2D &visibleStates, // was float2
-			Image2D &reconErrors,		// write only
-			const Image3D &weights,
+			const Array2D<float> &hiddenStates,
+			const Array2D<float> &visibleStates, // was float2
+			Array2D<float> &reconErrors,		// write only
+			const Array3D<float> &weights,
 			const int2 visibleSize,
 			const int2 hiddenSize,
 			const float2 visibleToHidden,
@@ -599,8 +599,8 @@ namespace feynman {
 
 		//Create SDR in hiddenStatesFront from activations
 		static void scSolveHidden(
-			const Image2D &activations,
-			Image2D &hiddenStatesFront, // write only
+			const Array2D<float> &activations,
+			Array2D<float> &hiddenStatesFront, // write only
 			const int2 hiddenSize,
 			const int radius,
 			const float activeRatio,
@@ -655,11 +655,11 @@ namespace feynman {
 		}
 
 		static void scLearnWeights(
-			const Image2D &hiddenStates,
-			//const Image2D &hiddenStatesPrev, // unused
-			const Image2D &reconErrors,
-			const Image3D &weightsBack,
-			Image3D &weightsFront, // write only
+			const Array2D<float> &hiddenStates,
+			//const Array2D<float> &hiddenStatesPrev, // unused
+			const Array2D<float> &reconErrors,
+			const Array3D<float> &weightsBack,
+			Array3D<float> &weightsFront, // write only
 			const int2 visibleSize,
 			const float2 hiddenToVisible,
 			const int RADIUS,
@@ -706,9 +706,9 @@ namespace feynman {
 		}
 
 		static void scLearnThresholds(
-			const Image2D &hiddenStates,
-			const Image2D &hiddenThresholdsBack,
-			Image2D &hiddenThresholdsFront, // write only
+			const Array2D<float> &hiddenStates,
+			const Array2D<float> &hiddenThresholdsBack,
+			Array2D<float> &hiddenThresholdsFront, // write only
 			const float thresholdAlpha,
 			const float activeRatio,
 			const int2 range)
@@ -755,9 +755,9 @@ namespace feynman {
 		2] exponential moving average of current output and the previous output
 		*/
 		static void scDeriveInputs(
-			const Image2D &inputs,
-			//const Image2D /*&outputsBack*/, // unused: was float2
-			Image2D &outputsFront, // write only: was float2
+			const Array2D<float> &inputs,
+			//const Array2D<float> /*&outputsBack*/, // unused: was float2
+			Array2D<float> &outputsFront, // write only: was float2
 			//const float /*lambda*/, // unused
 			const int2 range)
 		{
@@ -781,9 +781,9 @@ namespace feynman {
 		}
 
 		static void scReconstruct(
-			const Image2D &hiddenStates,
-			Image2D &reconstruction, // write only
-			const Image3D &weights,
+			const Array2D<float> &hiddenStates,
+			Array2D<float> &reconstruction, // write only
+			const Array3D<float> &weights,
 			const int2 /*visibleSize*/,
 			const int2 hiddenSize,
 			const float2 visibleToHidden,

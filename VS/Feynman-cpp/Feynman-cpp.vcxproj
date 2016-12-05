@@ -212,7 +212,6 @@
     <None Include="src\SparseCoder.ipp" />
     <None Include="src\SparseFeatures.ipp" />
     <None Include="src\SparseFeaturesChunk.ipp" />
-    <None Include="src\SparseFeaturesDelay.ipp" />
     <None Include="src\SparseFeaturesSTDP.ipp" />
     <None Include="src\Video_Prediction.ipp" />
   </ItemGroup>

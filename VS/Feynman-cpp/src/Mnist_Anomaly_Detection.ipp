@@ -106,8 +106,8 @@ namespace mnist {
 		std::shared_ptr<feynman::Hierarchy> h = arch.generateHierarchy();
 
 		// Input and prediction fields
-		Array2D2f inputField(int2{ bottomWidth, bottomHeight });
-		Array2D2f predField(int2{ bottomWidth, bottomHeight });
+		Array2D<float2> inputField(int2{ bottomWidth, bottomHeight });
+		Array2D<float2> predField(int2{ bottomWidth, bottomHeight });
 
 
 		// --------------------------- Create the Windows ---------------------------
@@ -382,7 +382,7 @@ namespace mnist {
 			renderTexture.display();
 
 			// ------------------------------------- Anomaly detection -------------------------------------
-			Image2D scInputImage = Image2D(int2{ bottomWidth, bottomHeight });
+			Array2D<float> scInputImage = Array2D<float>(int2{ bottomWidth, bottomHeight });
 			{
 				// Get image from render target
 				sf::Image renderTextureImg = renderTexture.getTexture().copyToImage();
@@ -403,7 +403,7 @@ namespace mnist {
 
 			// Retrieve prediction
 			predField = h->getPredictions().front();
-			const Array2D2f &newSDR_image = predField; //TODO sparseCoder.getHiddenStates()[_back];
+			const Array2D<float2> &newSDR_image = predField; //TODO sparseCoder.getHiddenStates()[_back];
 			const std::vector<float2> &newSDR = newSDR_image._data_float;
 			const std::vector<float2> &predSDR = predField._data_float;
 
@@ -425,7 +425,7 @@ namespace mnist {
 				averageScore = (averageDecay * averageScore) + ((1.0f - averageDecay) * anomalyScore);
 			}
 			// Hierarchy simulation step
-			std::vector<Array2D2f> inputVector = { inputField };
+			std::vector<Array2D<float2>> inputVector = { inputField };
 			h->simStep(inputVector, trainMode);
 
 			// Shift plot y values
@@ -544,25 +544,25 @@ namespace mnist {
 				// Show SDRs is corner bottom left
 				if (true) {
 					if (true) {
-						//const Array2D2f &newSDR_image = h->getPredictor().getPredLayer(0).getHiddenStates()[_back];
-						const Array2D2f &newSDR_image = h->getPredictions().front();
+						//const Array2D<float2> &newSDR_image = h->getPredictor().getPredLayer(0).getHiddenStates()[_back];
+						const Array2D<float2> &newSDR_image = h->getPredictions().front();
 						plots::plotImage(newSDR_image, 16, "SDR Current");
 					}
 					if (true) {
-						Image2D image2 = Image2D(scInputImage._size);
-						std::vector<Image2D> reconstructions = { image2 };
+						Array2D<float> image2 = Array2D<float>(scInputImage._size);
+						std::vector<Array2D<float>> reconstructions = { image2 };
 
 						//h->getPredictor().getPredLayer(0).r
 						//sparseCoder.reconstruct(newSDR_image, reconstructions);
 						//plots::plotImage(reconstructions.front(), 10.0f, "SDR Current Visual");
 					}
 					if (true) {
-						//const Image2D &predSDR_image = predictor.getPrediction();
+						//const Array2D<float> &predSDR_image = predictor.getPrediction();
 						//plots::plotImage(predSDR_image, 8.0f, "SDR Prediction");
 					}
 					if (true) {
-						Image2D image2 = Image2D(scInputImage._size);
-						std::vector<Image2D> reconstructions = { image2 };
+						Array2D<float> image2 = Array2D<float>(scInputImage._size);
+						std::vector<Array2D<float>> reconstructions = { image2 };
 						//sparseCoder.reconstruct(predSDR_image, reconstructions);
 						//plots::plotImage(reconstructions.front(), 10.0f, "SDR Prediction Visual");
 					}

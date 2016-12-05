@@ -25,17 +25,17 @@ namespace feynman {
 		AgentSwarm _as;
 
 		std::mt19937 _rng;
-		Image2D _inputImage;
+		Array2D<float> _inputImage;
 
-		std::vector<Array2D2f> _inputImages;
-		std::vector<Image2D> _actions;
+		std::vector<Array2D<float2>> _inputImages;
+		std::vector<Array2D<float>> _actions;
 
 	public:
 
 		//Run a single simulation tick
 		void simStep(
 			const float reward, 
-			const std::vector<Array2D2f> &inputs,
+			const std::vector<Array2D<float2>> &inputs,
 			const bool learn = true)
 		{
 			for (size_t i = 0; i < _inputImages.size(); ++i) {
@@ -50,7 +50,7 @@ namespace feynman {
 		}
 
 		//Get the action vector
-		const std::vector<Image2D> &getAction() const {
+		const std::vector<Array2D<float>> &getAction() const {
 			return _actions;
 		}
 

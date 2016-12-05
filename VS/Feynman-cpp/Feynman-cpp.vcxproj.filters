@@ -75,9 +75,6 @@
     <None Include="src\SparseFeaturesChunk.ipp">
       <Filter>Header Files</Filter>
     </None>
-    <None Include="src\SparseFeaturesDelay.ipp">
-      <Filter>Header Files</Filter>
-    </None>
     <None Include="src\Mnist_Anomaly_Detection.ipp">
       <Filter>Source Files</Filter>
     </None>

@@ -53,7 +53,7 @@ namespace feynman {
 		std::vector<float> _rewardCounts;
 
 		// All ones image for first layer modulation
-		std::vector<Array2D2f> _ones;
+		std::vector<Array2D<float2>> _ones;
 
 	public:
 
@@ -121,7 +121,7 @@ namespace feynman {
 
 			for (size_t i = 0; i < _ones.size(); ++i) 
 			{
-				_ones[i] = Array2D2f(actionSizes[i]);
+				_ones[i] = Array2D<float2>(actionSizes[i]);
 				_ones[i].fill(float2{ 1.0f, 1.0f });
 			}
 
@@ -142,8 +142,8 @@ namespace feynman {
 		*/
 		void simStep(
 			const float reward,
-			const std::vector<Array2D2f> &inputs,
-			const std::vector<Array2D2f> &inputsCorrupted,
+			const std::vector<Array2D<float2>> &inputs,
+			const std::vector<Array2D<float2>> &inputsCorrupted,
 			std::mt19937 &rng,
 			const bool learn = true) 
 		{
@@ -158,14 +158,14 @@ namespace feynman {
 				float totalReward = _rewardSums[layer] / _rewardCounts[layer];
 
 				for (size_t i = 0; i < _aLayers[layer].size(); i++) {
-					Array2D2f inputs = (layer == 0)
+					Array2D<float2> inputs = (layer == 0)
 						? _p.getHierarchy().getLayer(layer)._sf->getHiddenStates()[_back] 
 						: _aLayers[layer - 1].front().getOneHotActions();
 
 					if (layer == _aLayers.size() - 1) {
 						_aLayers[layer][i].simStep(
 							totalReward, 
-							std::vector<Array2D2f>(1, inputs),
+							std::vector<Array2D<float2>>(1, inputs),
 							_ones[i], 
 							_aLayerDescs[layer][i]._qGamma,
 							_aLayerDescs[layer][i]._qLambda, 
@@ -177,7 +177,7 @@ namespace feynman {
 					else {
 						_aLayers[layer][i].simStep(
 							totalReward, 
-							std::vector<Array2D2f>(1, inputs),
+							std::vector<Array2D<float2>>(1, inputs),
 							_p.getHierarchy().getLayer(layer + 1)._sf->getHiddenStates()[_back], 
 							_aLayerDescs[layer][i]._qGamma, 
 							_aLayerDescs[layer][i]._qLambda,
@@ -220,7 +220,7 @@ namespace feynman {
 		Returns float 2D image where each element is actually an integer, representing the index of the select action for each tile.
 		To get continuous values, divide each tile index by the number of elements in a tile (actionTileSize.x * actionTileSize.y).
 		*/
-		const Image2D &getAction(int index) const {
+		const Array2D<float> &getAction(int index) const {
 			return _aLayers.back()[index].getActions()[_back];
 		}
 

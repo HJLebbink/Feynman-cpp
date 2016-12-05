@@ -44,8 +44,8 @@ namespace feynman {
 		//Layer
 		struct VisibleLayer {
 			//Layer data
-			DoubleBuffer3D _qWeights;
-			DoubleBuffer3D _actionWeights;
+			DoubleBuffer3D<float> _qWeights;
+			DoubleBuffer3D<float> _actionWeights;
 
 			float2 _qToVisible;
 			float2 _visibleToQ;
@@ -70,16 +70,16 @@ namespace feynman {
 		int2 _hiddenSize;
 
 		//Hidden state variables: Q states, actions, td errors, one hot action
-		DoubleBuffer2D _qStates;
-		DoubleBuffer2D _actionProbabilities;
+		DoubleBuffer2D<float> _qStates;
+		DoubleBuffer2D<float> _actionProbabilities;
 
-		DoubleBuffer2D _actionTaken;
-		Image2D _tdError;
-		Array2D2f _oneHotAction;
+		DoubleBuffer2D<float> _actionTaken;
+		Array2D<float> _tdError;
+		Array2D<float2> _oneHotAction;
 
 		//Hidden stimulus summation temporary buffer
-		DoubleBuffer2D _hiddenSummationTempQ;
-		DoubleBuffer2D _hiddenSummationTempHidden;
+		DoubleBuffer2D<float> _hiddenSummationTempQ;
+		DoubleBuffer2D<float> _hiddenSummationTempHidden;
 
 		//Layers and descs
 		std::vector<VisibleLayer> _visibleLayers;
@@ -115,7 +115,7 @@ namespace feynman {
 			// Create layers
 			for (size_t vli = 0; vli < _visibleLayers.size(); ++vli) {
 				VisibleLayer &vl = _visibleLayers[vli];
-				VisibleLayerDesc &vld = _visibleLayerDescs[vli];
+				const VisibleLayerDesc &vld = _visibleLayerDescs[vli];
 
 				vl._qToVisible = float2{ 
 					static_cast<float>(vld._size.x) / static_cast<float>(_numActionTiles.x),
@@ -145,25 +145,25 @@ namespace feynman {
 					const int weightDiam = vld._radius * 2 + 1;
 					const int numWeights = weightDiam * weightDiam;
 					const int3 weightsSize = { _hiddenSize.x, _hiddenSize.y, numWeights };
-					vl._qWeights = createDoubleBuffer3D(weightsSize);
-					randomUniform3D(vl._qWeights[_back], weightsSize, initWeightRange, rng);
+					vl._qWeights = createDoubleBuffer3D<float>(weightsSize);
+					randomUniform3D(vl._qWeights[_back], initWeightRange, rng);
 				}
 			}
 
 			// Hidden state data
-			_qStates = createDoubleBuffer2D(_hiddenSize);
-			_actionProbabilities = createDoubleBuffer2D(_hiddenSize);
-			_actionTaken = createDoubleBuffer2D(_numActionTiles);
+			_qStates = createDoubleBuffer2D<float>(_hiddenSize);
+			_actionProbabilities = createDoubleBuffer2D<float>(_hiddenSize);
+			_actionTaken = createDoubleBuffer2D<float>(_numActionTiles);
 
-			_tdError = Image2D(_numActionTiles);
-			_oneHotAction = Array2D2f(_hiddenSize);
-
+			_tdError = Array2D<float>(_numActionTiles);
+			_oneHotAction = Array2D<float2>(_hiddenSize);
+			
 			clear(_qStates[_back]);
 			clear(_actionProbabilities[_back]);
 			clear(_actionTaken[_back]);
 
-			_hiddenSummationTempQ = createDoubleBuffer2D(_numActionTiles);
-			_hiddenSummationTempHidden = createDoubleBuffer2D(_hiddenSize);
+			_hiddenSummationTempQ = createDoubleBuffer2D<float>(_numActionTiles);
+			_hiddenSummationTempHidden = createDoubleBuffer2D<float>(_hiddenSize);
 		}
 
 		/*!
@@ -180,8 +180,8 @@ namespace feynman {
 		*/
 		void simStep(
 			const float reward, 
-			const std::vector<Array2D2f> &visibleStates,
-			const Array2D2f &modulator,
+			const std::vector<Array2D<float2>> &visibleStates,
+			const Array2D<float2> &modulator,
 			const float qGamma,
 			const float qLambda,
 			const float actionLambda,
@@ -195,7 +195,7 @@ namespace feynman {
 			// Find Q
 			for (size_t vli = 0; vli < _visibleLayers.size(); ++vli) {
 				VisibleLayer &vl = _visibleLayers[vli];
-				VisibleLayerDesc &vld = _visibleLayerDescs[vli];
+				const VisibleLayerDesc &vld = _visibleLayerDescs[vli];
 
 				alActivate(
 					visibleStates[vli],				// in
@@ -334,17 +334,17 @@ namespace feynman {
 		}
 
 		//Get the Q states
-		const DoubleBuffer2D &getQStates() const {
+		const DoubleBuffer2D<float> &getQStates() const {
 			return _qStates;
 		}
 
 		//Get the actions
-		const DoubleBuffer2D &getActions() const {
+		const DoubleBuffer2D<float> &getActions() const {
 			return _actionTaken;
 		}
 
 		//Get the actions in one-hot form
-		const Array2D2f &getOneHotActions() const {
+		const Array2D<float2> &getOneHotActions() const {
 			return _oneHotAction;
 		}
 
@@ -366,10 +366,10 @@ namespace feynman {
 		private:
 
 		static void alActivate(
-			const Array2D2f &hiddenStates,
-			const Image3D &weights,
-			const Image2D &hiddenSummationBack,
-			Image2D &hiddenSummationFront,
+			const Array2D<float2> &hiddenStates,
+			const Array3D<float> &weights,
+			const Array2D<float> &hiddenSummationBack,
+			Array2D<float> &hiddenSummationFront,
 			const int2 hiddenSize,
 			const float2 qToHidden,
 			const int radius,
@@ -405,13 +405,13 @@ namespace feynman {
 		}
 
 		static void alLearnQ(
-			const Array2D2f &hiddenStates,
-			const Image2D &qStates,	// unused
-			const Image2D &qStatesPrev,	//unused
-			const Image2D &tdErrors,
-			const Array2D2f &oneHotActions,
-			const Image3D &weightsBack,
-			Image3D &weightsFront,
+			const Array2D<float2> &hiddenStates,
+			const Array2D<float> &qStates,	// unused
+			const Array2D<float> &qStatesPrev,	//unused
+			const Array2D<float> &tdErrors,
+			const Array2D<float2> &oneHotActions,
+			const Array3D<float> &weightsBack,
+			Array3D<float> &weightsFront,
 			const int2 hiddenSize,
 			const float2 qToHidden,
 			const int radius,
@@ -462,12 +462,12 @@ namespace feynman {
 		}
 
 		static void alLearnActions(
-			const Array2D2f &hiddenStates,
-			const Image2D &actionProbabilities,
-			const Image2D &tdErrors, 
-			const Array2D2f &oneHotActions,
-			const Image3D &weightsBack, 
-			Image3D &weightsFront, // write only
+			const Array2D<float2> &hiddenStates,
+			const Array2D<float> &actionProbabilities,
+			const Array2D<float> &tdErrors,
+			const Array2D<float2> &oneHotActions,
+			const Array3D<float> &weightsBack,
+			Array3D<float> &weightsFront, // write only
 			const int2 hiddenSize, 
 			const float2 aToHidden, 
 			const int radius, 
@@ -512,9 +512,9 @@ namespace feynman {
 		}
 
 		static void alActionToOneHot(
-			const Image2D &hiddenStates,
-			const Image2D &actions,
-			Image2D &oneHotActions,
+			const Array2D<float> &hiddenStates,
+			const Array2D<float> &actions,
+			Array2D<float> &oneHotActions,
 			const int2 subActionDims,
 			const bool modulate,
 			const int2 range)
@@ -542,9 +542,9 @@ namespace feynman {
 		}
 
 		static void alGetAction(
-			const Image2D &activations,
-			Image2D &probabilities,
-			const Image2D &actions,
+			const Array2D<float> &activations,
+			Array2D<float> &probabilities,
+			const Array2D<float> &actions,
 			const int2 subActionDims,
 			const uint2 seed,
 			const int2 range)
@@ -603,13 +603,13 @@ namespace feynman {
 		}
 
 		static void alSetAction(
-			const Array2D2f &modulator,
-			const Image2D &actionsTaken,
-			const Image2D &actionsTakenPrev,
-			const Image2D &qStates,
-			const Image2D &qStatesPrev,
-			Image2D &tdErrorsTrain,
-			Array2D2f &oneHotActions,
+			const Array2D<float2> &modulator,
+			const Array2D<float> &actionsTaken,
+			const Array2D<float> &actionsTakenPrev,
+			const Array2D<float> &qStates,
+			const Array2D<float> &qStatesPrev,
+			Array2D<float> &tdErrorsTrain,
+			Array2D<float2> &oneHotActions,
 			const int2 subActionDims,
 			const float reward,
 			const float gamma,

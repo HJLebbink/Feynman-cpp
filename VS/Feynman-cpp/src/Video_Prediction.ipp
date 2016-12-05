@@ -105,7 +105,7 @@ namespace video {
 			.setValue("p_radius", 8);
 
 		// 4 layers using chunk encoders
-		for (int l = 0; l < 4; l++)
+		for (int l = 0; l < 0; l++)
 			arch.addHigherLayer({ 64, 64 }, feynman::_stdp)
 			.setValue("sfs_ff_radius", 8)
 			.setValue("hl_poolSteps", 2)
@@ -122,12 +122,12 @@ namespace video {
 		std::shared_ptr<feynman::Hierarchy> h = arch.generateHierarchy();
 
 		// Input and prediction fields for color components
-		Array2D2f inputFieldR(inputLayerSize);
-		Array2D2f inputFieldG(inputLayerSize);
-		Array2D2f inputFieldB(inputLayerSize);
-		Array2D2f predFieldR(inputLayerSize);
-		Array2D2f predFieldG(inputLayerSize);
-		Array2D2f predFieldB(inputLayerSize);
+		Array2D<float2> inputFieldR(inputLayerSize);
+		Array2D<float2> inputFieldG(inputLayerSize);
+		Array2D<float2> inputFieldB(inputLayerSize);
+		Array2D<float2> predFieldR(inputLayerSize);
+		Array2D<float2> predFieldG(inputLayerSize);
+		Array2D<float2> predFieldB(inputLayerSize);
 
 		// Unit Gaussian noise for input corruption
 		std::normal_distribution<float> noiseDist(0.0f, 1.0f);
@@ -227,7 +227,7 @@ namespace video {
 				// Run a simulation step of the hierarchy (learning enabled)
 				inputFieldR._name = "inputR";
 
-				std::vector<Array2D2f> inputVector = { inputFieldR, inputFieldG, inputFieldB };
+				std::vector<Array2D<float2>> inputVector = { inputFieldR, inputFieldG, inputFieldB };
 				const bool learn = true;
 				h->simStep(inputVector, learn);
 
@@ -356,7 +356,7 @@ namespace video {
 			
 			window.clear();
 
-			std::vector<Array2D2f> inputVector = { predFieldR, predFieldG, predFieldB };
+			std::vector<Array2D<float2>> inputVector = { predFieldR, predFieldG, predFieldB };
 			const bool learn = false;
 			h->simStep(inputVector, learn);
 
