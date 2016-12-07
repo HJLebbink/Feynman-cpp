@@ -106,8 +106,8 @@ namespace mnist {
 		std::shared_ptr<feynman::Hierarchy> h = arch.generateHierarchy();
 
 		// Input and prediction fields
-		Array2D<float2> inputField(int2{ bottomWidth, bottomHeight });
-		Array2D<float2> predField(int2{ bottomWidth, bottomHeight });
+		Array2D<float> inputField(int2{ bottomWidth, bottomHeight });
+		Array2D<float> predField(int2{ bottomWidth, bottomHeight });
 
 
 		// --------------------------- Create the Windows ---------------------------
@@ -403,12 +403,12 @@ namespace mnist {
 
 			// Retrieve prediction
 			predField = h->getPredictions().front();
-			const Array2D<float2> &newSDR_image = predField; //TODO sparseCoder.getHiddenStates()[_back];
-			const std::vector<float2> &newSDR = newSDR_image._data_float;
-			const std::vector<float2> &predSDR = predField._data_float;
+			const Array2D<float> &newSDR_image = predField; //TODO sparseCoder.getHiddenStates()[_back];
+			const std::vector<float> &newSDR = newSDR_image._data_float;
+			const std::vector<float> &predSDR = predField._data_float;
 
 			for (size_t i = 0; i < newSDR.size(); i++) {
-				anomalyScore += newSDR[i].x * predSDR[i].x;
+				anomalyScore += newSDR[i] * predSDR[i];
 			}
 
 			// Detection
@@ -425,7 +425,7 @@ namespace mnist {
 				averageScore = (averageDecay * averageScore) + ((1.0f - averageDecay) * anomalyScore);
 			}
 			// Hierarchy simulation step
-			std::vector<Array2D<float2>> inputVector = { inputField };
+			std::vector<Array2D<float>> inputVector = { inputField };
 			h->simStep(inputVector, trainMode);
 
 			// Shift plot y values
@@ -544,8 +544,8 @@ namespace mnist {
 				// Show SDRs is corner bottom left
 				if (true) {
 					if (true) {
-						//const Array2D<float2> &newSDR_image = h->getPredictor().getPredLayer(0).getHiddenStates()[_back];
-						const Array2D<float2> &newSDR_image = h->getPredictions().front();
+						//const Array2D<float> &newSDR_image = h->getPredictor().getPredLayer(0).getHiddenStates()[_back];
+						const Array2D<float> &newSDR_image = h->getPredictions().front();
 						plots::plotImage(newSDR_image, 16, "SDR Current");
 					}
 					if (true) {

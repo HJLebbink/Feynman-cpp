@@ -75,7 +75,7 @@ namespace feynman {
 
 		DoubleBuffer2D<float> _actionTaken;
 		Array2D<float> _tdError;
-		Array2D<float2> _oneHotAction;
+		Array2D<float> _oneHotAction;
 
 		//Hidden stimulus summation temporary buffer
 		DoubleBuffer2D<float> _hiddenSummationTempQ;
@@ -156,7 +156,7 @@ namespace feynman {
 			_actionTaken = createDoubleBuffer2D<float>(_numActionTiles);
 
 			_tdError = Array2D<float>(_numActionTiles);
-			_oneHotAction = Array2D<float2>(_hiddenSize);
+			_oneHotAction = Array2D<float>(_hiddenSize);
 			
 			clear(_qStates[_back]);
 			clear(_actionProbabilities[_back]);
@@ -180,8 +180,8 @@ namespace feynman {
 		*/
 		void simStep(
 			const float reward, 
-			const std::vector<Array2D<float2>> &visibleStates,
-			const Array2D<float2> &modulator,
+			const std::vector<Array2D<float>> &visibleStates,
+			const Array2D<float> &modulator,
 			const float qGamma,
 			const float qLambda,
 			const float actionLambda,
@@ -344,7 +344,7 @@ namespace feynman {
 		}
 
 		//Get the actions in one-hot form
-		const Array2D<float2> &getOneHotActions() const {
+		const Array2D<float> &getOneHotActions() const {
 			return _oneHotAction;
 		}
 
@@ -366,7 +366,7 @@ namespace feynman {
 		private:
 
 		static void alActivate(
-			const Array2D<float2> &hiddenStates,
+			const Array2D<float> &hiddenStates,
 			const Array3D<float> &weights,
 			const Array2D<float> &hiddenSummationBack,
 			Array2D<float> &hiddenSummationFront,
@@ -405,11 +405,11 @@ namespace feynman {
 		}
 
 		static void alLearnQ(
-			const Array2D<float2> &hiddenStates,
+			const Array2D<float> &hiddenStates,
 			const Array2D<float> &qStates,	// unused
 			const Array2D<float> &qStatesPrev,	//unused
 			const Array2D<float> &tdErrors,
-			const Array2D<float2> &oneHotActions,
+			const Array2D<float> &oneHotActions,
 			const Array3D<float> &weightsBack,
 			Array3D<float> &weightsFront,
 			const int2 hiddenSize,
@@ -426,7 +426,7 @@ namespace feynman {
 					const int hiddenPositionCenter_y = project(y, qToHidden.y);
 
 					const float tdError = read_2D(tdErrors, x, y);
-					const float oneHotAction = read_2D(oneHotActions, x, y).x;
+					const float oneHotAction = read_2D(oneHotActions, x, y);
 
 					//float2 qState = read_imagef_2D_2x(qStates, qPosition); //TODO: investigate
 					//float2 qStatePrev = read_imagef_2D_2x(qStatesPrev, qPosition); //TODO: investigate
@@ -450,7 +450,7 @@ namespace feynman {
 								const float weightPrev2 = 0;// TODO read_3D(weightsBack, x, y, wi);
 								printf("AgentLayer::TODO");
 
-								const float state = read_2D(hiddenStates, hiddenPosition_x, hiddenPosition_y).x;
+								const float state = read_2D(hiddenStates, hiddenPosition_x, hiddenPosition_y);
 								const float weight1 = weightPrev1 + alpha * tdError * weightPrev2;
 								const float weight2 = lambda * weightPrev2 + (1.0f - lambda) * oneHotAction * state;
 								write_3D(weightsFront, x, y, wi, weight1);
@@ -462,10 +462,10 @@ namespace feynman {
 		}
 
 		static void alLearnActions(
-			const Array2D<float2> &hiddenStates,
+			const Array2D<float> &hiddenStates,
 			const Array2D<float> &actionProbabilities,
 			const Array2D<float> &tdErrors,
-			const Array2D<float2> &oneHotActions,
+			const Array2D<float> &oneHotActions,
 			const Array3D<float> &weightsBack,
 			Array3D<float> &weightsFront, // write only
 			const int2 hiddenSize, 
@@ -603,13 +603,13 @@ namespace feynman {
 		}
 
 		static void alSetAction(
-			const Array2D<float2> &modulator,
+			const Array2D<float> &modulator,
 			const Array2D<float> &actionsTaken,
 			const Array2D<float> &actionsTakenPrev,
 			const Array2D<float> &qStates,
 			const Array2D<float> &qStatesPrev,
 			Array2D<float> &tdErrorsTrain,
-			Array2D<float2> &oneHotActions,
+			Array2D<float> &oneHotActions,
 			const int2 subActionDims,
 			const float reward,
 			const float gamma,

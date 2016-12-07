@@ -15,6 +15,7 @@
 #include "Hierarchy.ipp"
 
 // Encoders
+#include "SparseFeaturesOld.ipp"
 #include "SparseFeaturesChunk.ipp"
 //#include "SparseFeaturesDelay.ipp"
 #include "SparseFeaturesSTDP.ipp"
@@ -125,35 +126,90 @@ namespace feynman {
 		std::shared_ptr<SparseFeatures::SparseFeaturesDesc> sfDescFromName(
 			const int layerIndex,
 			const SparseFeaturesType type,
-			const int2 &size,
+			const int2 size,
 			const SparseFeatures::InputType inputType,
 			std::unordered_map<std::string, std::string> &params)
 		{
 			std::shared_ptr<SparseFeatures::SparseFeaturesDesc> sfDesc;
 
 			switch (type) {
+			case _old: 
+			{
+				std::shared_ptr<SparseFeaturesOld::SparseFeaturesOldDesc> sfDesc_Old = std::make_shared<SparseFeaturesOld::SparseFeaturesOldDesc>();
+
+				sfDesc_Old->_inputType = SparseFeatures::_feedForwardRecurrent;
+				sfDesc_Old->_hiddenSize = size;
+				sfDesc_Old->_rng = _rng;
+
+				if (params.find("inhibitionRadius") != params.end())
+					sfDesc_Old->_inhibitionRadius = std::stoi(params["inhibitionRadius"]);
+				if (params.find("activeRatio") != params.end())
+					sfDesc_Old->_activeRatio = std::stof(params["activeRatio"]);
+				if (params.find("biasAlpha") != params.end())
+					sfDesc_Old->_biasAlpha = std::stof(params["biasAlpha"]);
+				if (params.find("initWeightRange") != params.end())
+					sfDesc_Old->_initWeightRange = ParameterModifier::parseFloat2(params["initWeightRange"]);
+
+				if (layerIndex == 0) {
+					sfDesc_Old->_visibleLayerDescs.resize(_inputLayers.size() + 1);
+					for (size_t i = 0; i < _inputLayers.size(); i++) {
+						sfDesc_Old->_visibleLayerDescs[i]._ignoreMiddle = false;
+						sfDesc_Old->_visibleLayerDescs[i]._size = { _inputLayers[i]._size.x, _inputLayers[i]._size.y };
+						if (_inputLayers[i]._params.find("ff_radius") != _inputLayers[i]._params.end())
+							sfDesc_Old->_visibleLayerDescs[i]._radius = std::stoi(_inputLayers[i]._params["ff_radius"]);
+						if (_inputLayers[i]._params.find("ff_weightAlpha") != _inputLayers[i]._params.end())
+							sfDesc_Old->_visibleLayerDescs[i]._weightAlpha = std::stof(_inputLayers[i]._params["ff_weightAlpha"]);
+					}
+					// Recurrent
+					{
+						sfDesc_Old->_visibleLayerDescs.back()._ignoreMiddle = true;
+						sfDesc_Old->_visibleLayerDescs.back()._size = { _higherLayers[layerIndex]._size.x, _higherLayers[layerIndex]._size.y };
+						if (params.find("r_radius") != params.end())
+							sfDesc_Old->_visibleLayerDescs.back()._radius = std::stoi(params["r_radius"]);
+						if (params.find("r_weightAlpha") != params.end())
+							sfDesc_Old->_visibleLayerDescs.back()._weightAlpha = std::stof(params["r_weightAlpha"]);
+					}
+				}
+				else {
+					sfDesc_Old->_visibleLayerDescs.resize(2);
+					// Feed forward
+					{
+						sfDesc_Old->_visibleLayerDescs[0]._ignoreMiddle = false;
+						sfDesc_Old->_visibleLayerDescs[0]._size = { _higherLayers[layerIndex - 1]._size.x, _higherLayers[layerIndex - 1]._size.y };
+						if (params.find("ff_radius") != params.end())
+							sfDesc_Old->_visibleLayerDescs[0]._radius = std::stoi(params["ff_radius"]);
+						if (params.find("ff_weightAlpha") != params.end())
+							sfDesc_Old->_visibleLayerDescs[0]._weightAlpha = std::stof(params["ff_weightAlpha"]);
+					}
+					// Recurrent
+					{
+						sfDesc_Old->_visibleLayerDescs[1]._ignoreMiddle = true;
+						sfDesc_Old->_visibleLayerDescs[1]._size = { _higherLayers[layerIndex]._size.x, _higherLayers[layerIndex]._size.y };
+						if (params.find("r_radius") != params.end())
+							sfDesc_Old->_visibleLayerDescs[1]._radius = std::stoi(params["r_radius"]);
+						if (params.find("r_weightAlpha") != params.end())
+							sfDesc_Old->_visibleLayerDescs[1]._weightAlpha = std::stof(params["r_weightAlpha"]);
+					}
+				}
+				sfDesc = sfDesc_Old;
+				break;
+			}
 			case _stdp:
 			{
 				std::shared_ptr<SparseFeaturesSTDP::SparseFeaturesSTDPDesc> sfDescSTDP = std::make_shared<SparseFeaturesSTDP::SparseFeaturesSTDPDesc>();
 
 				sfDescSTDP->_inputType = SparseFeatures::_feedForwardRecurrent;
-				sfDescSTDP->_hiddenSize = int2{ size.x, size.y };
+				sfDescSTDP->_hiddenSize = size;
 				sfDescSTDP->_rng = _rng;
 
 				if (params.find("sfs_inhibitionRadius") != params.end())
 					sfDescSTDP->_inhibitionRadius = std::stoi(params["sfs_inhibitionRadius"]);
-
-				if (params.find("sfs_initWeightRange") != params.end()) {
-					float2 initWeightRange = ParameterModifier::parseFloat2(params["sfs_initWeightRange"]);
-					sfDescSTDP->_initWeightRange = { initWeightRange.x, initWeightRange.y };
-				}
-
+				if (params.find("sfs_initWeightRange") != params.end())
+					sfDescSTDP->_initWeightRange = ParameterModifier::parseFloat2(params["sfs_initWeightRange"]);
 				if (params.find("sfs_biasAlpha") != params.end())
 					sfDescSTDP->_biasAlpha = std::stof(params["sfs_biasAlpha"]);
-
 				if (params.find("sfs_activeRatio") != params.end())
 					sfDescSTDP->_activeRatio = std::stof(params["sfs_activeRatio"]);
-
 				if (params.find("sfs_gamma") != params.end())
 					sfDescSTDP->_gamma = std::stof(params["sfs_gamma"]);
 
@@ -162,71 +218,51 @@ namespace feynman {
 
 					for (size_t i = 0; i < _inputLayers.size(); i++) {
 						sfDescSTDP->_visibleLayerDescs[i]._ignoreMiddle = false;
-
 						sfDescSTDP->_visibleLayerDescs[i]._size = { _inputLayers[i]._size.x, _inputLayers[i]._size.y };
-
 						if (_inputLayers[i]._params.find("sfs_ff_radius") != _inputLayers[i]._params.end())
 							sfDescSTDP->_visibleLayerDescs[i]._radius = std::stoi(_inputLayers[i]._params["sfs_ff_radius"]);
-
 						if (_inputLayers[i]._params.find("sfs_ff_weightAlpha") != _inputLayers[i]._params.end())
 							sfDescSTDP->_visibleLayerDescs[i]._weightAlpha = std::stof(_inputLayers[i]._params["sfs_ff_weightAlpha"]);
-
 						if (_inputLayers[i]._params.find("sfs_ff_lambda") != _inputLayers[i]._params.end())
 							sfDescSTDP->_visibleLayerDescs[i]._lambda = std::stof(_inputLayers[i]._params["sfs_ff_lambda"]);
 					}
-
 					// Recurrent
 					{
 						sfDescSTDP->_visibleLayerDescs.back()._ignoreMiddle = true;
-
 						sfDescSTDP->_visibleLayerDescs.back()._size = { _higherLayers[layerIndex]._size.x, _higherLayers[layerIndex]._size.y };
-
 						if (params.find("sfs_r_radius") != params.end())
 							sfDescSTDP->_visibleLayerDescs.back()._radius = std::stoi(params["sfs_r_radius"]);
-
 						if (params.find("sfs_r_weightAlpha") != params.end())
 							sfDescSTDP->_visibleLayerDescs.back()._weightAlpha = std::stof(params["sfs_r_weightAlpha"]);
-
 						if (params.find("sfs_r_lambda") != params.end())
 							sfDescSTDP->_visibleLayerDescs.back()._lambda = std::stof(params["sfs_r_lambda"]);
 					}
 				}
 				else {
 					sfDescSTDP->_visibleLayerDescs.resize(2);
-
 					// Feed forward
 					{
 						sfDescSTDP->_visibleLayerDescs[0]._ignoreMiddle = false;
-
 						sfDescSTDP->_visibleLayerDescs[0]._size = { _higherLayers[layerIndex - 1]._size.x, _higherLayers[layerIndex - 1]._size.y };
-
 						if (params.find("sfs_ff_radius") != params.end())
 							sfDescSTDP->_visibleLayerDescs[0]._radius = std::stoi(params["sfs_ff_radius"]);
-
 						if (params.find("sfs_ff_weightAlpha") != params.end())
 							sfDescSTDP->_visibleLayerDescs[0]._weightAlpha = std::stof(params["sfs_ff_weightAlpha"]);
-
 						if (params.find("sfs_ff_lambda") != params.end())
 							sfDescSTDP->_visibleLayerDescs[0]._lambda = std::stof(params["sfs_ff_lambda"]);
 					}
-
 					// Recurrent
 					{
 						sfDescSTDP->_visibleLayerDescs[1]._ignoreMiddle = true;
-
 						sfDescSTDP->_visibleLayerDescs[1]._size = { _higherLayers[layerIndex]._size.x, _higherLayers[layerIndex]._size.y };
-
 						if (params.find("sfs_r_radius") != params.end())
 							sfDescSTDP->_visibleLayerDescs[1]._radius = std::stoi(params["sfs_r_radius"]);
-
 						if (params.find("sfs_r_weightAlpha") != params.end())
 							sfDescSTDP->_visibleLayerDescs[1]._weightAlpha = std::stof(params["sfs_r_weightAlpha"]);
-
 						if (params.find("sfs_r_lambda") != params.end())
 							sfDescSTDP->_visibleLayerDescs[1]._lambda = std::stof(params["sfs_r_lambda"]);
 					}
 				}
-
 				sfDesc = sfDescSTDP;
 				break;
 			}
@@ -237,67 +273,49 @@ namespace feynman {
 				std::shared_ptr<SparseFeaturesDelay::SparseFeaturesDelayDesc> sfDescDelay = std::make_shared<SparseFeaturesDelay::SparseFeaturesDelayDesc>();
 
 				sfDescDelay->_inputType = SparseFeatures::_feedForward;
-				sfDescDelay->_hiddenSize = { size.x, size.y };
+				sfDescDelay->_hiddenSize = size;
 				sfDescDelay->_rng = _rng;
 
 				if (params.find("sfd_inhibitionRadius") != params.end())
 					sfDescDelay->_inhibitionRadius = std::stoi(params["sfd_inhibitionRadius"]);
-
-				if (params.find("sfd_initWeightRange") != params.end()) {
-					float2 initWeightRange = ParameterModifier::parseFloat2(params["sfd_initWeightRange"]);
-					sfDescDelay->_initWeightRange = { initWeightRange.x, initWeightRange.y };
-				}
-
+				if (params.find("sfd_initWeightRange") != params.end())
+					sfDescDelay->_initWeightRange = ParameterModifier::parseFloat2(params["sfd_initWeightRange"]);
 				if (params.find("sfd_biasAlpha") != params.end())
 					sfDescDelay->_biasAlpha = std::stof(params["sfd_biasAlpha"]);
-
 				if (params.find("sfd_activeRatio") != params.end())
 					sfDescDelay->_activeRatio = std::stof(params["sfd_activeRatio"]);
 
 				if (layerIndex == 0) {
 					sfDescDelay->_visibleLayerDescs.resize(_inputLayers.size());
-
 					for (size_t i = 0; i < _inputLayers.size(); i++) {
 						sfDescDelay->_visibleLayerDescs[i]._ignoreMiddle = false;
-
 						sfDescDelay->_visibleLayerDescs[i]._size = { _inputLayers[i]._size.x, _inputLayers[i]._size.y };
-
 						if (_inputLayers[i]._params.find("sfd_ff_radius") != _inputLayers[i]._params.end())
 							sfDescDelay->_visibleLayerDescs[i]._radius = std::stoi(_inputLayers[i]._params["sfd_ff_radius"]);
-
 						if (_inputLayers[i]._params.find("sfd_ff_weightAlpha") != _inputLayers[i]._params.end())
 							sfDescDelay->_visibleLayerDescs[i]._weightAlpha = std::stof(_inputLayers[i]._params["sfd_ff_weightAlpha"]);
-
 						if (_inputLayers[i]._params.find("sfd_ff_lambda") != _inputLayers[i]._params.end())
 							sfDescDelay->_visibleLayerDescs[i]._lambda = std::stof(_inputLayers[i]._params["sfd_ff_lambda"]);
-
 						if (_inputLayers[i]._params.find("sfd_ff_gamma") != _inputLayers[i]._params.end())
 							sfDescDelay->_visibleLayerDescs[i]._lambda = std::stof(_inputLayers[i]._params["sfd_ff_gamma"]);
 					}
 				}
 				else {
 					sfDescDelay->_visibleLayerDescs.resize(1);
-
 					// Feed forward
 					{
 						sfDescDelay->_visibleLayerDescs[0]._ignoreMiddle = false;
-
 						sfDescDelay->_visibleLayerDescs[0]._size = { _higherLayers[layerIndex - 1]._size.x, _higherLayers[layerIndex - 1]._size.y };
-
 						if (params.find("sfd_ff_radius") != params.end())
 							sfDescDelay->_visibleLayerDescs[0]._radius = std::stoi(params["sfd_ff_radius"]);
-
 						if (params.find("sfd_ff_weightAlpha") != params.end())
 							sfDescDelay->_visibleLayerDescs[0]._weightAlpha = std::stof(params["sfd_ff_weightAlpha"]);
-
 						if (params.find("sfd_ff_lambda") != params.end())
 							sfDescDelay->_visibleLayerDescs[0]._lambda = std::stof(params["sfd_ff_lambda"]);
-
 						if (params.find("sfd_ff_gamma") != params.end())
 							sfDescDelay->_visibleLayerDescs[0]._gamma = std::stof(params["sfd_ff_gamma"]);
 					}
 				}
-
 				sfDesc = sfDescDelay;
 				*/
 				break;
@@ -307,25 +325,17 @@ namespace feynman {
 				std::shared_ptr<SparseFeaturesChunk::SparseFeaturesChunkDesc> sfDescChunk = std::make_shared<SparseFeaturesChunk::SparseFeaturesChunkDesc>();
 
 				sfDescChunk->_inputType = SparseFeatures::_feedForwardRecurrent;
-				sfDescChunk->_hiddenSize = { size.x, size.y };
+				sfDescChunk->_hiddenSize = size;
 				sfDescChunk->_rng = _rng;
 
-				if (params.find("sfc_chunkSize") != params.end()) {
-					int2 chunkSize = ParameterModifier::parseInt2(params["sfc_chunkSize"]);
-					sfDescChunk->_chunkSize = { chunkSize.x, chunkSize.y };
-				}
-
-				if (params.find("sfc_initWeightRange") != params.end()) {
-					float2 initWeightRange = ParameterModifier::parseFloat2(params["sfc_initWeightRange"]);
-					sfDescChunk->_initWeightRange = { initWeightRange.x, initWeightRange.y };
-				}
-
+				if (params.find("sfc_chunkSize") != params.end()) 
+					sfDescChunk->_chunkSize = ParameterModifier::parseInt2(params["sfc_chunkSize"]);
+				if (params.find("sfc_initWeightRange") != params.end()) 
+					sfDescChunk->_initWeightRange = ParameterModifier::parseFloat2(params["sfc_initWeightRange"]);
 				if (params.find("sfc_numSamples") != params.end())
 					sfDescChunk->_numSamples = std::stoi(params["sfc_numSamples"]);
-
 				if (params.find("sfc_biasAlpha") != params.end())
 					sfDescChunk->_biasAlpha = std::stof(params["sfc_biasAlpha"]);
-
 				if (params.find("sfc_gamma") != params.end())
 					sfDescChunk->_gamma = std::stof(params["sfc_gamma"]);
 
@@ -334,71 +344,51 @@ namespace feynman {
 
 					for (size_t i = 0; i < _inputLayers.size(); i++) {
 						sfDescChunk->_visibleLayerDescs[i]._ignoreMiddle = false;
-
 						sfDescChunk->_visibleLayerDescs[i]._size = { _inputLayers[i]._size.x, _inputLayers[i]._size.y };
-
 						if (_inputLayers[i]._params.find("sfc_ff_radius") != _inputLayers[i]._params.end())
 							sfDescChunk->_visibleLayerDescs[i]._radius = std::stoi(_inputLayers[i]._params["sfc_ff_radius"]);
-
 						if (_inputLayers[i]._params.find("sfc_ff_weightAlpha") != _inputLayers[i]._params.end())
 							sfDescChunk->_visibleLayerDescs[i]._weightAlpha = std::stof(_inputLayers[i]._params["sfc_ff_weightAlpha"]);
-
 						if (_inputLayers[i]._params.find("sfc_ff_lambda") != _inputLayers[i]._params.end())
 							sfDescChunk->_visibleLayerDescs[i]._lambda = std::stof(_inputLayers[i]._params["sfc_ff_lambda"]);
 					}
-
 					// Recurrent
 					{
 						sfDescChunk->_visibleLayerDescs.back()._ignoreMiddle = true;
-
 						sfDescChunk->_visibleLayerDescs.back()._size = { _higherLayers[layerIndex]._size.x, _higherLayers[layerIndex]._size.y };
-
 						if (params.find("sfc_r_radius") != params.end())
 							sfDescChunk->_visibleLayerDescs.back()._radius = std::stoi(params["sfc_r_radius"]);
-
 						if (params.find("sfc_r_weightAlpha") != params.end())
 							sfDescChunk->_visibleLayerDescs.back()._weightAlpha = std::stof(params["sfc_r_weightAlpha"]);
-
 						if (params.find("sfc_r_lambda") != params.end())
 							sfDescChunk->_visibleLayerDescs.back()._lambda = std::stof(params["sfc_r_lambda"]);
 					}
 				}
 				else {
 					sfDescChunk->_visibleLayerDescs.resize(2);
-
 					// Feed forward
 					{
 						sfDescChunk->_visibleLayerDescs[0]._ignoreMiddle = false;
-
 						sfDescChunk->_visibleLayerDescs[0]._size = { _higherLayers[layerIndex - 1]._size.x, _higherLayers[layerIndex - 1]._size.y };
-
 						if (params.find("sfc_ff_radius") != params.end())
 							sfDescChunk->_visibleLayerDescs[0]._radius = std::stoi(params["sfc_ff_radius"]);
-
 						if (params.find("sfc_ff_weightAlpha") != params.end())
 							sfDescChunk->_visibleLayerDescs[0]._weightAlpha = std::stof(params["sfc_ff_weightAlpha"]);
-
 						if (params.find("sfc_ff_lambda") != params.end())
 							sfDescChunk->_visibleLayerDescs[0]._lambda = std::stof(params["sfc_ff_lambda"]);
 					}
-
 					// Recurrent
 					{
 						sfDescChunk->_visibleLayerDescs[1]._ignoreMiddle = true;
-
 						sfDescChunk->_visibleLayerDescs[1]._size = { _higherLayers[layerIndex]._size.x, _higherLayers[layerIndex]._size.y };
-
 						if (params.find("sfc_r_radius") != params.end())
 							sfDescChunk->_visibleLayerDescs[1]._radius = std::stoi(params["sfc_r_radius"]);
-
 						if (params.find("sfc_r_weightAlpha") != params.end())
 							sfDescChunk->_visibleLayerDescs[1]._weightAlpha = std::stof(params["sfc_r_weightAlpha"]);
-
 						if (params.find("sfc_r_lambda") != params.end())
 							sfDescChunk->_visibleLayerDescs[1]._lambda = std::stof(params["sfc_r_lambda"]);
 					}
 				}
-
 				sfDesc = sfDescChunk;
 				break;
 			}
@@ -459,38 +449,18 @@ namespace feynman {
 			// last checked: 28-nov 2016
 
 			std::shared_ptr<Hierarchy> h = std::make_shared<Hierarchy>();
-
 			h->_rng = _rng;
-			h->_inputImages.resize(_inputLayers.size());
-
-			std::vector<bool> shouldPredict(_inputLayers.size());
 
 			for (size_t i = 0; i < _inputLayers.size(); ++i) {
-				h->_inputImages[i] = Array2D<float2>(_inputLayers[i]._size);
-
-				/*if (_inputLayers[i]._params.find("in_predict") != _inputLayers[i]._params.end()) {
-				if (_inputLayers[i]._params["in_predict"] == ParameterModifier::_boolTrue) {
-				h->_predictions.push_back(ValueField2D(_inputLayers[i]._size));
-
-				shouldPredict[i] = true;
-				}
-				else
-				shouldPredict[i] = false;
-				}
-				else {*/
-				h->_predictions.push_back(Array2D<float2>(_inputLayers[i]._size));
-
-				shouldPredict[i] = true;
-				//}
+				h->_predictions.push_back(Array2D<float>(_inputLayers[i]._size));
 			}
 
 			std::vector<Predictor::PredLayerDesc> pLayerDescs(_higherLayers.size());
 			std::vector<FeatureHierarchy::LayerDesc> hLayerDescs(_higherLayers.size());
 
 			float2 initWeightRange = float2{ -0.01f, 0.01f };
-			if (additionalParams.find("ad_initWeightRange") != additionalParams.end()) {
+			if (additionalParams.find("ad_initWeightRange") != additionalParams.end())
 				initWeightRange = ParameterModifier::parseFloat2(additionalParams["ad_initWeightRange"]);
-			}
 
 			// Fill out layer descs
 			for (size_t l = 0; l < _higherLayers.size(); ++l) {
@@ -502,7 +472,6 @@ namespace feynman {
 				// P layer desc
 				if (_higherLayers[l]._params.find("p_alpha") != _higherLayers[l]._params.end())
 					pLayerDescs[l]._alpha = std::stof(_higherLayers[l]._params["p_alpha"]);
-
 				if (_higherLayers[l]._params.find("p_radius") != _higherLayers[l]._params.end())
 					pLayerDescs[l]._radius = std::stoi(_higherLayers[l]._params["p_radius"]);
 			}
@@ -519,13 +488,10 @@ namespace feynman {
 
 				if (_inputLayers[i]._params.find("in_p_alpha") != _inputLayers[i]._params.end())
 					vlds.front()._alpha = std::stof(_inputLayers[i]._params["in_p_alpha"]);
-
 				if (_inputLayers[i]._params.find("in_p_radius") != _inputLayers[i]._params.end())
 					vlds.front()._radius = std::stoi(_inputLayers[i]._params["in_p_radius"]);
-
 				h->_readoutLayers[i].createRandom(h->_predictions[i].getSize(), vlds, nullptr, initWeightRange, _rng);
 			}
-
 			return h;
 		}
 		
@@ -538,7 +504,7 @@ namespace feynman {
 			a->_inputImages.resize(_inputLayers.size());
 
 			for (size_t i = 0; i < _inputLayers.size(); i++)
-				a->_inputImages[i] = Array2D<float2>(_inputLayers[i]._size);
+				a->_inputImages[i] = Array2D<float>(_inputLayers[i]._size);
 
 			std::vector<int2> actionSizes(_actionLayers.size());
 			std::vector<int2> actionTileSizes(_actionLayers.size());
@@ -572,7 +538,6 @@ namespace feynman {
 				// P layer desc
 				if (_higherLayers[l]._params.find("p_alpha") != _higherLayers[l]._params.end())
 					pLayerDescs[l]._alpha = std::stof(_higherLayers[l]._params["p_alpha"]);
-
 				if (_higherLayers[l]._params.find("p_radius") != _higherLayers[l]._params.end())
 					pLayerDescs[l]._radius = std::stoi(_higherLayers[l]._params["p_radius"]);
 

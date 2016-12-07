@@ -10,8 +10,6 @@
 #include <memory>
 #include "Helpers.ipp"
 #include "SparseFeatures.ipp"
-#include "FixedPoint.ipp"
-
 
 namespace feynman {
 
@@ -50,7 +48,7 @@ namespace feynman {
 		struct VisibleLayer {
 
 			//Possibly manipulated input
-			DoubleBuffer2D<float2> _derivedInput;
+			DoubleBuffer2D<float> _derivedInput;
 
 			// Samples (time sliced derived inputs)
 			DoubleBuffer3D<float> _samples;
@@ -114,8 +112,8 @@ namespace feynman {
 	private:
 
 		//Activations, states, biases
-		DoubleBuffer2D<float2> _hiddenStates;
-		DoubleBuffer2D<float2> _hiddenActivations;
+		DoubleBuffer2D<float> _hiddenStates;
+		DoubleBuffer2D<float> _hiddenActivations;
 		DoubleBuffer2D<float> _hiddenBiases;
 		Array2D<int2> _chunkWinners;
 
@@ -207,7 +205,7 @@ namespace feynman {
 					randomUniform3D(vl._weights[_back], initWeightRange, rng);
 					//plots::plotImage(vl._weights[_back], 6, "SFChunk:constructor:weights" + std::to_string(vli));
 				}
-				vl._derivedInput = createDoubleBuffer2D<float2>(vld._size);
+				vl._derivedInput = createDoubleBuffer2D<float>(vld._size);
 				clear(vl._derivedInput[_back]);
 
 				vl._samples = createDoubleBuffer3D<float>({ vld._size.x, vld._size.y, numSamples });
@@ -218,8 +216,8 @@ namespace feynman {
 			}
 
 			// Hidden state data
-			_hiddenStates = createDoubleBuffer2D<float2>(_hiddenSize);
-			_hiddenActivations = createDoubleBuffer2D<float2>(_hiddenSize);
+			_hiddenStates = createDoubleBuffer2D<float>(_hiddenSize);
+			_hiddenActivations = createDoubleBuffer2D<float>(_hiddenSize);
 			_hiddenBiases = createDoubleBuffer2D<float>(_hiddenSize);
 			_chunkWinners = Array2D<int2>(int2{ chunksInX, chunksInY });
 			_hiddenSummationTemp = createDoubleBuffer2D<float>(_hiddenSize);
@@ -242,8 +240,8 @@ namespace feynman {
 		\param rng a random number generator.
 		*/
 		void activate(
-			const std::vector<Array2D<float2>> &visibleStates,
-			const Array2D<float2> &predictionsPrev,
+			const std::vector<Array2D<float>> &visibleStates,
+			const Array2D<float> &predictionsPrev,
 			std::mt19937 &rng) override
 		{
 			// last checked: 28-nov 2016
@@ -259,6 +257,7 @@ namespace feynman {
 
 				//plots::plotImage(visibleStates[vli], 6, "SFChunk:activate:visibleStates" + std::to_string(vli));
 
+				if (EXPLAIN) std::cout << "EXPLAIN: SFChunk:activate: visible layer " << vli << "/" << _visibleLayers.size() << ": deriving inputs." << std::endl;
 				sfcDeriveInputs(
 					visibleStates[vli],			// in
 					vl._derivedInput[_back],	// unused
@@ -269,11 +268,13 @@ namespace feynman {
 
 				//plots::plotImage(vl._derivedInput[_front], 6, "SFChunk:activate:derivedInput" + std::to_string(vli));
 
+				// Derive inputs
+				if (EXPLAIN) std::cout << "EXPLAIN: SFChunk:activate: visible layer " << vli << "/" << _visibleLayers.size() << ": sampling inputs (" << _numSamples << ")." << std::endl;
 				// Add sample
 				sfcAddSample(
 					vl._derivedInput[_front],		// in
 					vl._samples[_back],				// in
-					vl._samples[_front],			// out
+					vl._samples[_front],			// out: 
 					_numSamples,
 					vld._size
 				);
@@ -281,6 +282,7 @@ namespace feynman {
 				//plots::plotImage(vl._samples[_front], 6, "SFChunk:activate:samples" + std::to_string(vli));
 				//plots::plotImage(vl._weights[_back], 6, "SFChunk:activate:weights" + std::to_string(vli));
 
+				if (EXPLAIN) std::cout << "EXPLAIN: SFChunk:activate: visible layer " << vli << "/" << _visibleLayers.size() << ": adding inputs to stimuls influx." << std::endl;
 				sfcStimulus(
 					vl._samples[_front],			// in
 					_hiddenSummationTemp[_back],	// in
@@ -303,6 +305,7 @@ namespace feynman {
 			}
 
 			// Activate
+			if (EXPLAIN) std::cout << "EXPLAIN: SFChunk:activate: calculating activation based on stimulus influx." << std::endl;
 			sfcActivate(
 				_hiddenSummationTemp[_back],	// in
 				_hiddenStates[_back],			// unused
@@ -312,15 +315,15 @@ namespace feynman {
 			//plots::plotImage(_hiddenSummationTemp[_back], 6, "SFChunk:activate:hiddenSummationTemp");
 			//plots::plotImage(_hiddenActivations[_front], 6, "SFChunk:activate:hiddenActivations");
 
-
 			// Inhibit
 			const int chunksInX = static_cast<int>(std::ceil(static_cast<float>(_hiddenSize.x) / _chunkSize.x));
 			const int chunksInY = static_cast<int>(std::ceil(static_cast<float>(_hiddenSize.y) / _chunkSize.y));
 
+			if (EXPLAIN) std::cout << "EXPLAIN: SFChunk:activate: calculating hidden state SDR based on activations." << std::endl;
 			sfcInhibit(
 				_hiddenActivations[_front],		// in
-				_hiddenStates[_front],			// out
-				_chunkWinners,
+				_hiddenStates[_front],			// out: note: _hiddenStates are used in learn
+				_chunkWinners,					// out: note: _chunkWinners are used in learn
 				_hiddenSize,
 				_chunkSize,
 				int2{ chunksInX , chunksInY }
@@ -383,7 +386,7 @@ namespace feynman {
 				cs.getQueue().enqueueNDRangeKernel(_reconstructKernel, cl::NullRange, cl::NDRange(vld._size.x, vld._size.y));
 				}*/
 
-				//std::cout << "INFO: SFChunk:learn: vld._weightAlpha=" << vld._weightAlpha << "; _gamma="<< _gamma <<std::endl;
+				//std::cout << "INFO: SFChunk:learn: weightAlpha=" << vld._weightAlpha << "; gamma="<< _gamma <<std::endl;
 
 				// Weight update
 				sfcLearnWeights(
@@ -405,6 +408,24 @@ namespace feynman {
 
 				std::swap(vl._weights[_front], vl._weights[_back]);
 			}
+
+			// Learn biases
+			/*{
+			float activeRatio = 1.0f / (_chunkSize.x * _chunkSize.y);
+
+			int argIndex = 0;
+
+			_learnBiasesKernel.setArg(argIndex++, _hiddenSummationTemp[_back]);
+			_learnBiasesKernel.setArg(argIndex++, _hiddenStates[_front]);
+			_learnBiasesKernel.setArg(argIndex++, _hiddenBiases[_back]);
+			_learnBiasesKernel.setArg(argIndex++, _hiddenBiases[_front]);
+			_learnBiasesKernel.setArg(argIndex++, activeRatio);
+			_learnBiasesKernel.setArg(argIndex++, _biasAlpha);
+
+			cs.getQueue().enqueueNDRangeKernel(_learnBiasesKernel, cl::NullRange, cl::NDRange(_hiddenSize.x, _hiddenSize.y));
+
+			std::swap(_hiddenBiases[_front], _hiddenBiases[_back]);
+			}*/
 		}
 
 		/*!
@@ -412,8 +433,8 @@ namespace feynman {
 		Inhibits given activations using this encoder's inhibitory pattern
 		*/
 		void inhibit(
-			const Array2D<float2> &activations,
-			Array2D<float2> &states,
+			const Array2D<float> &activations,
+			Array2D<float> &states,
 			std::mt19937 &rng) override 
 		{
 			// last checked: 25-nov 2016
@@ -460,7 +481,7 @@ namespace feynman {
 		/*!
 		\brief Get hidden states
 		*/
-		const DoubleBuffer2D<float2> &getHiddenStates() const override {
+		const DoubleBuffer2D<float> &getHiddenStates() const override {
 			// last checked: 25-nov
 			return _hiddenStates;
 		}
@@ -468,7 +489,7 @@ namespace feynman {
 		/*!
 		\brief Get context
 		*/
-		const Array2D<float2> &getHiddenContext() const override {
+		const Array2D<float> &getHiddenContext() const override {
 			// last checked: 25-nov
 			return _hiddenActivations[_back];
 		}
@@ -701,7 +722,7 @@ namespace feynman {
 	private:
 
 		static void sfcAddSample(
-			const Array2D<float2> &visibleStates,
+			const Array2D<float> &visibleStates,
 			const Array3D<float> &samplesBack,
 			Array3D<float> &samplesFront,
 			const int numSamples,
@@ -710,7 +731,7 @@ namespace feynman {
 			// last checked: 25-nov 2016
 			for (int position_x = 0; position_x < range.x; ++position_x) {
 				for (int position_y = 0; position_y < range.y; ++position_y) {
-					const float visibleState = read_2D(visibleStates, position_x, position_y).x;
+					const float visibleState = read_2D(visibleStates, position_x, position_y);
 					for (int s = 1; s < numSamples; ++s) {
 						const float samplePrev = read_3D(samplesBack, position_x, position_y, s - 1);
 						write_3D(samplesFront, position_x, position_y, s, samplePrev);
@@ -1115,9 +1136,9 @@ namespace feynman {
 		}
 
 		static void sfcActivate(
-			const Array2D<float> &hiddenStimuli,
-			const Array2D<float2> &hiddenStatesPrev,	// unused
-			Array2D<float2> &hiddenActivationsFront,	// write only
+			const Array2D<float> &hiddenStimuli,	// in
+			const Array2D<float> &hiddenStatesPrev,	// unused
+			Array2D<float> &hiddenActivationsFront,	// write only
 			const int2 range)
 		{
 			// last checked: 28-nov 2016
@@ -1125,15 +1146,15 @@ namespace feynman {
 			for (int i = 0; i < nElements; ++i) {
 				const float hiddenStimulus = hiddenStimuli._data_float[i];
 				const float newValue = exp(hiddenStimulus);
-				hiddenActivationsFront._data_float[i] = { newValue, 0.0f };
+				hiddenActivationsFront._data_float[i] = newValue;
 			}
 			//plots::plotImage(hiddenStimuli, 8, "SparseFeaturesChunk:sfcActivate:hiddenStimuli");
 			//plots::plotImage(hiddenActivationsFront, 8, "SparseFeaturesChunk:sfcActivate;hiddenActivationsFront");
 		}
 
 		static void sfcInhibit(
-			const Array2D<float2> &activations,
-			Array2D<float2> &hiddenStatesFront,		// write only
+			const Array2D<float> &activations,	// in
+			Array2D<float> &hiddenStatesFront,	// write only
 			Array2D<int2> &chunkWinners,		// write only
 			const int2 hiddenSize,
 			const int2 chunkSize,
@@ -1159,7 +1180,7 @@ namespace feynman {
 								const int hiddenPosition_y = hiddenStartPosition_y + dy;
 								if (inBounds(hiddenPosition_y, hiddenSize.y)) {
 
-									const float activation = read_2D(activations, hiddenPosition_x, hiddenPosition_y).x;
+									const float activation = read_2D(activations, hiddenPosition_x, hiddenPosition_y);
 									if (activation > maxValue) {
 										maxValue = activation;
 										maxDelta = int2{ dx, dy };
@@ -1181,7 +1202,7 @@ namespace feynman {
 
 									//float tracePrev = read_imagef(hiddenStatesBack, defaultSampler, hiddenPosition).y;
 									const float newValue = ((dx == maxDelta.x) && (dy == maxDelta.y)) ? 1.0f : 0.0f;
-									write_2D(hiddenStatesFront, hiddenPosition_x, hiddenPosition_y, float2{ newValue, 0.0f });
+									write_2D(hiddenStatesFront, hiddenPosition_x, hiddenPosition_y, newValue);
 								}
 							}
 						}
@@ -1194,8 +1215,8 @@ namespace feynman {
 		}
 
 		static void sfcInhibitOther(
-			const Array2D<float2> &activations,
-			Array2D<float2> &hiddenStatesFront,		// write only
+			const Array2D<float> &activations,
+			Array2D<float> &hiddenStatesFront,		// write only
 			const int2 hiddenSize,
 			const int2 chunkSize,
 			const int2 range)
@@ -1218,7 +1239,7 @@ namespace feynman {
 								const int hiddenPosition_y = hiddenStartPosition_y + dy;
 								if (inBounds(hiddenPosition_y, hiddenSize.y)) {
 
-									const float activation = read_2D(activations, hiddenPosition_x, hiddenPosition_y).x;
+									const float activation = read_2D(activations, hiddenPosition_x, hiddenPosition_y);
 									if (activation > maxValue) {
 										maxValue = activation;
 										maxDelta = int2{ dx, dy };
@@ -1240,7 +1261,7 @@ namespace feynman {
 
 									//const float tracePrev = read_imagef(hiddenStatesBack, defaultSampler, hiddenPosition).y;
 									const float newValue = ((dx == maxDelta.x) && (dy == maxDelta.y)) ? 1.0f : 0.0f;
-									write_2D(hiddenStatesFront, hiddenPosition_x, hiddenPosition_y, { newValue, 0.0f });
+									write_2D(hiddenStatesFront, hiddenPosition_x, hiddenPosition_y, newValue);
 								}
 							}
 						}
@@ -1534,7 +1555,7 @@ namespace feynman {
 		}
 
 		static void sfcLearnWeights(
-			const Array2D<float2> &hiddenStates, // unused?
+			const Array2D<float> &hiddenStates, // unused?
 			const Array2D<int2> &chunkWinners,
 			const Array3D<float> &samples,
 			const Array3D<float> &weightsBack,
@@ -1558,6 +1579,8 @@ namespace feynman {
 			default: printf("ERROR: SparseFeatures::sfcLearnWeights: provided radius %i is not implemented\n", radius); break;
 			}
 			*/
+			//std::cout << "INFO: SFChunk:sfcLearnWeights: weightAlpha=" << weightAlpha << "; gamma="<< gamma << std::endl;
+
 			// last checked: 28-nov 2016
 			for (int hiddenPosition_x = 0; hiddenPosition_x < range.x; hiddenPosition_x++) {
 				for (int hiddenPosition_y = 0; hiddenPosition_y < range.y; hiddenPosition_y++) {
@@ -1638,21 +1661,23 @@ namespace feynman {
 		}
 
 		static void sfcDeriveInputs(
-			const Array2D<float2> &inputs,
-			const Array2D<float2> &outputsBack,
-			Array2D<float2> &outputsFront, // write only
+			const Array2D<float> &inputs,
+			const Array2D<float> &outputsBack,
+			Array2D<float> &outputsFront, // write only
 			const float lambda,
 			const int2 range)
 		{
+			if (lambda != 0.0f) std::cout << "WARNING: SFChunk: sfcDeriveInputs: lambda=" << lambda << std::endl;
+
 			// last checked: 28-nov 2016
 			const int nElements = range.x * range.y;
 			for (int i = 0; i < nElements; ++i) {
-				const float input = inputs._data_float[i].x;
-				const float tracePrev = outputsBack._data_float[i].y;
-
+				const float input = inputs._data_float[i];
+				//const float tracePrev = outputsBack._data_float[i].y;
 				const float newValueA = input;
-				const float newValueB = lambda * tracePrev + (1.0f - lambda) * input;
-				outputsFront._data_float[i] = float2{ newValueA, newValueB };
+				//const float newValueB = lambda * tracePrev + (1.0f - lambda) * input;
+				//outputsFront._data_float[i] = float2{ newValueA, newValueB };
+				outputsFront._data_float[i] = newValueA;
 			}
 		}
 	};

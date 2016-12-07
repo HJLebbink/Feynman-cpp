@@ -17,9 +17,11 @@
 
 namespace feynman {
 
+	const bool EXPLAIN = true;
+
 	//Possible encoder identifiers
-	 enum SparseFeaturesType {
-		_stdp, _delay, _chunk
+	enum SparseFeaturesType {
+		_old, _stdp, _delay, _chunk
 	};
 
 	std::mt19937 generator_test(static_cast<unsigned int>(time(nullptr)));
@@ -55,7 +57,6 @@ namespace feynman {
 		std::vector<FixedP> _data_fixP;
 #		endif
 		int2 _size;
-		std::string _name = ""; // used for debugging purposes
 
 
 		Array2D(int2 size) : _size(size)
@@ -317,7 +318,6 @@ namespace feynman {
 	static void copy(const Array2D<T> &src, Array2D<T> &dst) {
 		const size_t nBytes = src._size.x * src._size.y * sizeof(T);
 		memcpy(&dst._data_float[0], &src._data_float[0], nBytes);
-		dst._name = src._name;
 
 #		ifdef USE_FIXED_POINT
 		const size_t nBytesFixP = src._size.x * src._size.y * sizeof(FixedP);

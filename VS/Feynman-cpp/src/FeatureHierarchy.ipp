@@ -44,13 +44,14 @@ namespace feynman {
 			int _clock;
 
 			//brief Temporal pooling buffer
-			DoubleBuffer2D<float2> _tpBuffer;
+			DoubleBuffer2D<float> _tpBuffer;
 
 			//brief Prediction error temporary buffer
 			Array2D<float> _predErrors;
 
-			//Flags for use by other systems
+			//Flag (for use by other systems) to reset temporal pooler
 			bool _tpReset;
+			//Flag (for use by other systems) to reset temporal pooler
 			bool _tpNextReset;
 
 			//Initialize defaults
@@ -90,7 +91,7 @@ namespace feynman {
 				_layers[layer]._sf = _layerDescs[layer]._sfDesc->sparseFeaturesFactory();
 
 				// Create temporal pooling buffer
-				_layers[layer]._tpBuffer = createDoubleBuffer2D<float2>(_layers[layer]._sf->getHiddenSize());
+				_layers[layer]._tpBuffer = createDoubleBuffer2D<float>(_layers[layer]._sf->getHiddenSize());
 
 				// Prediction error
 				_layers[layer]._predErrors = Array2D<float>(_layers[layer]._sf->getHiddenSize());
@@ -105,8 +106,8 @@ namespace feynman {
 		\param learn optional argument to disable learning.
 		*/
 		void simStep(
-			const std::vector<Array2D<float2>> &inputs,
-			const std::vector<Array2D<float2>> &predictionsPrev,
+			const std::vector<Array2D<float>> &inputs,
+			const std::vector<Array2D<float>> &predictionsPrev,
 			std::mt19937 &rng,
 			const bool learn = true)
 		{
@@ -115,8 +116,11 @@ namespace feynman {
 			// Clear summation buffers if reset previously
 			for (size_t l = 0; l < _layers.size(); ++l) {
 				if (_layers[l]._tpNextReset) {
-					// Clear summation buffer
+					if (EXPLAIN) std::cout << "EXPLAIN: FeatureHierarchy:simStep: layer " << l << "/" << _layers.size() << ": clearing temporal pooling buffer (" << _layerDescs[l]._poolSteps << ")." << std::endl;
 					clear(_layers[l]._tpBuffer[_back]);
+				}
+				else {
+					if (EXPLAIN) std::cout << "EXPLAIN: FeatureHierarchy:simStep: layer " << l << "/" << _layers.size() << ": not clearing temporal pooling buffer (" << _layerDescs[l]._poolSteps << ")." << std::endl;
 				}
 			}
 
@@ -129,59 +133,72 @@ namespace feynman {
 					_layers[l]._clock++;
 
 					// Gather inputs for layer
-					std::vector<Array2D<float2>> visibleStates;
+					std::vector<Array2D<float>> visibleStates;
 					{
 						if (l == 0) {
-							std::vector<Array2D<float2>> inputsUse = inputs;
+							std::vector<Array2D<float>> inputsUse = inputs;
 
-							if (_layerDescs.front()._sfDesc->_inputType == SparseFeatures::_feedForwardRecurrent)
-								inputsUse.push_back(_layers.front()._sf->getHiddenContext());
-
-							visibleStates = inputsUse;
+							if (_layerDescs[0]._sfDesc->_inputType == SparseFeatures::_feedForwardRecurrent) {
+								visibleStates = inputs;
+								visibleStates.push_back(_layers[0]._sf->getHiddenContext());
+								if (EXPLAIN) std::cout << "EXPLAIN: FeatureHierarchy:simStep: layer " << l << "/" << _layers.size() << ": running sparseFeature.activate on 1) " << inputs.size() << " input layers and 2) recurrent influx from hidden state from layer " << l << "." << std::endl;
+							}
+							else {
+								visibleStates = inputs;
+								if (EXPLAIN) std::cout << "EXPLAIN: FeatureHierarchy:simStep: layer " << l << "/" << _layers.size() << ": running sparseFeature.activate on 1) " << inputs.size() << " input layers (and no recurrent influx)." << std::endl;
+							}
 						}
-						else
-							visibleStates = (_layerDescs[l]._sfDesc->_inputType == SparseFeatures::_feedForwardRecurrent) 
-								? std::vector<Array2D<float2>>{ _layers[l - 1]._tpBuffer[_back], _layers[l]._sf->getHiddenContext() }
-								: std::vector<Array2D<float2>>{ _layers[l - 1]._tpBuffer[_back] };
+						else {
+							if (_layerDescs[l]._sfDesc->_inputType == SparseFeatures::_feedForwardRecurrent) {
+								visibleStates = { _layers[l - 1]._tpBuffer[_back], _layers[l]._sf->getHiddenContext() };
+								if (EXPLAIN) std::cout << "EXPLAIN: FeatureHierarchy:simStep: layer " << l << "/" << _layers.size() << ": running sparseFeature.activate on 1) temporal pooled layer " << (l - 1) << " and 2) recurrent influx from hidden state from layer " << l << "." << std::endl;
+							}
+							else {
+								visibleStates = { _layers[l - 1]._tpBuffer[_back] };
+								if (EXPLAIN) std::cout << "EXPLAIN: FeatureHierarchy:simStep: layer " << l << "/" << _layers.size() << ": running sparseFeature.activate on 1) temporal pooled layer " << (l - 1) << " (and no recurrent influx)." << std::endl;
+							}
+						}
 					}
 
 					// Update layer
 					_layers[l]._sf->activate(visibleStates, predictionsPrev[l], rng);
 
-					if (learn)
-						_layers[l]._sf->learn(rng);
-
+					if (learn) _layers[l]._sf->learn(rng);
 					_layers[l]._sf->stepEnd();
 
 					// Prediction error
 					//plots::plotImage(_layers[l]._sf->getHiddenStates()[_back], 8, "FeatureHierarchy:simStep:hiddenState" + std::to_string(l));
 
+					if (EXPLAIN) std::cout << "EXPLAIN: FeatureHierarchy:simStep: layer " << l << "/" << _layers.size() << ": calculating prediction error between hidden state and previous prediction." << std::endl;
 					fhPredError(
-						_layers[l]._sf->getHiddenStates()[_back],	// in
-						predictionsPrev[l],							// in
-						_layers[l]._predErrors,						// out
+						_layers[l]._sf->getHiddenContext(),	// in
+						predictionsPrev[l],					// in
+						_layers[l]._predErrors,				// out
 						_layers[l]._sf->getHiddenSize()
 					);
 
 					//plots::plotImage(_layers[l]._predErrors, 8, "FeatureHierarchy:simStep:predErrors" + std::to_string(l));
 
 					// Add state to average
+					if (EXPLAIN) std::cout << "EXPLAIN: FeatureHierarchy:simStep: layer " << l << "/" << _layers.size() << ": temporal pooling ("<< _layerDescs[l]._poolSteps << ") prediction errors." << std::endl;
 					fhPool(
-						_layers[l]._predErrors,
-						_layers[l]._tpBuffer[_back],
-						_layers[l]._tpBuffer[_front],
+						_layers[l]._predErrors,				// in
+						_layers[l]._tpBuffer[_back],		// in
+						_layers[l]._tpBuffer[_front],		// out
 						1.0f / std::max(1, _layerDescs[l]._poolSteps),
 						_layers[l]._sf->getHiddenSize()
 					);
 
 					std::swap(_layers[l]._tpBuffer[_front], _layers[l]._tpBuffer[_back]);
 				}
+				else {
+					if (EXPLAIN) std::cout << "EXPLAIN: FeatureHierarchy:simStep: layer " << l << "/" << _layers.size() << ": previous clock is not reset." << std::endl;
+				}
 
 				_layers[l]._tpReset = prevClockReset;
 
 				if (_layers[l]._clock >= _layerDescs[l]._poolSteps) {
 					_layers[l]._clock = 0;
-
 					prevClockReset = true;
 				}
 				else
@@ -223,36 +240,38 @@ namespace feynman {
 	private:
 
 		static void fhPool(
-			const Array2D<float> &states,
-			const Array2D<float2> &outputsBack,
-			Array2D<float2> &outputsFront,
-			const float scale,
+			const Array2D<float> &states,		// in
+			const Array2D<float> &outputsBack,	// in
+			Array2D<float> &outputsFront,		// out
+			const float scale,					// not used
+			const int2 range)
+		{
+			// max pooling
+
+			// last checked: 06-dec-2016
+			const int nElements = range.x * range.y;
+			for (int i = 0; i < nElements; ++i) {
+				const float state = states._data_float[i];
+				const float outputPrev = outputsBack._data_float[i];
+				const float newValue = (outputPrev > state) ? outputPrev : state;
+				outputsFront._data_float[i] = newValue;
+			}
+		}
+
+		static void fhPredError(
+			const Array2D<float> &states,			// in
+			const Array2D<float> &predictionsPrev,	// in
+			Array2D<float> &errors,					// out
 			const int2 range)
 		{
 			// last checked: 28-nov-2016
 			const int nElements = range.x * range.y;
 			for (int i = 0; i < nElements; ++i) {
 				const float state = states._data_float[i];
-				const float outputPrev = outputsBack._data_float[i].x;
-				const float newValue = (outputPrev > state) ? outputPrev : state;
-				outputsFront._data_float[i] = { newValue, 0.0f };
-			}
-		}
-
-		static void fhPredError(
-			const Array2D<float2> &states,
-			const Array2D<float2> &predictionsPrev,
-			Array2D<float> &errors,
-			const int2 range)
-		{
-			// last checked: 28-nov-2016
-			const int nElements = range.x * range.y;
-			for (int i = 0; i < nElements; ++i) {
-				const float state = states._data_float[i].x;
-				const float predictionPrev = predictionsPrev._data_float[i].x;
+				const float predictionPrev = predictionsPrev._data_float[i];
 				//write_imagef(errors, position, (float4)(state - predictionPrev, 0.0f, 0.0f, 0.0f));
 				//write_imagef(errors, position, (float4)(state, 0.0f, 0.0f, 0.0f));
-				const float newValue = state * (1.0f - predictionPrev) + (1.0f - state) * predictionPrev;
+				const float newValue = (state * (1.0f - predictionPrev)) + (predictionPrev * (1.0f - state));
 				errors._data_float[i] = newValue;
 			}
 		}
