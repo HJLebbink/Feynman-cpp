@@ -295,8 +295,8 @@ namespace feynman {
 				_activeRatio,
 				_hiddenSize
 			);
-			plots::plotImage(_hiddenActivations[_front], 6, "SFOld:activate:hiddenActivations");
-			plots::plotImage(_hiddenStates[_front], 6, "SFOld:activate:hiddenStates");
+			//plots::plotImage(_hiddenActivations[_front], 6, "SFOld:activate:hiddenActivations");
+			//plots::plotImage(_hiddenStates[_front], 6, "SFOld:activate:hiddenStates");
 		}
 
 		//End a simulation step
