@@ -55,6 +55,9 @@ namespace feynman {
 			{}
 
 			virtual ~SparseFeaturesDesc() {}
+
+			// give information about the parameters of this sparse feature
+			virtual std::string info() const = 0;
 		};
 
 		virtual ~SparseFeatures() {}

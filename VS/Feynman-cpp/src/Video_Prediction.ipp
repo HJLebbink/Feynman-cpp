@@ -82,7 +82,7 @@ namespace video {
 		arch.addInputLayer(inputLayerSize)
 			.setValue("in_p_alpha", 0.02f)
 			.setValue("in_p_radius", 8);
-
+		
 		arch.addInputLayer(inputLayerSize)
 			.setValue("in_p_alpha", 0.02f)
 			.setValue("in_p_radius", 8);
@@ -90,19 +90,21 @@ namespace video {
 		arch.addInputLayer(inputLayerSize)
 			.setValue("in_p_alpha", 0.02f)
 			.setValue("in_p_radius", 8);
-
+			
 		for (int l = 0; l < 0; l++)
-			arch.addHigherLayer(int2{ 64, 64 }, feynman::_old)
-			.setValue("inhibitionRadius", 8)
+			arch.addHigherLayer(int2{ 64-l, 64-l }, feynman::_old)
+			.setValue("inhibitionRadius", 5)
 			.setValue("activeRatio", 0.01f)
 			.setValue("biasAlpha", 0.01f)
-			.setValue("initWeightRange", float2{ -0.1, 0.1 })
+			.setValue("initWeightRange", float2{ 0.0, 1.0 })
+			.setValue("initBiasRange", float2{ -0.01, 0.01 })
+
 
 			.setValue("ff_radius", 20)
-			.setValue("ff_weightAlpha", 0.08f) // used in SparseFeaturesChunk:sfcLearnWeights 
+			.setValue("ff_weightAlpha", 0.25f) // used in SparseFeaturesChunk:sfcLearnWeights 
 			
 			.setValue("r_radius", 20)
-			.setValue("r_weightAlpha", 0.08f)
+			.setValue("r_weightAlpha", 0.25f)
 
 			.setValue("hl_poolSteps", 1) // used in FeatureHierarchy:fhPool
 			.setValue("p_alpha", 0.08f)
@@ -110,7 +112,7 @@ namespace video {
 			.setValue("p_radius", 8);
 
 		for (int l = 0; l < 1; l++)
-			arch.addHigherLayer(int2{ 64, 64 }, feynman::_chunk)
+			arch.addHigherLayer(int2{ 64-l, 64-l }, feynman::_chunk)
 			.setValue("sfc_chunkSize", int2{ 6, 6 })
 			.setValue("sfc_initWeightRange", float2{ -0.9, 0.9 })
 			.setValue("sfc_numSamples", 1)
@@ -260,6 +262,7 @@ namespace video {
 
 				// Run a simulation step of the hierarchy (learning enabled)
 				std::vector<Array2D<float>> inputVector = { inputFieldR, inputFieldG, inputFieldB };
+				//std::vector<Array2D<float>> inputVector = { inputFieldR };
 				const bool learn = true;
 				if (EXPLAIN) std::cout << "EXPLAIN: Video_Prediction: starting simstep on 3 inputs." << std::endl;
 
@@ -391,6 +394,7 @@ namespace video {
 			window.clear();
 
 			std::vector<Array2D<float>> inputVector = { predFieldR, predFieldG, predFieldB };
+			//std::vector<Array2D<float>> inputVector = { predFieldR };
 			const bool learn = false;
 			h->simStep(inputVector, learn);
 

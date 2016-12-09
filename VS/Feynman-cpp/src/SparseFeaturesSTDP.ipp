@@ -95,8 +95,27 @@ namespace feynman {
 				return _hiddenSize;
 			}
 
+			std::string info() const override {
+				std::string result = "\n";
+				for (size_t i = 0; i < _visibleLayerDescs.size(); ++i) {
+					result += "visibleLayer[" + std::to_string(i) + "]: size=(" + std::to_string(_visibleLayerDescs[i]._size.x) + "," + std::to_string(_visibleLayerDescs[i]._size.y) + ")\n";
+					result += "visibleLayer[" + std::to_string(i) + "]: radius=" + std::to_string(_visibleLayerDescs[i]._radius) + "\n";
+					result += "visibleLayer[" + std::to_string(i) + "]: weightAlpha=" + std::to_string(_visibleLayerDescs[i]._weightAlpha) + "\n";
+					result += "visibleLayer[" + std::to_string(i) + "]: ignoreMiddle=" + std::to_string(_visibleLayerDescs[i]._ignoreMiddle) + "\n";
+				}
+				result += "TODO\n";
+				/*				result += "hiddenSize=(" + std::to_string(_hiddenSize.x) + "," + std::to_string(_hiddenSize.y) + ")\n";;
+				result += "inhibitionRadius=" + std::to_string(_inhibitionRadius) + "\n";
+				result += "activeRatio=" + std::to_string(_activeRatio) + "\n";
+				result += "biasAlpha=" + std::to_string(_biasAlpha) + "\n";
+				result += "initWeightRange=(" + std::to_string(_initWeightRange.x) + "," + std::to_string(_initWeightRange.y) + ")\n";
+				result += "initBiasRange=(" + std::to_string(_initBiasRange.x) + "," + std::to_string(_initBiasRange.y) + ")\n";
+				*/				return result;
+			}
+
 			//Factory
 			std::shared_ptr<SparseFeatures> sparseFeaturesFactory() override {
+				if (true) std::cout << "INFO: SFSTDP:sparseFeaturesFactory:" << info() << std::endl;
 				return std::make_shared<SparseFeaturesSTDP>(_visibleLayerDescs, _hiddenSize, _inhibitionRadius, _biasAlpha, _activeRatio, _gamma, _initWeightRange, _rng);
 			}
 		};
@@ -697,7 +716,7 @@ namespace feynman {
 				stateSum -= visibleState;
 			}
 
-			const float stimulusAddition = subSum / std::max(0.0001f, stateSum);
+			const float stimulusAddition = (stateSum == 0) ? 0 : (subSum / stateSum);
 			//std::cout << "SparseFeatures::spStimulus_float_kernel: floatp=" << stimulusAddition << std::endl;
 			const float sum = read_2D(hiddenSummationTempBack, hiddenPosition_x, hiddenPosition_y);
 			float sumTemp = sum + stimulusAddition;

@@ -43,7 +43,7 @@ namespace feynman {
 			//Initialize defaults
 			VisibleLayerDesc()
 				: _size({ 8, 8 }), _radius(6), _ignoreMiddle(false),
-				_weightAlpha(0.004f)
+				_weightAlpha(0.25f)
 			{}
 		};
 
@@ -67,15 +67,17 @@ namespace feynman {
 			float _activeRatio;
 			float _biasAlpha;
 			float2 _initWeightRange;
+			float2 _initBiasRange;
 			std::mt19937 _rng;
 
 			//Defaults
 			SparseFeaturesOldDesc()
 				: _hiddenSize({ 16, 16 }),
-				_inhibitionRadius(8),
+				_inhibitionRadius(5),
 				_activeRatio(0.02f),
 				_biasAlpha(0.01f),
 				_initWeightRange({ 0.0f, 1.0f }),
+				_initBiasRange({ -0.1f, 0.1f }),
 				_rng()
 			{
 				_name = "old";
@@ -93,9 +95,29 @@ namespace feynman {
 				return _hiddenSize;
 			}
 
+			std::string info() const override {
+				std::string result = "\n";
+				result += "SparseFeaturesOld:info: parameters:\n";
+
+				for (size_t i = 0; i < _visibleLayerDescs.size(); ++i) {
+					result += "* visibleLayer[" + std::to_string(i) + "]: size=(" + std::to_string(_visibleLayerDescs[i]._size.x) + "," + std::to_string(_visibleLayerDescs[i]._size.y) +")\n";
+					result += "* visibleLayer[" + std::to_string(i) + "]: radius=" + std::to_string(_visibleLayerDescs[i]._radius) + "\n";
+					result += "* visibleLayer[" + std::to_string(i) + "]: weightAlpha=" + std::to_string(_visibleLayerDescs[i]._weightAlpha) + "\n";
+					result += "* visibleLayer[" + std::to_string(i) + "]: ignoreMiddle=" + std::to_string(_visibleLayerDescs[i]._ignoreMiddle) + "\n";
+				}
+				result += "* hiddenSize=(" + std::to_string(_hiddenSize.x) + "," + std::to_string(_hiddenSize.y) + ")\n";;
+				result += "* activeRatio=" + std::to_string(_activeRatio) + "\n";
+				result += "* biasAlpha=" + std::to_string(_biasAlpha) + "\n";
+				result += "* initWeightRange=(" + std::to_string(_initWeightRange.x) + "," +std::to_string(_initWeightRange.y) + ")\n";
+				result += "* initBiasRange=(" + std::to_string(_initBiasRange.x) + "," + std::to_string(_initBiasRange.y) + ")\n";
+				result += "* inhibitionRadius=" + std::to_string(_inhibitionRadius) + "\n";
+				return result;
+			}
+
 			//Factory
 			std::shared_ptr<SparseFeatures> sparseFeaturesFactory() override {
-				return std::make_shared<SparseFeaturesOld>(_visibleLayerDescs, _hiddenSize, _inhibitionRadius, _activeRatio, _biasAlpha, _initWeightRange, _rng);
+				if (true) std::cout << "INFO: SFOld:sparseFeaturesFactory:" << info() << std::endl;
+				return std::make_shared<SparseFeaturesOld>(_visibleLayerDescs, _hiddenSize, _inhibitionRadius, _activeRatio, _biasAlpha, _initWeightRange, _initBiasRange, _rng);
 			}
 		};
 
@@ -143,6 +165,7 @@ namespace feynman {
 			const float activeRatio,
 			const float biasAlpha,
 			const float2 initWeightRange,
+			const float2 initBiasRange,
 			std::mt19937 &rng
 		) :
 			_hiddenSize(hiddenSize),
@@ -178,6 +201,7 @@ namespace feynman {
 					const int3 weightsSize = { _hiddenSize.x, _hiddenSize.y, numWeights };
 					vl._weights = createDoubleBuffer3D<float>(weightsSize);
 					randomUniform3D(vl._weights[_back], initWeightRange, rng);
+					//plots::plotImage(vl._weights[_back], 6, "SFOld:constructor:weights" + std::to_string(vli));
 				}
 
 				vl._derivedInput = createDoubleBuffer2D<float>(vld._size);
@@ -194,7 +218,7 @@ namespace feynman {
 			clear(_hiddenStates[_back]);
 
 			if (true) {
-				randomUniform2D(_hiddenBiases[_back], initWeightRange, rng);
+				randomUniform2D(_hiddenBiases[_back], initBiasRange, rng);
 			} else {
 				clear(_hiddenBiases[_back]);
 			}
@@ -208,7 +232,7 @@ namespace feynman {
 		*/
 		void activate(
 			const std::vector<Array2D<float>> &visibleStates,
-			const Array2D<float> &predictionsPrev,
+			const Array2D<float> & /*predictionsPrev*/,
 			std::mt19937 &rng) override
 		{
 			// Start by clearing stimulus summation buffer to biases
@@ -220,16 +244,20 @@ namespace feynman {
 				VisibleLayer &vl = _visibleLayers[vli];
 				const VisibleLayerDesc &vld = _visibleLayerDescs[vli];
 
-				plots::plotImage(visibleStates[vli], 6, "SFOld:activate:visibleStates" + std::to_string(vli));
+				//plots::plotImage(visibleStates[vli], 6, "SFOld:activate:visibleStates" + std::to_string(vli));
 
+				// Derive inputs
+				if (EXPLAIN) std::cout << "EXPLAIN: SFOld:activate: visible layer " << vli << "/" << _visibleLayers.size() << ": deriving inputs." << std::endl;
 				spDeriveInputs(
 					visibleStates[vli],			// in
 					//vl._derivedInput[_back],	// unused
-					vl._derivedInput[_front],	// out
+					vl._derivedInput[_front],	// out: note used in learn
 					vld._size
 				);
 				//plots::plotImage(vl._derivedInput[_front], 6, "SFOld:activate:derivedInput" + std::to_string(vli));
+				//plots::plotImage(vl._weights[_back], 5, "SF:activate:weights" + std::to_string(vli));
 
+				if (EXPLAIN) std::cout << "EXPLAIN: SFOld:activate: visible layer " << vli << "/" << _visibleLayers.size() << ": adding inputs to stimuls influx." << std::endl;
 				spStimulus(
 					vl._derivedInput[_front],		// in
 					_hiddenSummationTemp[_back],	// in
@@ -240,7 +268,7 @@ namespace feynman {
 					vld._radius,
 					vld._ignoreMiddle
 				);
-				plots::plotImage(_hiddenSummationTemp[_front], 6, "SFOld:activate:hiddenSummationTemp" + std::to_string(vli));
+				//plots::plotImage(_hiddenSummationTemp[_front], 6, "SFOld:activate:hiddenSummationTemp" + std::to_string(vli));
 
 				// Swap buffers
 				std::swap(_hiddenSummationTemp[_front], _hiddenSummationTemp[_back]);
@@ -261,7 +289,7 @@ namespace feynman {
 			// Inhibit
 			spInhibit(
 				_hiddenActivations[_front],		// in
-				_hiddenStates[_front],			// out
+				_hiddenStates[_front],			// out: note: used in learn
 				_hiddenSize,
 				_inhibitionRadius,
 				_activeRatio,
@@ -304,11 +332,12 @@ namespace feynman {
 					vl._hiddenToVisible,
 					vld._radius,
 					//_activeRatio,				// unused
-					vld._weightAlpha);
-
+					vld._weightAlpha
+				);
 				std::swap(vl._weights[_front], vl._weights[_back]);
+				//plots::plotImage(vl._weights[_back], 6, "SFOld:learn:weights" + std::to_string(vli));
 			}
-
+			
 			// Bias update
 			spLearnBiases(
 				_hiddenSummationTemp[_back],	// in
@@ -317,9 +346,10 @@ namespace feynman {
 				_hiddenBiases[_front],			// out
 				//_activeRatio,					// unused
 				_biasAlpha,
-				_hiddenSize);
-
+				_hiddenSize
+			);
 			std::swap(_hiddenBiases[_front], _hiddenBiases[_back]);
+			//plots::plotImage(_hiddenBiases[_back], 6, "SFOld:learn:biases");
 		}
 
 		/*!
@@ -331,7 +361,7 @@ namespace feynman {
 			Array2D<float> &states,
 			std::mt19937 &rng) override 
 		{
-			std::cout << "INFO: SparseFeaturesOld:inhibit" << std::endl;
+			//std::cout << "INFO: SparseFeaturesOld:inhibit" << std::endl;
 			// Inhibit
 			spInhibit(
 				activations,			// in
@@ -366,14 +396,6 @@ namespace feynman {
 		//Get hidden states
 		const DoubleBuffer2D<float> &getHiddenStates() const override {
 			return _hiddenStates;
-		}
-
-		/*!
-		\brief Get context
-		*/
-		const Array2D<float> &getHiddenContext() const override {
-			// last checked: 25-nov
-			return _hiddenActivations[_back];
 		}
 
 		//Clear the working memory
@@ -694,10 +716,10 @@ namespace feynman {
 				stateSum -= visibleState;
 			}
 
-			const float stimulusAddition = subSum / std::max(0.0001f, stateSum);
+
+			const float stimulusAddition = (stateSum == 0.0f) ? 0.0f : (subSum / stateSum);
 			const float oldValue = read_2D(hiddenSummationTempBack, hiddenPosition_x, hiddenPosition_y);
 			const float newValue = oldValue + stimulusAddition;
-			//std::cout << "SparseFeatures::spStimulus_float_kernel: stimulusAddition=" << stimulusAddition << "; oldValue=" << oldValue << "; newValue=" << newValue << std::endl;
 			write_2D(hiddenSummationTempFront, hiddenPosition_x, hiddenPosition_y, newValue);
 		}
 
@@ -1182,14 +1204,13 @@ namespace feynman {
 		{
 			if (true) { //TODO
 				const int nElements = range.x * range.y;
-				if (UPDATE_FLOATING_POINT) {
-#					pragma ivdep
-					for (int i = 0; i < nElements; ++i) {
-						const float stimulus = stimuli._data_float[i];
-						const float hiddenBiasPrev = hiddenBiasesBack._data_float[i];
-						//INFO: HiddenBiases can be negative
-						hiddenBiasesFront._data_float[i] = hiddenBiasPrev + (biasAlpha * (-stimulus - hiddenBiasPrev));
-					}
+#				pragma ivdep
+				for (int i = 0; i < nElements; ++i) {
+					const float stimulus = stimuli._data_float[i];
+					const float hiddenBiasPrev = hiddenBiasesBack._data_float[i];
+					//INFO: HiddenBiases can be negative
+					const float newValue = hiddenBiasPrev + (biasAlpha * (-stimulus - hiddenBiasPrev));;
+					hiddenBiasesFront._data_float[i] = newValue;
 				}
 #				ifdef USE_FIXED_POINT
 				const FixedP biasAlphaFP = toFixedP(biasAlpha);

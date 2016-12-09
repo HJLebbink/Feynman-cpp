@@ -69,14 +69,15 @@ namespace plots {
 		const int hInWidth = image._size.x;
 		const int hInHeight = image._size.y;
 
-		const float maxValue = image.getMaxValue();
-		const float minValue = image.getMinValue();
-		std::cout << "INFO: PlotDebug:plotImage: minValue=" << minValue << "; maxValue=" << maxValue << std::endl;
+		if (false) {
+			const float maxValue = image.getMaxValue();
+			const float minValue = image.getMinValue();
+			std::cout << "INFO: PlotDebug:plotImage: minValue=" << minValue << "; maxValue=" << maxValue << std::endl;
 
-		int offset = 0;
-		if ((maxValue > 1.0f) || (minValue < -1.0f) || (maxValue == minValue)) {
-			std::cout << "WARNING: PlotDebug:plotImage: minValue=" << minValue << "; maxValue=" << maxValue << std::endl;
-			//offset = 1;
+			if ((maxValue > 1.0f) || (minValue < -1.0f) || (maxValue == minValue)) {
+				std::cout << "WARNING: PlotDebug:plotImage: minValue=" << minValue << "; maxValue=" << maxValue << std::endl;
+				//offset = 1;
+			}
 		}
 
 		sf::Image sdrImg;
@@ -84,7 +85,7 @@ namespace plots {
 
 		for (int x = 0; x < hInWidth; ++x) {
 			for (int y = 0; y < hInHeight; ++y) {
-				float pixelValue = image._data_float[y + (x * hInHeight)] + offset;
+				float pixelValue = image._data_float[y + (x * hInHeight)];
 				sf::Color c;
 				c.g = 0;
 				if (pixelValue > 0) {
@@ -104,7 +105,8 @@ namespace plots {
 		const float scale,
 		const std::string name)
 	{
-		sf::RenderWindow * window = getWindowCache(name, image.getSize(), scale);
+		const std::string name2 = name + "(" + std::to_string(image.getSize().x) + "," + std::to_string(image.getSize().y) + ")";
+		sf::RenderWindow * window = getWindowCache(name2, image.getSize(), scale);
 		plotImage(image, { 0.0f, 0.0f }, scale, *window);
 		window->display();
 	}

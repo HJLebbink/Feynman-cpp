@@ -114,28 +114,32 @@ namespace feynman {
 				//plots::plotImage(predictionsPrev[l], 6, "Predictor:simStep:predictionsPrev" + std::to_string(l));
 			}
 
-			// Activate hierarchy
 			//plots::plotImage(inputsCorrupted[0], 6, "Predictor:simStep:inputsCorrupted");
+
+			// Activate hierarchy
 			_h.simStep(inputsCorrupted, predictionsPrev, rng, learn);
+			const int nLayers = static_cast<int>(_pLayers.size());
 
 			// Forward pass through predictor to get next prediction
-			for (int l = static_cast<int>(_pLayers.size()) - 1; l >= 0; l--) 
+			for (int layer = (nLayers - 1); (layer >= 0); layer--) 
 			{
+				//plots::plotImage(_h.getLayer(layer)._sf->getHiddenStates()[_back], 6, "Predictor:simStep: Hidden.Layer" + std::to_string(layer));
+
 				//std::cout << "INFO: Predictor:simStep: pass forward layer " << l << std::endl;
-				if (_h.getLayer(l)._tpReset || _h.getLayer(l)._tpNextReset) 
+				if (_h.getLayer(layer)._tpReset || _h.getLayer(layer)._tpNextReset) 
 				{
-					const Array2D<float> target = _h.getLayer(l)._sf->getHiddenStates()[_back];
+					const Array2D<float> target = _h.getLayer(layer)._sf->getHiddenStates()[_back];
 					//plots::plotImage(target, 6, "Predictor:simStep:target" + std::to_string(l));
 
 					const std::vector<Array2D<float>> inputsNextLayer =
-						(l != (_pLayers.size() - 1))
-							? std::vector<Array2D<float>>{ target, _pLayers[l + 1].getHiddenStates()[_back] }
-							: std::vector<Array2D<float>>{ target };
+						(layer == (nLayers - 1))
+							? std::vector<Array2D<float>>{ target } // top-layer only get feature input from the top layer
+							: std::vector<Array2D<float>>{ target, _pLayers[layer + 1].getHiddenStates()[_back] }; // non-top-layers get feature inputs from the current layer and the layer above.
 					//std::cout << "INFO: Predictor:simStep: pass forward layer " << l << ";inputsNextLayer.size="<< inputsNextLayer.size() << std::endl;
 
-					_pLayers[l].activate(inputsNextLayer, rng);
-					if (learn) _pLayers[l].learn(target);
-					_pLayers[l].stepEnd();
+					_pLayers[layer].activate(inputsNextLayer, rng);
+					if (learn) _pLayers[layer].learn(target);
+					_pLayers[layer].stepEnd();
 				}
 			}
 		}

@@ -17,7 +17,7 @@
 // Encoders
 #include "SparseFeaturesOld.ipp"
 #include "SparseFeaturesChunk.ipp"
-//#include "SparseFeaturesDelay.ipp"
+#include "SparseFeaturesDelay.ipp"
 #include "SparseFeaturesSTDP.ipp"
 
 #include <iostream>
@@ -149,6 +149,8 @@ namespace feynman {
 					sfDesc_Old->_biasAlpha = std::stof(params["biasAlpha"]);
 				if (params.find("initWeightRange") != params.end())
 					sfDesc_Old->_initWeightRange = ParameterModifier::parseFloat2(params["initWeightRange"]);
+				if (params.find("initBiasRange") != params.end())
+					sfDesc_Old->_initBiasRange = ParameterModifier::parseFloat2(params["initBiasRange"]);
 
 				if (layerIndex == 0) {
 					sfDesc_Old->_visibleLayerDescs.resize(_inputLayers.size() + 1);
@@ -268,8 +270,6 @@ namespace feynman {
 			}
 			case _delay:
 			{
-				throw 1;
-/*
 				std::shared_ptr<SparseFeaturesDelay::SparseFeaturesDelayDesc> sfDescDelay = std::make_shared<SparseFeaturesDelay::SparseFeaturesDelayDesc>();
 
 				sfDescDelay->_inputType = SparseFeatures::_feedForward;
@@ -317,7 +317,6 @@ namespace feynman {
 					}
 				}
 				sfDesc = sfDescDelay;
-				*/
 				break;
 			}
 			case _chunk:

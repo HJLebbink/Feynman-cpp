@@ -17,7 +17,7 @@
 
 namespace feynman {
 
-	const bool EXPLAIN = true;
+	const bool EXPLAIN = false;
 
 	//Possible encoder identifiers
 	enum SparseFeaturesType {
@@ -206,15 +206,7 @@ namespace feynman {
 	T inline read_3D(const Array3D<T> &image, const int coord_x, const int coord_y, const int coord_z) {
 		const int idx = pos(coord_x, coord_y, coord_z, image._size.y, image._size.z);
 		//std::cout << "read_3D: idx=" << idx << "; x=" << coord_x << "; y=" << coord_y << "; z=" << coord_z << std::endl;
-		const float value = image._data_float[idx];
-#		ifdef _DEBUG
-		if (false) {
-			if (!inRange(value)) {
-				//printf("WARNING: Helpers::read_3D: value (%24.22f) is not in range [%24.22f,%24.22f]\n", value, minValueFloat, maxValueFloat);
-				//throw 1;
-			}
-		}
-#		endif
+		const T value = image._data_float[idx];
 		return value;
 	}
 
@@ -395,6 +387,30 @@ namespace feynman {
 				}
 			}
 		}
+	}
+
+	void randomUniform3D(
+		Array3D<float3> &values,
+		const float2 minMax,
+		std::mt19937 &rng)
+	{
+		std::uniform_int_distribution<int> seedDist(0, 999);
+		const unsigned int seed_x = static_cast<unsigned int>(seedDist(rng));
+		const unsigned int seed_y = static_cast<unsigned int>(seedDist(rng));
+
+		for (int x = 0; x < values._size.x; ++x) {
+			for (int y = 0; y < values._size.y; ++y) {
+#				pragma ivdep
+				for (int z = 0; z < values._size.z; ++z) {
+					uint2 seedValue;
+					seedValue.x = seed_x + (((x * 12) + 76 + z) * 3) * 12;
+					seedValue.y = seed_y + (((y * 21) + 42 + z) * 7) * 12;
+					const float value = randFloat(&seedValue) * (minMax.y - minMax.x) + minMax.x;
+					write_3D(values, x, y, z, { value, value, value });
+				}
+			}
+		}
+
 	}
 
 	float randNormal(uint2* state) {

@@ -157,7 +157,6 @@ namespace feynman {
 					vl._derivedInput[_front],		// out: note: _derivedInput are used in learn
 					vld._size
 				);
-
 				//plots::plotImage(vl._derivedInput[_front], 6, "PredictorLayer:activate:derivedInput" + std::to_string(vli));
 
 				if (EXPLAIN) std::cout << "EXPLAIN: PredictorLayer:activate: visible layer " << vli << "/" << _visibleLayers.size() << ": adding inputs to stimuls influx." << std::endl;
@@ -171,9 +170,7 @@ namespace feynman {
 					vld._radius,
 					_hiddenSize
 				);
-
 				//plots::plotImage(_hiddenSummationTemp[_front], 8, "PredictorLayer:activate:hiddenSummationTemp" + std::to_string(vli));
-
 				std::swap(_hiddenSummationTemp[_front], _hiddenSummationTemp[_back]);
 			}
 

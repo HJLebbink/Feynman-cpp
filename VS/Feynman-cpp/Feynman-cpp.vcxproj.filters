@@ -81,6 +81,9 @@
     <None Include="src\SparseFeaturesOld.ipp">
       <Filter>Header Files</Filter>
     </None>
+    <None Include="src\SparseFeaturesDelay.ipp">
+      <Filter>Header Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Main.cpp">

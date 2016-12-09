@@ -103,8 +103,27 @@ namespace feynman {
 				return _hiddenSize;
 			}
 
+			std::string info() const override {
+				std::string result = "\n";
+				for (size_t i = 0; i < _visibleLayerDescs.size(); ++i) {
+					result += "visibleLayer[" + std::to_string(i) + "]: size=(" + std::to_string(_visibleLayerDescs[i]._size.x) + "," + std::to_string(_visibleLayerDescs[i]._size.y) + ")\n";
+					result += "visibleLayer[" + std::to_string(i) + "]: radius=" + std::to_string(_visibleLayerDescs[i]._radius) + "\n";
+					result += "visibleLayer[" + std::to_string(i) + "]: weightAlpha=" + std::to_string(_visibleLayerDescs[i]._weightAlpha) + "\n";
+					result += "visibleLayer[" + std::to_string(i) + "]: ignoreMiddle=" + std::to_string(_visibleLayerDescs[i]._ignoreMiddle) + "\n";
+				}
+				result += "TODO\n";
+/*				result += "hiddenSize=(" + std::to_string(_hiddenSize.x) + "," + std::to_string(_hiddenSize.y) + ")\n";;
+				result += "inhibitionRadius=" + std::to_string(_inhibitionRadius) + "\n";
+				result += "activeRatio=" + std::to_string(_activeRatio) + "\n";
+				result += "biasAlpha=" + std::to_string(_biasAlpha) + "\n";
+				result += "initWeightRange=(" + std::to_string(_initWeightRange.x) + "," + std::to_string(_initWeightRange.y) + ")\n";
+				result += "initBiasRange=(" + std::to_string(_initBiasRange.x) + "," + std::to_string(_initBiasRange.y) + ")\n";
+*/				return result;
+			}
+
 			//Factory
 			std::shared_ptr<SparseFeatures> sparseFeaturesFactory() override {
+				if (true) std::cout << "INFO: SFChunk:sparseFeaturesFactory:" << info() << std::endl;
 				return std::make_shared<SparseFeaturesChunk>(_visibleLayerDescs, _hiddenSize, _chunkSize, _numSamples, _biasAlpha, _gamma, _initWeightRange, _rng);
 			}
 		};
@@ -257,6 +276,7 @@ namespace feynman {
 
 				//plots::plotImage(visibleStates[vli], 6, "SFChunk:activate:visibleStates" + std::to_string(vli));
 
+				// Derive inputs
 				if (EXPLAIN) std::cout << "EXPLAIN: SFChunk:activate: visible layer " << vli << "/" << _visibleLayers.size() << ": deriving inputs." << std::endl;
 				sfcDeriveInputs(
 					visibleStates[vli],			// in
@@ -268,9 +288,8 @@ namespace feynman {
 
 				//plots::plotImage(vl._derivedInput[_front], 6, "SFChunk:activate:derivedInput" + std::to_string(vli));
 
-				// Derive inputs
-				if (EXPLAIN) std::cout << "EXPLAIN: SFChunk:activate: visible layer " << vli << "/" << _visibleLayers.size() << ": sampling inputs (" << _numSamples << ")." << std::endl;
 				// Add sample
+				if (EXPLAIN) std::cout << "EXPLAIN: SFChunk:activate: visible layer " << vli << "/" << _visibleLayers.size() << ": sampling inputs (" << _numSamples << ")." << std::endl;
 				sfcAddSample(
 					vl._derivedInput[_front],		// in
 					vl._samples[_back],				// in
@@ -328,8 +347,8 @@ namespace feynman {
 				_chunkSize,
 				int2{ chunksInX , chunksInY }
 			);
-			//plots::plotImage(_hiddenActivations[_front], 6, "SFChunk:activate:hiddenActivations");
-			//plots::plotImage(_hiddenStates[_front], 6, "SFChunk:activate:hiddenStates");
+			plots::plotImage(_hiddenActivations[_front], 6, "SFChunk:activate:hiddenActivations");
+			plots::plotImage(_hiddenStates[_front], 6, "SFChunk:activate:hiddenStates");
 		}
 		
 		//End a simulation step
@@ -490,7 +509,7 @@ namespace feynman {
 		\brief Get context
 		*/
 		const Array2D<float> &getHiddenContext() const override {
-			// last checked: 25-nov
+			// note: returning activations, not an sdr
 			return _hiddenActivations[_back];
 		}
 
@@ -817,7 +836,7 @@ namespace feynman {
 				int visiblePositionCenter_y = project(chunkCenter_y, hiddenToVisible.y);
 
 				float subSum = 0.0f;
-				float count = 0.0f;
+				int count = 0;
 
 				int fieldLowerBound_x = visiblePositionCenter_x - RADIUS;
 				int fieldLowerBound_y = visiblePositionCenter_y - RADIUS;
@@ -840,14 +859,14 @@ namespace feynman {
 								float sample = read_3D(samples, visiblePosition.x, visiblePosition.y, s);
 								float delta = sample - weight;
 								subSum += -delta * delta;
-								count += 1.0f;
+								count++;
 							}
 						}
 					}
 				}
 
 				float sum = read_imagef(hiddenSummationTempBack, defaultSampler, hiddenPosition).x;
-				const float newValue = sum + subSum / fmax(0.0001f, count);
+				const float newValue = (count == 0) ? sum : (sum + subSum / count);
 				write_imagef(hiddenSummationTempFront, hiddenPosition_x, hiddenPosition_y, newValue);
 			}
 			else {

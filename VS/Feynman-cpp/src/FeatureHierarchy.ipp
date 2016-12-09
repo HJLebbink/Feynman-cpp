@@ -10,6 +10,7 @@
 
 #include <vector>
 #include <random>
+#include <algorithm> // for std::max
 
 #include "Helpers.ipp"
 #include "SparseFeatures.ipp"
@@ -160,7 +161,6 @@ namespace feynman {
 						}
 					}
 
-					// Update layer
 					_layers[l]._sf->activate(visibleStates, predictionsPrev[l], rng);
 
 					if (learn) _layers[l]._sf->learn(rng);
