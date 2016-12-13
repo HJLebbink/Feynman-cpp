@@ -152,18 +152,21 @@ namespace feynman {
 						else {
 							if (_layerDescs[l]._sfDesc->_inputType == SparseFeatures::_feedForwardRecurrent) {
 								visibleStates = { _layers[l - 1]._tpBuffer[_back], _layers[l]._sf->getHiddenContext() };
-								if (EXPLAIN) std::cout << "EXPLAIN: FeatureHierarchy:simStep: layer " << l << "/" << _layers.size() << ": running sparseFeature.activate on 1) temporal pooled layer " << (l - 1) << " and 2) recurrent influx from hidden state from layer " << l << "." << std::endl;
+								if (EXPLAIN) std::cout << "EXPLAIN: FeatureHierarchy:simStep: layer " << l << "/" << _layers.size() << ": running sparseFeature.activate on 1) temporal pooled hidden layer " << (l - 1) << " and 2) recurrent influx from hidden state from layer " << l << "." << std::endl;
 							}
 							else {
 								visibleStates = { _layers[l - 1]._tpBuffer[_back] };
-								if (EXPLAIN) std::cout << "EXPLAIN: FeatureHierarchy:simStep: layer " << l << "/" << _layers.size() << ": running sparseFeature.activate on 1) temporal pooled layer " << (l - 1) << " (and no recurrent influx)." << std::endl;
+								if (EXPLAIN) std::cout << "EXPLAIN: FeatureHierarchy:simStep: layer " << l << "/" << _layers.size() << ": running sparseFeature.activate on 1) temporal pooled hidden layer " << (l - 1) << " (and no recurrent influx)." << std::endl;
 							}
 						}
 					}
 
 					_layers[l]._sf->activate(visibleStates, predictionsPrev[l], rng);
 
-					if (learn) _layers[l]._sf->learn(rng);
+					if (learn) {
+						if (EXPLAIN) std::cout << "EXPLAIN: FeatureHierarchy:simStep: layer " << l << "/" << _layers.size() << ": running sparseFeature.learn." << std::endl;
+						_layers[l]._sf->learn(rng);
+					}
 					_layers[l]._sf->stepEnd();
 
 					// Prediction error
@@ -246,6 +249,7 @@ namespace feynman {
 			const float scale,					// not used
 			const int2 range)
 		{
+			if (EXPLAIN) std::cout << "EXPLAIN: FeatureHierarchy:fhPool: scale=" << scale << std::endl;
 			// max pooling
 
 			// last checked: 06-dec-2016
@@ -264,6 +268,8 @@ namespace feynman {
 			Array2D<float> &errors,					// out
 			const int2 range)
 		{
+			if (EXPLAIN) std::cout << "EXPLAIN: FeatureHierarchy:fhPredError." << std::endl;
+
 			// last checked: 28-nov-2016
 			const int nElements = range.x * range.y;
 			for (int i = 0; i < nElements; ++i) {

@@ -150,7 +150,7 @@ namespace feynman {
 				//plots::plotImage(visibleStates[vli], 6, "PredictorLayer:activate:visibleStates" + std::to_string(vli));
 
 				// Derive inputs
-				if (EXPLAIN) std::cout << "EXPLAIN: PredictorLayer:activate: visible layer " << vli << "/" << _visibleLayers.size() << ": deriving inputs." << std::endl;
+				//if (EXPLAIN) std::cout << "EXPLAIN: PredictorLayer:activate: visible layer " << vli << "/" << _visibleLayers.size() << ": deriving inputs." << std::endl;
 				plDeriveInputs(
 					visibleStates[vli],				// in
 					vl._derivedInput[_back],		// in
@@ -176,14 +176,36 @@ namespace feynman {
 
 			//plots::plotImage(_hiddenSummationTemp[_back], 8, "PredictorLayer:activate:hiddenSummationTemp");
 
-			if (_inhibitSparseFeatures != nullptr) {
-				if (EXPLAIN) std::cout << "EXPLAIN: PredictorLayer:activate: calculating hidden state SDR based on stimuls influx." << std::endl;
-				_inhibitSparseFeatures->inhibit(_hiddenSummationTemp[_back], _hiddenStates[_front], rng);
-			} else {
-				if (EXPLAIN) std::cout << "EXPLAIN: PredictorLayer:activate: hidden state is equal to stimuls influx." << std::endl;
-				copy(_hiddenSummationTemp[_back], _hiddenStates[_front]);
+			if (false) {
+				//test:
+				if (EXPLAIN) std::cout << "EXPLAIN: PredictorLayer:activate: hidden state is the truncated [0..1] stimulus influx." << std::endl;
+				plTruncate<0, 1>(_hiddenSummationTemp[_back], _hiddenStates[_front]);
+				//copy(_hiddenSummationTemp[_back], _hiddenStates[_front]);
 			}
-			//plots::plotImage(_hiddenStates[_front], 6, "PredictionLayer:activate:hiddenStates");
+			else {
+				if (_inhibitSparseFeatures != nullptr) {
+					//TODO: why is this inhibited?
+
+					//if (EXPLAIN) 
+						std::cout << "EXPLAIN: PredictorLayer:activate: calculating hidden state SDR based on stimuls influx." << std::endl;
+					_inhibitSparseFeatures->inhibit(_hiddenSummationTemp[_back], _hiddenStates[_front], rng);
+				}
+				else {
+					if (true) {
+						//if (EXPLAIN) 
+							std::cout << "EXPLAIN: PredictorLayer:activate: hidden state is the truncated [0..1] stimulus influx." << std::endl;
+						plTruncate<0, 1>(_hiddenSummationTemp[_back], _hiddenStates[_front]);
+
+					}
+					else {
+						if (EXPLAIN) std::cout << "EXPLAIN: PredictorLayer:activate: hidden state is equal to stimuls influx." << std::endl;
+						copy(_hiddenSummationTemp[_back], _hiddenStates[_front]);
+					}
+				}
+			}
+
+			plots::plotImage(_hiddenSummationTemp[_back], 6, "PredictionLayer:activate:_hiddenSummationTemp");
+			plots::plotImage(_hiddenStates[_front], 6, "PredictionLayer:activate:_hiddenStates");
 		}
 
 		/*!
@@ -194,13 +216,14 @@ namespace feynman {
 			const Array2D<float> &targets)
 		{
 			// last checked: 28-nov 2016
+			//plots::plotImage(targets, 4, "PredictorLayer:learn:targets");
 
 			// Learn weights
 			for (size_t vli = 0; vli < _visibleLayers.size(); ++vli) {
 				VisibleLayer &vl = _visibleLayers[vli];
 				const VisibleLayerDesc &vld = _visibleLayerDescs[vli];
 
-				//plots::plotImage(_hiddenStates[_back], 8, "PredictorLayer:learn:hiddenState" + std::to_string(vli));
+				//plots::plotImage(_hiddenStates[_back], 3, "PredictorLayer:learn:hiddenState" + std::to_string(vli));
 
 				if (EXPLAIN) std::cout << "EXPLAIN: PredictorLayer:learn: layer " << vli << "/" << _visibleLayers.size() << ": updating weights based on error between targets and derived inputs." << std::endl;
 				plLearnPredWeights(
@@ -436,6 +459,24 @@ namespace feynman {
 
 	private:
 
+		template <int MIN, int MAX>
+		static void plTruncate(
+			const Array2D<float> &src,
+			Array2D<float> &dst)
+		{
+			if (EXPLAIN) std::cout << "EXPLAIN: PredictorLayer:plTruncate." << std::endl;
+
+			const std::vector<float> &src_v = src._data_float;
+			std::vector<float> &dst_v = dst._data_float;
+
+			const int nElements = src._size.x * src._size.y;
+#			pragma ivdep
+			for (int i = 0; i < nElements; ++i) {
+				const float stimulus = src_v[i];
+				dst_v[i] = (stimulus < MIN) ? MIN : ((stimulus > MAX) ? MAX : stimulus);
+			}
+		}
+
 		static void plDeriveInputs(
 			const Array2D<float> &inputs,
 			const Array2D<float> &outputsBack,
@@ -563,6 +604,8 @@ namespace feynman {
 			const int radius,
 			const int2 range)
 		{
+			if (EXPLAIN) std::cout << "EXPLAIN: PredictorLayer:plStimulus: radius=" << radius << std::endl;
+
 			// last checked: 28-nov 2016
 			/*
 			switch (radius) {
@@ -613,6 +656,8 @@ namespace feynman {
 			Array2D<float> &thresholded, // write only
 			const int2 range)
 		{
+			if (EXPLAIN) std::cout << "EXPLAIN: PredictorLayer:plThreshold." << std::endl;
+
 			// last checked: 25-nov 2016
 			const int nElements = range.x * range.y;
 #			pragma ivdep
@@ -770,6 +815,8 @@ namespace feynman {
 			const float alpha,
 			const int2 range)
 		{
+			if (EXPLAIN) std::cout << "EXPLAIN: PredictorLayer:plLearnPredWeights: radius="<< radius << std::endl;
+
 			// last checked: 28-nov 2016
 			if (true) {
 				switch (radius) {

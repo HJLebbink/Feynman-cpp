@@ -29,9 +29,6 @@ namespace feynman {
 		std::vector<Array2D<float>> _predictions;
 		std::vector<PredictorLayer> _readoutLayers;
 
-
-
-
 	public:
 
 		/*!
@@ -41,14 +38,16 @@ namespace feynman {
 		*/
 		void simStep(
 			const std::vector<Array2D<float>> &inputs,
-			const bool learn = true) 
+			const bool learn = true)
 		{
 			// last checked: 28-nov 2016
 
-			if (EXPLAIN) std::cout << "EXPLAIN: Hierarchy:simStep: running Predictor.simStep on the " << inputs.size() << " inputs." << std::endl;
+			if (EXPLAIN) std::cout << "EXPLAIN: Hierarchy:simStep: running Predictor.simStep on " << inputs.size() << " inputs." << std::endl;
 			_p.simStep(inputs, inputs, _rng, learn);
 
 			// Get prediction
+			if (EXPLAIN) std::cout << "EXPLAIN: Hierarchy:simStep: going to calculate predictions." << std::endl;
+
 			for (size_t i = 0; i < _predictions.size(); ++i) {
 				//plots::plotImage(_p.getHiddenPrediction()[_back], 6, "Hierarchy:simStep:hiddenPrediction" + std::to_string(i));
 
@@ -60,7 +59,6 @@ namespace feynman {
 					_readoutLayers[i].learn(inputs[i]);
 				}
 				_readoutLayers[i].stepEnd();
-
 				copy(_readoutLayers[i].getHiddenStates()[_back], _predictions[i]);
 				//plots::plotImage(_predictions[i], 6, "Hierarchy:pred" + std::to_string(i));
 			}

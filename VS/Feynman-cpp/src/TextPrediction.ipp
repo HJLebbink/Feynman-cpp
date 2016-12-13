@@ -46,7 +46,7 @@ namespace feynman {
 		const int textJump = 4;
 
 		const int2 inputLayerSize = int2{ windowWidth, nNeuronsChar };
-		// 1 input layers for RGB
+
 		arch.addInputLayer(inputLayerSize)
 			.setValue("in_p_alpha", 0.02f)
 			.setValue("in_p_radius", 8);
@@ -59,7 +59,6 @@ namespace feynman {
 				.setValue("biasAlpha", 0.01f)
 				.setValue("initWeightRange", float2{ 0.0, 1.0 })
 				.setValue("initBiasRange", float2{ -0.01, 0.01 })
-
 
 				.setValue("ff_radius", 20)
 				.setValue("ff_weightAlpha", 0.25f) // used in SparseFeaturesChunk:sfcLearnWeights 

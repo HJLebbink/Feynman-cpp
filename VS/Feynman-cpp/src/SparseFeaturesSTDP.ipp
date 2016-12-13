@@ -875,6 +875,9 @@ namespace feynman {
 			const bool ignoreMiddle,
 			const int2 range)
 		{
+
+
+
 			// last checked: 24-nov 2016
 			/*
 			switch (radius) {

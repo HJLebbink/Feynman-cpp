@@ -109,7 +109,7 @@
       <Optimization>MinSpace</Optimization>
       <PreprocessorDefinitions>_WINDOWS;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>C:\Dev\opencv-2.4.13\build\include;C:\Dev\SFML-2.4.0\include</AdditionalIncludeDirectories>
-      <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
+      <EnableEnhancedInstructionSet>StreamingSIMDExtensions3</EnableEnhancedInstructionSet>
       <UseProcessorExtensions>SSE41</UseProcessorExtensions>
       <DisableSpecificWarnings>4710;4820;4711;4062;4068;4625;4626;4365;869</DisableSpecificWarnings>
       <DisablePrecompiledHeaderMessages>true</DisablePrecompiledHeaderMessages>
@@ -155,7 +155,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>_WINDOWS;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>C:\Dev\opencv-2.4.13\build\include;C:\Dev\SFML-2.4.0\include</AdditionalIncludeDirectories>
-      <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
+      <EnableEnhancedInstructionSet>StreamingSIMDExtensions3</EnableEnhancedInstructionSet>
       <Parallelization>false</Parallelization>
       <FloatingPointModel>Fast</FloatingPointModel>
       <FlushDenormalResultsToZero>true</FlushDenormalResultsToZero>

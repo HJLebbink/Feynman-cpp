@@ -106,6 +106,7 @@ namespace feynman {
 		{
 			// last checked: 28-nov 2016
 			//TODO: consider using binary input instead of float
+			const int nLayers = static_cast<int>(_pLayers.size());
 
 			std::vector<Array2D<float>> predictionsPrev(_pLayers.size());
 
@@ -118,11 +119,12 @@ namespace feynman {
 
 			// Activate hierarchy
 			_h.simStep(inputsCorrupted, predictionsPrev, rng, learn);
-			const int nLayers = static_cast<int>(_pLayers.size());
 
 			// Forward pass through predictor to get next prediction
-			for (int layer = (nLayers - 1); (layer >= 0); layer--) 
+			for (int layer = (nLayers - 1); (layer >= 0); --layer)
 			{
+				if (EXPLAIN) std::cout << "EXPLAIN: Predictor:simStep: going to predict layer " << layer << "/" << nLayers << std::endl;
+
 				//plots::plotImage(_h.getLayer(layer)._sf->getHiddenStates()[_back], 6, "Predictor:simStep: Hidden.Layer" + std::to_string(layer));
 
 				//std::cout << "INFO: Predictor:simStep: pass forward layer " << l << std::endl;
@@ -137,8 +139,13 @@ namespace feynman {
 							: std::vector<Array2D<float>>{ target, _pLayers[layer + 1].getHiddenStates()[_back] }; // non-top-layers get feature inputs from the current layer and the layer above.
 					//std::cout << "INFO: Predictor:simStep: pass forward layer " << l << ";inputsNextLayer.size="<< inputsNextLayer.size() << std::endl;
 
+					if (EXPLAIN) std::cout << "EXPLAIN: Predictor:simStep: running activate on PredictorLayer[" << layer << "] on " << inputsNextLayer.size() << " visible states." << std::endl;
 					_pLayers[layer].activate(inputsNextLayer, rng);
-					if (learn) _pLayers[layer].learn(target);
+					
+					if (learn) {
+						if (EXPLAIN) std::cout << "EXPLAIN: Predictor:simStep: running learn on PredictorLayer[" << layer << "] on target states." << std::endl;
+						_pLayers[layer].learn(target);
+					}
 					_pLayers[layer].stepEnd();
 				}
 			}

@@ -77,99 +77,103 @@ namespace video {
 		arch.initialize(1234);
 
 		const int2 inputLayerSize = int2{ static_cast<int>(rescaleRT.getSize().x), static_cast<int>(rescaleRT.getSize().y) };
+		{
+			// 3 input layers for RGB
+			arch.addInputLayer(inputLayerSize)
+				.setValue("in_p_alpha", 0.02f)
+				.setValue("in_p_radius", 8);
+			/*
+			arch.addInputLayer(inputLayerSize)
+				.setValue("in_p_alpha", 0.02f)
+				.setValue("in_p_radius", 8);
 
-		// 3 input layers for RGB
-		arch.addInputLayer(inputLayerSize)
-			.setValue("in_p_alpha", 0.02f)
-			.setValue("in_p_radius", 8);
-		
-		arch.addInputLayer(inputLayerSize)
-			.setValue("in_p_alpha", 0.02f)
-			.setValue("in_p_radius", 8);
-
-		arch.addInputLayer(inputLayerSize)
-			.setValue("in_p_alpha", 0.02f)
-			.setValue("in_p_radius", 8);
-			
-		for (int l = 0; l < 1; l++)
-			arch.addHigherLayer(int2{ 64-l, 64-l }, feynman::_old)
-			.setValue("inhibitionRadius", 5)
-			.setValue("activeRatio", 0.01f)
-			.setValue("biasAlpha", 0.01f)
-			.setValue("initWeightRange", float2{ 0.0, 1.0 })
-			.setValue("initBiasRange", float2{ -0.01, 0.01 })
+			arch.addInputLayer(inputLayerSize)
+				.setValue("in_p_alpha", 0.02f)
+				.setValue("in_p_radius", 8);
+				*/
+		}
+		{
+			for (int l = 0; l < 1; l++)
+				arch.addHigherLayer(int2{ 64 - l, 64 - l }, feynman::_old)
+				.setValue("inhibitionRadius", 5)
+				.setValue("activeRatio", 0.01f)
+				.setValue("biasAlpha", 0.01f)
+				.setValue("initWeightRange", float2{ 0.0, 1.0 })
+				.setValue("initBiasRange", float2{ -0.01, 0.01 })
 
 
-			.setValue("ff_radius", 20)
-			.setValue("ff_weightAlpha", 0.25f) // used in SparseFeaturesChunk:sfcLearnWeights 
-			
-			.setValue("r_radius", 20)
-			.setValue("r_weightAlpha", 0.25f)
+				.setValue("ff_radius", 20)
+				.setValue("ff_weightAlpha", 0.25f) // used in SparseFeaturesChunk:sfcLearnWeights 
 
-			.setValue("hl_poolSteps", 1) // used in FeatureHierarchy:fhPool
-			.setValue("p_alpha", 0.08f)
-			.setValue("p_beta", 0.16f)
-			.setValue("p_radius", 8);
+				.setValue("r_radius", 20)
+				.setValue("r_weightAlpha", 0.25f)
 
-		for (int l = 0; l < 0; l++)
-			arch.addHigherLayer(int2{ 64, 64 }, feynman::_chunk)
-			.setValue("sfc_chunkSize", int2{ 6, 6 })
-			.setValue("sfc_initWeightRange", float2{ -1.0, 1.0 })
-			.setValue("sfc_numSamples", 2)
-			.setValue("sfc_biasAlpha", 0.1f)
-			.setValue("sfc_gamma", 0.92f)	// used in SFChunk:sfsInhibit
+				.setValue("hl_poolSteps", 1) // used in FeatureHierarchy:fhPool
+				.setValue("p_alpha", 0.08f)
+				.setValue("p_beta", 0.16f)
+				.setValue("p_radius", 8);
+		}
+		{
+			for (int l = 0; l < 0; l++)
+				arch.addHigherLayer(int2{ 64, 64 }, feynman::_chunk)
+				.setValue("sfc_chunkSize", int2{ 6, 6 })
+				.setValue("sfc_initWeightRange", float2{ -1.0, 1.0 })
+				.setValue("sfc_numSamples", 2)
+				.setValue("sfc_biasAlpha", 0.1f)
+				.setValue("sfc_gamma", 0.92f)	// used in SFChunk:sfsInhibit
 
-			.setValue("sfc_ff_radius", 16)
-			.setValue("sfc_ff_weightAlpha", 0.3f) // used in SparseFeaturesChunk:sfcLearnWeights 
-			.setValue("sfc_ff_lambda", 0)	// input decay
-			.setValue("sfc_r_radius", 16)
-			.setValue("sfc_r_weightAlpha", 0.3f)
-			.setValue("sfc_r_lambda", 0)	// input decay
+				.setValue("sfc_ff_radius", 16)
+				.setValue("sfc_ff_weightAlpha", 0.3f) // used in SparseFeaturesChunk:sfcLearnWeights 
+				.setValue("sfc_ff_lambda", 0)	// input decay
+				.setValue("sfc_r_radius", 16)
+				.setValue("sfc_r_weightAlpha", 0.3f)
+				.setValue("sfc_r_lambda", 0)	// input decay
 
-			.setValue("hl_poolSteps", 2) // used in FeatureHierarchy:fhPool
-			.setValue("p_alpha", 0.04f)
-			.setValue("p_beta", 0.08f)
-			.setValue("p_radius", 8);
+				.setValue("hl_poolSteps", 2) // used in FeatureHierarchy:fhPool
+				.setValue("p_alpha", 0.04f)
+				.setValue("p_beta", 0.08f)
+				.setValue("p_radius", 8);
+		}
+		{
+			// 4 layers using stdp encoders
+			for (int l = 0; l < 0; l++)
+				arch.addHigherLayer({ 64-l, 64-l }, feynman::_stdp)
+				.setValue("sfs_inhibitionRadius", 6)
+				.setValue("sfs_initWeightRange", float2{ -0.01, 0.01 })
+				.setValue("sfs_biasAlpha", 0.01f)
 
-		// 4 layers using stdp encoders
-		for (int l = 0; l < 4; l++)
-			arch.addHigherLayer({ 64, 64 }, feynman::_stdp)
-			.setValue("sfs_inhibitionRadius", 6)
-			.setValue("sfs_initWeightRange", float2{ -0.01, 0.01 })
-			.setValue("sfs_biasAlpha", 0.01f)
+				.setValue("sfs_activeRatio", 0.02f)
+				.setValue("sfs_gamma", 0.1f) // used in SFSTDP:sfsInhibit
 
-			.setValue("sfs_activeRatio", 0.02f)
-			.setValue("sfs_gamma", 0.1f) // used in SFSTDP:sfsInhibit
+				.setValue("sfs_ff_radius", 8)
+				.setValue("sfs_ff_weightAlpha", 0.001f)
+				.setValue("sfs_ff_lambda", 0)
 
-			.setValue("sfs_ff_radius", 8)
-			.setValue("sfs_ff_weightAlpha", 0.001f)
-			.setValue("sfs_ff_lambda", 0)
+				.setValue("sfs_r_radius", 8)
+				.setValue("sfs_r_weightAlpha", 0.001f)
+				.setValue("sfs_R_lambda", 0) // input decay
 
-			.setValue("sfs_r_radius", 8)
-			.setValue("sfs_r_weightAlpha", 0.001f)
-			.setValue("sfs_R_lambda", 0) // input decay
-
-			.setValue("hl_poolSteps", 2) // not used: see FeatureHierarchy:fhPool
-			.setValue("p_alpha", 0.04f)
-			.setValue("p_beta", 0.08f)
-			.setValue("p_radius", 8);
-
+				.setValue("hl_poolSteps", 2) // not used: see FeatureHierarchy:fhPool
+				.setValue("p_alpha", 0.04f)
+				.setValue("p_beta", 0.08f)
+				.setValue("p_radius", 8);
+		}
 		// Generate the hierarchy
 		std::shared_ptr<feynman::Hierarchy> h = arch.generateHierarchy();
 
 		// Input and prediction fields for color components
 		Array2D<float> inputFieldR(inputLayerSize);
-		Array2D<float> inputFieldG(inputLayerSize);
-		Array2D<float> inputFieldB(inputLayerSize);
+		//Array2D<float> inputFieldG(inputLayerSize);
+		//Array2D<float> inputFieldB(inputLayerSize);
 		Array2D<float> predFieldR(inputLayerSize);
-		Array2D<float> predFieldG(inputLayerSize);
-		Array2D<float> predFieldB(inputLayerSize);
+		//Array2D<float> predFieldG(inputLayerSize);
+		//Array2D<float> predFieldB(inputLayerSize);
 
 		// Unit Gaussian noise for input corruption
 		std::normal_distribution<float> noiseDist(0.0f, 1.0f);
 
 		// Training time
-		const int numIter = 232;
+		const int numIter = 32;
 
 		// UI update resolution
 		const int progressBarLength = 40;
@@ -247,11 +251,11 @@ namespace video {
 					// Get input buffers
 					for (unsigned int x = 0; x < reImg.getSize().x; x++) {
 						for (unsigned int y = 0; y < reImg.getSize().y; y++) {
-							sf::Color c = reImg.getPixel(x, y);
+							const sf::Color c = reImg.getPixel(x, y);
 
 							write_2D(inputFieldR, x, y, c.r / 255.0f * (1.0f - blendPred) + read_2D(predFieldR, x, y) * blendPred);
-							write_2D(inputFieldG, x, y, c.g / 255.0f * (1.0f - blendPred) + read_2D(predFieldG, x, y) * blendPred);
-							write_2D(inputFieldB, x, y, c.b / 255.0f * (1.0f - blendPred) + read_2D(predFieldB, x, y) * blendPred);
+							//write_2D(inputFieldG, x, y, c.g / 255.0f * (1.0f - blendPred) + read_2D(predFieldG, x, y) * blendPred);
+							//write_2D(inputFieldB, x, y, c.b / 255.0f * (1.0f - blendPred) + read_2D(predFieldB, x, y) * blendPred);
 						}
 					}
 					//plots::plotImage(reImg, {static_cast<int>(reImg.getSize().x), static_cast<int>(reImg.getSize().y) }, 4, "data");
@@ -261,16 +265,16 @@ namespace video {
 				}
 
 				// Run a simulation step of the hierarchy (learning enabled)
-				std::vector<Array2D<float>> inputVector = { inputFieldR, inputFieldG, inputFieldB };
-				//std::vector<Array2D<float>> inputVector = { inputFieldR };
+				//std::vector<Array2D<float>> inputVector = { inputFieldR, inputFieldG, inputFieldB };
+				std::vector<Array2D<float>> inputVector = { inputFieldR };
 				const bool learn = true;
 				if (EXPLAIN) std::cout << "EXPLAIN: Video_Prediction: starting simstep on 3 inputs." << std::endl;
 
 				h->simStep(inputVector, learn);
 
 				predFieldR = h->getPredictions()[0];
-				predFieldG = h->getPredictions()[1];
-				predFieldB = h->getPredictions()[2];
+				//predFieldG = h->getPredictions()[1];
+				//predFieldB = h->getPredictions()[2];
 
 				// show visual prediction
 				if (true) {
@@ -284,8 +288,9 @@ namespace video {
 						for (size_t y = 0; y < rescaleRT.getSize().y; y++) {
 							sf::Color c;
 							c.r = 255.0f * std::min(1.0f, std::max(0.0f, read_2D(predFieldR, x, y)));
-							c.g = 255.0f * std::min(1.0f, std::max(0.0f, read_2D(predFieldG, x, y)));
-							c.b = 255.0f * std::min(1.0f, std::max(0.0f, read_2D(predFieldB, x, y)));
+							c.g = c.b = c.r;
+							//c.g = 255.0f * std::min(1.0f, std::max(0.0f, read_2D(predFieldG, x, y)));
+							//c.b = 255.0f * std::min(1.0f, std::max(0.0f, read_2D(predFieldB, x, y)));
 							prediction_img.setPixel(x, y, c);
 						}
 					}
@@ -368,6 +373,14 @@ namespace video {
 
 		// ---------------------------- Presentation Simulation Loop -----------------------------
 
+		if (true) {
+			// feature extraction tests
+
+
+
+		}
+
+
 		window.setVerticalSyncEnabled(true);
 
 		do {
@@ -393,14 +406,14 @@ namespace video {
 			
 			window.clear();
 
-			std::vector<Array2D<float>> inputVector = { predFieldR, predFieldG, predFieldB };
-			//std::vector<Array2D<float>> inputVector = { predFieldR };
+			//std::vector<Array2D<float>> inputVector = { predFieldR, predFieldG, predFieldB };
+			std::vector<Array2D<float>> inputVector = { predFieldR };
 			const bool learn = false;
 			h->simStep(inputVector, learn);
 
 			predFieldR = h->getPredictions()[0];
-			predFieldG = h->getPredictions()[1];
-			predFieldB = h->getPredictions()[2];
+			//predFieldG = h->getPredictions()[1];
+			//predFieldB = h->getPredictions()[2];
 
 			sf::Image img;
 			img.create(rescaleRT.getSize().x, rescaleRT.getSize().y);
@@ -409,8 +422,8 @@ namespace video {
 				for (size_t y = 0; y < rescaleRT.getSize().y; y++) {
 					sf::Color c;
 					c.r = 255.0f * std::min(1.0f, std::max(0.0f, read_2D(predFieldR, x, y)));
-					c.g = 255.0f * std::min(1.0f, std::max(0.0f, read_2D(predFieldG, x, y)));
-					c.b = 255.0f * std::min(1.0f, std::max(0.0f, read_2D(predFieldB, x, y)));
+					c.g = 255.0f * std::min(1.0f, std::max(0.0f, read_2D(predFieldR, x, y)));
+					c.b = 255.0f * std::min(1.0f, std::max(0.0f, read_2D(predFieldR, x, y)));
 					img.setPixel(x, y, c);
 				}
 			}

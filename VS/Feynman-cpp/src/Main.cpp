@@ -23,8 +23,8 @@ int main()
 		//PredictorLayer::speedTest(1000);
 	}
 	if (false) mnist::mnist_Anomaly_Detection();
-	if (false) video::video_Prediction();
-	if (true) feynman::text_Prediction();
+	if (true) video::video_Prediction();
+	if (false) feynman::text_Prediction();
 	//if (false) sequenceRecall();
 	//if (false) recallTest_AAAX();
 	//if (false) sparseCoderTests::SparseCoderTests();

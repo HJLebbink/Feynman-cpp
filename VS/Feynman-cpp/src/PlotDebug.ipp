@@ -113,7 +113,7 @@ namespace plots {
 
 	void plotImage(
 		const Array3D<float> &image,
-		const float scale2,
+		const float scale,
 		const std::string name)
 	{
 		const int nSlices = 1;
@@ -126,13 +126,13 @@ namespace plots {
 					write_2D(image2, x, y, read_3D(image, x, y, z));
 				}
 			}
-			plotImage(image2, scale2, name + "z=" + std::to_string(z));
+			plotImage(image2, scale, name + "z=" + std::to_string(z));
 		}
 	}
 
 	void plotImage(
 		const Array2D<float2> &image,
-		const float scale2,
+		const float scale,
 		const std::string name)
 	{
 		const int2 size = image.getSize();
@@ -142,6 +142,6 @@ namespace plots {
 				write_2D(image2, x, y, read_2D(image, x, y).x);
 			}
 		}
-		plotImage(image2, scale2, name);
+		plotImage(image2, scale, name);
 	}
 }
