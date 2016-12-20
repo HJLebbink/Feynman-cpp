@@ -48,25 +48,32 @@ namespace feynman {
 			// Get prediction
 			if (EXPLAIN) std::cout << "EXPLAIN: Hierarchy:simStep: going to calculate predictions." << std::endl;
 
-			for (size_t i = 0; i < _predictions.size(); ++i) {
-				//plots::plotImage(_p.getHiddenPrediction()[_back], 6, "Hierarchy:simStep:hiddenPrediction" + std::to_string(i));
 
-				if (EXPLAIN) std::cout << "EXPLAIN: Hierarchy:simStep: prediction layer " << i << "/" << _predictions.size() << ": running PredictionLayer.activate on the prediction of the hidden layer." << std::endl;
+			const size_t nPredictions = _predictions.size();
+			for (size_t i = 0; i < nPredictions; ++i) {
+				//plots::plotImage(_p.getHiddenPrediction()[_back], DEBUG_IMAGE_WIDTH, "Hierarchy:simStep:hiddenPrediction" + std::to_string(i));
+
+				if (EXPLAIN) std::cout << "EXPLAIN: Hierarchy:simStep: prediction layer " << i << "/" << nPredictions << ": running PredictionLayer.activate on the prediction of the hidden layer." << std::endl;
 				_readoutLayers[i].activate({ _p.getHiddenPrediction()[_back] }, _rng);
 
 				if (learn) {
-					if (EXPLAIN) std::cout << "EXPLAIN: Hierarchy:simStep: prediction layer " << i << "/" << _predictions.size() << ": running PredictionLayer.learn on input[" << i << "] layer." << std::endl;
+					if (EXPLAIN) std::cout << "EXPLAIN: Hierarchy:simStep: prediction layer " << i << "/" << nPredictions << ": running PredictionLayer.learn on input[" << i << "] layer." << std::endl;
 					_readoutLayers[i].learn(inputs[i]);
 				}
 				_readoutLayers[i].stepEnd();
 				copy(_readoutLayers[i].getHiddenStates()[_back], _predictions[i]);
-				//plots::plotImage(_predictions[i], 6, "Hierarchy:pred" + std::to_string(i));
+				//plots::plotImage(_predictions[i], DEBUG_IMAGE_WIDTH, "Hierarchy:_predictions[" + std::to_string(i)+"]");
 			}
 		}
 
-		//Get the current prediction vector
+		//Get the current prediction vector (that has been created by the last simStep)
 		const std::vector<Array2D<float>> &getPredictions() const {
 			return _predictions;
+		}
+
+		Array2D<float> getFeature(const Array2D<float> &hiddenState) {
+			_readoutLayers[0].activate({ hiddenState }, _rng);
+			return _readoutLayers[0].getHiddenStates()[_front];
 		}
 
 		//Access underlying Predictor

@@ -18,6 +18,8 @@
 namespace feynman {
 
 	const bool EXPLAIN = false;
+	const int DEBUG_IMAGE_WIDTH = 300;
+
 
 	//Possible encoder identifiers
 	enum SparseFeaturesType {
@@ -116,7 +118,13 @@ namespace feynman {
 			}
 			return minValue;
 		}
-
+		T sum() const {
+			T sum = 0;
+			for (size_t i = 1; i < this->_data_float.size(); ++i) {
+				sum += this->_data_float[i];
+			}
+			return sum;
+		}
 	};
 
 	template <typename T>

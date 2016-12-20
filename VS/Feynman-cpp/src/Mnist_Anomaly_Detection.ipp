@@ -546,7 +546,7 @@ namespace mnist {
 					if (true) {
 						//const Array2D<float> &newSDR_image = h->getPredictor().getPredLayer(0).getHiddenStates()[_back];
 						const Array2D<float> &newSDR_image = h->getPredictions().front();
-						plots::plotImage(newSDR_image, 16, "SDR Current");
+						plots::plotImage(newSDR_image, DEBUG_IMAGE_WIDTH, "SDR Current");
 					}
 					if (true) {
 						Array2D<float> image2 = Array2D<float>(scInputImage._size);

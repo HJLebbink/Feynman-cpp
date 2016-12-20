@@ -201,7 +201,7 @@ namespace feynman {
 					const int3 weightsSize = { _hiddenSize.x, _hiddenSize.y, numWeights };
 					vl._weights = createDoubleBuffer3D<float>(weightsSize);
 					randomUniform3D(vl._weights[_back], initWeightRange, rng);
-					//plots::plotImage(vl._weights[_back], 6, "SFOld:constructor:weights" + std::to_string(vli));
+					//plots::plotImage(vl._weights[_back], DEBUG_IMAGE_WIDTH, "SFOld:constructor:weights" + std::to_string(vli));
 				}
 
 				vl._derivedInput = createDoubleBuffer2D<float>(vld._size);
@@ -237,14 +237,14 @@ namespace feynman {
 		{
 			// Start by clearing stimulus summation buffer to biases
 			clear(_hiddenSummationTemp[_back]);
-			//plots::plotImage(_hiddenSummationTemp[_back], 6, "SFOld:activate:hiddenSummationTemp-1");
+			//plots::plotImage(_hiddenSummationTemp[_back], DEBUG_IMAGE_WIDTH, "SFOld:activate:hiddenSummationTemp-1");
 
 			// Find up stimulus
 			for (size_t vli = 0; vli < _visibleLayers.size(); ++vli) {
 				VisibleLayer &vl = _visibleLayers[vli];
 				const VisibleLayerDesc &vld = _visibleLayerDescs[vli];
 
-				//plots::plotImage(visibleStates[vli], 6, "SFOld:activate:visibleStates" + std::to_string(vli));
+				//plots::plotImage(visibleStates[vli], DEBUG_IMAGE_WIDTH, "SFOld:activate:visibleStates" + std::to_string(vli));
 
 				// Derive inputs
 				if (EXPLAIN) std::cout << "EXPLAIN: SFOld:activate: visible layer " << vli << "/" << _visibleLayers.size() << ": deriving inputs." << std::endl;
@@ -254,8 +254,8 @@ namespace feynman {
 					vl._derivedInput[_front],	// out: note used in learn
 					vld._size
 				);
-				//plots::plotImage(vl._derivedInput[_front], 6, "SFOld:activate:derivedInput" + std::to_string(vli));
-				//plots::plotImage(vl._weights[_back], 5, "SFOld:activate:weights" + std::to_string(vli));
+				//plots::plotImage(vl._derivedInput[_front], DEBUG_IMAGE_WIDTH, "SFOld:activate:derivedInput" + std::to_string(vli));
+				//plots::plotImage(vl._weights[_back], DEBUG_IMAGE_WIDTH, "SFOld:activate:weights" + std::to_string(vli));
 
 				if (EXPLAIN) std::cout << "EXPLAIN: SFOld:activate: visible layer " << vli << "/" << _visibleLayers.size() << ": adding inputs to stimuls influx." << std::endl;
 				spStimulus(
@@ -268,7 +268,7 @@ namespace feynman {
 					vld._radius,
 					vld._ignoreMiddle
 				);
-				//plots::plotImage(_hiddenSummationTemp[_front], 6, "SFOld:activate:hiddenSummationTemp" + std::to_string(vli));
+				//plots::plotImage(_hiddenSummationTemp[_front], DEBUG_IMAGE_WIDTH, "SFOld:activate:hiddenSummationTemp" + std::to_string(vli));
 
 				// Swap buffers
 				std::swap(_hiddenSummationTemp[_front], _hiddenSummationTemp[_back]);
@@ -284,8 +284,8 @@ namespace feynman {
 				_hiddenActivations[_front],		// out
 				_hiddenSize
 			);
-			//plots::plotImage(_hiddenSummationTemp[_back], 6, "SFOld:activate:hiddenSummationTemp");
-			//plots::plotImage(_hiddenActivations[_front], 6, "SFOld:activate:hiddenActivations");
+			//plots::plotImage(_hiddenSummationTemp[_back], DEBUG_IMAGE_WIDTH, "SFOld:activate:hiddenSummationTemp");
+			//plots::plotImage(_hiddenActivations[_front], DEBUG_IMAGE_WIDTH, "SFOld:activate:hiddenActivations");
 
 			// Inhibit
 			if (EXPLAIN) std::cout << "EXPLAIN: SFOld:activate: inhibit hidden activations and get an SDR." << std::endl;
@@ -297,8 +297,8 @@ namespace feynman {
 				_activeRatio,
 				_hiddenSize
 			);
-			plots::plotImage(_hiddenActivations[_front], 6, "SFOld:activate:hiddenActivations");
-			plots::plotImage(_hiddenStates[_front], 6, "SFOld:activate:hiddenStates");
+			plots::plotImage(_hiddenActivations[_front], DEBUG_IMAGE_WIDTH, "SFOld:activate:hiddenActivations");
+			plots::plotImage(_hiddenStates[_front], DEBUG_IMAGE_WIDTH, "SFOld:activate:hiddenStates");
 		}
 
 		//End a simulation step
@@ -338,7 +338,7 @@ namespace feynman {
 					vld._weightAlpha
 				);
 				std::swap(vl._weights[_front], vl._weights[_back]);
-				//plots::plotImage(vl._weights[_back], 6, "SFOld:learn:weights" + std::to_string(vli));
+				//plots::plotImage(vl._weights[_back], DEBUG_IMAGE_WIDTH, "SFOld:learn:weights" + std::to_string(vli));
 			}
 			
 			// Bias update
@@ -353,7 +353,7 @@ namespace feynman {
 				_hiddenSize
 			);
 			std::swap(_hiddenBiases[_front], _hiddenBiases[_back]);
-			//plots::plotImage(_hiddenBiases[_back], 6, "SFOld:learn:biases");
+			//plots::plotImage(_hiddenBiases[_back], DEBUG_IMAGE_WIDTH, "SFOld:learn:biases");
 		}
 
 		/*!

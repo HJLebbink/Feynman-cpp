@@ -16,23 +16,22 @@
 #include "Architect.ipp"
 #include "Hierarchy.ipp"
 #include "SparseFeaturesSTDP.ipp"
-#include "TextConverter.ipp"
+#include "LoadPython.ipp"
 
 using namespace feynman;
 using namespace cv;
 
 namespace feynman {
 
-	const std::string inputFileName = "alice-in-wonderland.txt";
 
-	void text_Prediction() {
+	void spectrum_Prediction() {
+		const std::string inputFileName = "C:\\Data\\sounds\\fan5b.wav.npy";
 
-		std::ifstream inFile;
-		inFile.open(inputFileName);//open the input file
+		const Array2D<float> data = feynman::loadPython(inputFileName);
+		const int nSeconds = data._size.x;
+		const int nFrequencies = data._size.y;
 
-		std::stringstream strStream;
-		strStream << inFile.rdbuf();//read the file
-		std::string example = strStream.str();//str holds the content of the file
+		std::cout << "INFO: SpectrumPrediction: nSeconds=" << nSeconds << "; nFrequencies=" << nFrequencies << std::endl;
 
 
 		// Target file name
@@ -45,7 +44,7 @@ namespace feynman {
 		const float sparsity = 0.03;
 		const int textJump = 4;
 
-		const int2 inputLayerSize = int2{ windowWidth, nNeuronsChar };
+		const int2 inputLayerSize = int2{ 1, nFrequencies };
 
 		arch.addInputLayer(inputLayerSize)
 			.setValue("in_p_alpha", 0.02f)
@@ -130,19 +129,23 @@ namespace feynman {
 		Array2D<float> predField;
 		std::string prevPredStr = "";
 
+
+		Array2D<float> prediction = Array2D<float>(nSeconds, nFrequencies);
+		Array2D<float> input1Sec = Array2D<float>(1, nFrequencies);
+
 		// Train for a bit
 		for (int iter = 0; (iter < numIter); ++iter) {
 			std::cout << "Iteration " << (iter + 1) << " of " << numIter << ":" << std::endl;
 
-			int textLength = static_cast<int>(example.size());
-			// Run through text
-			for (int currentPos = 0; currentPos < textLength; currentPos += textJump) {
+			// Run through data
+			for (int second = 0; second < nSeconds; second++) {
+
 
 				// Run a simulation step of the hierarchy (learning enabled)
-				const std::tuple<std::string, Array2D<float>> input = textConverter.convert(example, currentPos, windowWidth);
-
-				const std::vector<Array2D<float>> inputVector = std::vector<Array2D<float>>{ std::get<1>(input) };
-				const std::string inputStr = std::get<0>(input);
+				for (int freq = 0; freq < nFrequencies; ++freq) {
+					input1Sec._data_float[freq] = data.get(second, freq);
+				}
+				const std::vector<Array2D<float>> inputVector = std::vector<Array2D<float>>{ input1Sec };
 
 				const bool learn = true;
 				h->simStep(inputVector, learn);
@@ -150,10 +153,11 @@ namespace feynman {
 				prevPredStr = std::get<0>(textConverter.convert(predField));
 				predField = h->getPredictions()[0];
 
+				for (int freq = 0; freq < nFrequencies; ++freq) {
+					prediction.set(second, freq, predField._data_float[freq]);
+				}
 				// show visual prediction
-				if (false) plots::plotImage(predField, DEBUG_IMAGE_WIDTH, "Prediction");
-
-				std::cout << prevPredStr << ":" << inputStr << std::endl;
+				if (false) plots::plotImage(prediction, 600, "Prediction");
 			}
 		}
 	}

@@ -131,7 +131,7 @@ namespace feynman {
 				if (_h.getLayer(layer)._tpReset || _h.getLayer(layer)._tpNextReset) 
 				{
 					const Array2D<float> target = _h.getLayer(layer)._sf->getHiddenStates()[_back];
-					//plots::plotImage(target, 6, "Predictor:simStep:target" + std::to_string(l));
+					//plots::plotImage(target, DEBUG_IMAGE_WIDTH, "Predictor:simStep:target" + std::to_string(l));
 
 					const std::vector<Array2D<float>> inputsNextLayer =
 						(layer == (nLayers - 1))

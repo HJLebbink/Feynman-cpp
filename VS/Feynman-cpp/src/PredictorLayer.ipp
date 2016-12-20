@@ -147,7 +147,7 @@ namespace feynman {
 				VisibleLayer &vl = _visibleLayers[vli];
 				const VisibleLayerDesc &vld = _visibleLayerDescs[vli];
 
-				//plots::plotImage(visibleStates[vli], 6, "PredictorLayer:activate:visibleStates" + std::to_string(vli));
+				//plots::plotImage(visibleStates[vli], DEBUG_IMAGE_WIDTH, "PredictorLayer:activate:visibleStates" + std::to_string(vli));
 
 				// Derive inputs
 				//if (EXPLAIN) std::cout << "EXPLAIN: PredictorLayer:activate: visible layer " << vli << "/" << _visibleLayers.size() << ": deriving inputs." << std::endl;
@@ -157,7 +157,7 @@ namespace feynman {
 					vl._derivedInput[_front],		// out: note: _derivedInput are used in learn
 					vld._size
 				);
-				//plots::plotImage(vl._derivedInput[_front], 6, "PredictorLayer:activate:derivedInput" + std::to_string(vli));
+				//plots::plotImage(vl._derivedInput[_front], DEBUG_IMAGE_WIDTH, "PredictorLayer:activate:derivedInput" + std::to_string(vli));
 
 				if (EXPLAIN) std::cout << "EXPLAIN: PredictorLayer:activate: visible layer " << vli << "/" << _visibleLayers.size() << ": adding inputs to stimuls influx." << std::endl;
 				plStimulus(
@@ -170,11 +170,11 @@ namespace feynman {
 					vld._radius,
 					_hiddenSize
 				);
-				//plots::plotImage(_hiddenSummationTemp[_front], 8, "PredictorLayer:activate:hiddenSummationTemp" + std::to_string(vli));
+				//plots::plotImage(_hiddenSummationTemp[_front], DEBUG_IMAGE_WIDTH, "PredictorLayer:activate:hiddenSummationTemp" + std::to_string(vli));
 				std::swap(_hiddenSummationTemp[_front], _hiddenSummationTemp[_back]);
 			}
 
-			//plots::plotImage(_hiddenSummationTemp[_back], 8, "PredictorLayer:activate:hiddenSummationTemp");
+			//plots::plotImage(_hiddenSummationTemp[_back], DEBUG_IMAGE_WIDTH, "PredictorLayer:activate:hiddenSummationTemp");
 
 			if (false) {
 				//test:
@@ -186,14 +186,12 @@ namespace feynman {
 				if (_inhibitSparseFeatures != nullptr) {
 					//TODO: why is this inhibited?
 
-					//if (EXPLAIN) 
-						std::cout << "EXPLAIN: PredictorLayer:activate: calculating hidden state SDR based on stimuls influx." << std::endl;
+					if (EXPLAIN) std::cout << "EXPLAIN: PredictorLayer:activate: calculating hidden state SDR based on stimuls influx." << std::endl;
 					_inhibitSparseFeatures->inhibit(_hiddenSummationTemp[_back], _hiddenStates[_front], rng);
 				}
 				else {
 					if (true) {
-						//if (EXPLAIN) 
-							std::cout << "EXPLAIN: PredictorLayer:activate: hidden state is the truncated [0..1] stimulus influx." << std::endl;
+						if (EXPLAIN) std::cout << "EXPLAIN: PredictorLayer:activate: hidden state is the truncated [0..1] stimulus influx." << std::endl;
 						plTruncate<0, 1>(_hiddenSummationTemp[_back], _hiddenStates[_front]);
 
 					}
@@ -203,9 +201,8 @@ namespace feynman {
 					}
 				}
 			}
-
-			plots::plotImage(_hiddenSummationTemp[_back], 6, "PredictionLayer:activate:_hiddenSummationTemp");
-			plots::plotImage(_hiddenStates[_front], 6, "PredictionLayer:activate:_hiddenStates");
+			//plots::plotImage(_hiddenSummationTemp[_back], DEBUG_IMAGE_WIDTH, "PredictionLayer:activate:_hiddenSummationTemp");
+			//plots::plotImage(_hiddenStates[_front], DEBUG_IMAGE_WIDTH, "PredictionLayer:activate:_hiddenStates");
 		}
 
 		/*!
@@ -820,6 +817,7 @@ namespace feynman {
 			// last checked: 28-nov 2016
 			if (true) {
 				switch (radius) {
+				case 4: plLearnPredWeights_v1<4>(visibleStatesPrev, targets, hiddenStatesPrev, weightsBack, weightsFront, visibleSize, hiddenToVisible, alpha, range); break;
 				case 6: plLearnPredWeights_v1<6>(visibleStatesPrev, targets, hiddenStatesPrev, weightsBack, weightsFront, visibleSize, hiddenToVisible, alpha, range); break;
 				case 8: plLearnPredWeights_v1<8>(visibleStatesPrev, targets, hiddenStatesPrev, weightsBack, weightsFront, visibleSize, hiddenToVisible, alpha, range); break;
 				default: printf("ERROR: PredictorLayer::plLearnPredWeights: provided radius %i is not implemented\n", radius); break;

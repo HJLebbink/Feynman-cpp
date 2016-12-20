@@ -49,6 +49,10 @@ namespace video {
 
 		// Target file name
 		const std::string fileName = "C:/Users/henk/OneDrive/Documents/GitHub/OgmaNeoDemos/resources/Tesseract.wmv";
+		//const std::string fileName = "C:/Data/The.History.Of.Sega.Dreamcast.(2004).wmv";
+		
+
+
 		//const std::string fileName = "C:/Data/Tesseract.wmv";
 		sf::Font font;
 
@@ -63,13 +67,12 @@ namespace video {
 #		endif
 
 		// Parameters
-		const int frameSkip = 4; // Frames to skip
+		const int frameSkip = 1; // Frames to skip
 		const float videoScale = 1.0f; // Rescale ratio
-		const float blendPred = 0.0f; // Ratio of how much prediction to blend in to input (part of input corruption)
 
 		// Video rescaling render target
 		sf::RenderTexture rescaleRT;
-		rescaleRT.create(128, 128);
+		rescaleRT.create(2*64, 2*64);
 
 		// --------------------------- Create the Hierarchy ---------------------------
 
@@ -82,7 +85,7 @@ namespace video {
 			arch.addInputLayer(inputLayerSize)
 				.setValue("in_p_alpha", 0.02f)
 				.setValue("in_p_radius", 8);
-			/*
+			
 			arch.addInputLayer(inputLayerSize)
 				.setValue("in_p_alpha", 0.02f)
 				.setValue("in_p_radius", 8);
@@ -90,25 +93,25 @@ namespace video {
 			arch.addInputLayer(inputLayerSize)
 				.setValue("in_p_alpha", 0.02f)
 				.setValue("in_p_radius", 8);
-				*/
+				
 		}
 		{
-			for (int l = 0; l < 1; l++)
+			for (int l = 0; l < 2; l++)
 				arch.addHigherLayer(int2{ 64 - l, 64 - l }, feynman::_old)
 				.setValue("inhibitionRadius", 5)
-				.setValue("activeRatio", 0.01f)
-				.setValue("biasAlpha", 0.01f)
+				.setValue("activeRatio", 0.02f)
+				.setValue("biasAlpha", 0.02f)
 				.setValue("initWeightRange", float2{ 0.0, 1.0 })
 				.setValue("initBiasRange", float2{ -0.01, 0.01 })
 
 
 				.setValue("ff_radius", 20)
-				.setValue("ff_weightAlpha", 0.25f) // used in SparseFeaturesChunk:sfcLearnWeights 
+				.setValue("ff_weightAlpha", 0.025f) // used in SparseFeaturesChunk:sfcLearnWeights 
 
-				.setValue("r_radius", 20)
-				.setValue("r_weightAlpha", 0.25f)
+				.setValue("r_radius", 8)
+				.setValue("r_weightAlpha", 0.025f)
 
-				.setValue("hl_poolSteps", 1) // used in FeatureHierarchy:fhPool
+				.setValue("hl_poolSteps", 4) // used in FeatureHierarchy:fhPool
 				.setValue("p_alpha", 0.08f)
 				.setValue("p_beta", 0.16f)
 				.setValue("p_radius", 8);
@@ -163,17 +166,19 @@ namespace video {
 
 		// Input and prediction fields for color components
 		Array2D<float> inputFieldR(inputLayerSize);
-		//Array2D<float> inputFieldG(inputLayerSize);
-		//Array2D<float> inputFieldB(inputLayerSize);
+		Array2D<float> inputFieldG(inputLayerSize);
+		Array2D<float> inputFieldB(inputLayerSize);
 		Array2D<float> predFieldR(inputLayerSize);
-		//Array2D<float> predFieldG(inputLayerSize);
-		//Array2D<float> predFieldB(inputLayerSize);
+		Array2D<float> predFieldG(inputLayerSize);
+		Array2D<float> predFieldB(inputLayerSize);
 
 		// Unit Gaussian noise for input corruption
 		std::normal_distribution<float> noiseDist(0.0f, 1.0f);
 
 		// Training time
-		const int numIter = 32;
+		const int numIter = 300;
+		const int nFrames = 5000;
+
 
 		// UI update resolution
 		const int progressBarLength = 40;
@@ -181,6 +186,8 @@ namespace video {
 		bool quit = false;
 
 		// Train for a bit
+		
+		int counter = 0;
 		for (int iter = 0; ((iter < numIter) && !quit); ++iter) {
 			std::cout << "Iteration " << (iter + 1) << " of " << numIter << ":" << std::endl;
 
@@ -207,6 +214,14 @@ namespace video {
 
 				if (frame.empty())
 					break;
+
+				counter++;
+				if (counter > nFrames) {
+					iter = numIter;
+				}
+
+				std::cout << "INFO: done " << counter << " steps" << std::endl;
+
 
 				// Convert to SFML image
 				sf::Image img;
@@ -253,28 +268,28 @@ namespace video {
 						for (unsigned int y = 0; y < reImg.getSize().y; y++) {
 							const sf::Color c = reImg.getPixel(x, y);
 
-							write_2D(inputFieldR, x, y, c.r / 255.0f * (1.0f - blendPred) + read_2D(predFieldR, x, y) * blendPred);
-							//write_2D(inputFieldG, x, y, c.g / 255.0f * (1.0f - blendPred) + read_2D(predFieldG, x, y) * blendPred);
-							//write_2D(inputFieldB, x, y, c.b / 255.0f * (1.0f - blendPred) + read_2D(predFieldB, x, y) * blendPred);
+							write_2D(inputFieldR, x, y, c.r / 255.0f);
+							write_2D(inputFieldG, x, y, c.g / 255.0f);
+							write_2D(inputFieldB, x, y, c.b / 255.0f);
 						}
 					}
-					//plots::plotImage(reImg, {static_cast<int>(reImg.getSize().x), static_cast<int>(reImg.getSize().y) }, 4, "data");
+					plots::plotImage(reImg, {static_cast<int>(reImg.getSize().x), static_cast<int>(reImg.getSize().y) }, 4, "data");
 					//plots::plotImage(inputFieldR, 4, "dataR");
 					//plots::plotImage(inputFieldG, 4, "dataG");
 					//plots::plotImage(inputFieldB, 4, "dataB");
 				}
 
 				// Run a simulation step of the hierarchy (learning enabled)
-				//std::vector<Array2D<float>> inputVector = { inputFieldR, inputFieldG, inputFieldB };
-				std::vector<Array2D<float>> inputVector = { inputFieldR };
+				std::vector<Array2D<float>> inputVector = { inputFieldR, inputFieldG, inputFieldB };
+				//std::vector<Array2D<float>> inputVector = { inputFieldR };
 				const bool learn = true;
 				if (EXPLAIN) std::cout << "EXPLAIN: Video_Prediction: starting simstep on 3 inputs." << std::endl;
 
 				h->simStep(inputVector, learn);
 
 				predFieldR = h->getPredictions()[0];
-				//predFieldG = h->getPredictions()[1];
-				//predFieldB = h->getPredictions()[2];
+				predFieldG = h->getPredictions()[1];
+				predFieldB = h->getPredictions()[2];
 
 				// show visual prediction
 				if (true) {
@@ -288,9 +303,9 @@ namespace video {
 						for (size_t y = 0; y < rescaleRT.getSize().y; y++) {
 							sf::Color c;
 							c.r = 255.0f * std::min(1.0f, std::max(0.0f, read_2D(predFieldR, x, y)));
-							c.g = c.b = c.r;
-							//c.g = 255.0f * std::min(1.0f, std::max(0.0f, read_2D(predFieldG, x, y)));
-							//c.b = 255.0f * std::min(1.0f, std::max(0.0f, read_2D(predFieldB, x, y)));
+							//c.g = c.b = c.r;
+							c.g = 255.0f * std::min(1.0f, std::max(0.0f, read_2D(predFieldG, x, y)));
+							c.b = 255.0f * std::min(1.0f, std::max(0.0f, read_2D(predFieldB, x, y)));
 							prediction_img.setPixel(x, y, c);
 						}
 					}
@@ -373,11 +388,29 @@ namespace video {
 
 		// ---------------------------- Presentation Simulation Loop -----------------------------
 
-		if (true) {
+		if (false) {
 			// feature extraction tests
 
+			Array2D<float> hiddenState = Array2D<float>({ 64, 64 });
+			hiddenState.fill(0.0f);
 
+			int counter = 0;
 
+			for (int x = 0; x < 64; ++x) {
+				for (int y = 0; y < 64; ++y) {
+					hiddenState.set(x, y, 3.0f);
+					Array2D<float> feature = h->getFeature(hiddenState);
+					const float activationSum = feature.sum();
+					//std::cout << "INFO: activation sum (" << x << "," << y << ")=" << activationSum << std::endl;
+					if (activationSum > 400) {
+						feature.set(x, y, -1);
+						plots::plotImage(feature, DEBUG_IMAGE_WIDTH, "feature(" + std::to_string(x) + "," + std::to_string(y)+")");
+					}
+					hiddenState.set(x, y, 0.0f);
+					counter++;
+					if (counter > 10) break;
+				}
+			}
 		}
 
 
@@ -406,14 +439,14 @@ namespace video {
 			
 			window.clear();
 
-			//std::vector<Array2D<float>> inputVector = { predFieldR, predFieldG, predFieldB };
-			std::vector<Array2D<float>> inputVector = { predFieldR };
+			std::vector<Array2D<float>> inputVector = { predFieldR, predFieldG, predFieldB };
+			//std::vector<Array2D<float>> inputVector = { predFieldR };
 			const bool learn = false;
 			h->simStep(inputVector, learn);
 
 			predFieldR = h->getPredictions()[0];
-			//predFieldG = h->getPredictions()[1];
-			//predFieldB = h->getPredictions()[2];
+			predFieldG = h->getPredictions()[1];
+			predFieldB = h->getPredictions()[2];
 
 			sf::Image img;
 			img.create(rescaleRT.getSize().x, rescaleRT.getSize().y);
@@ -422,8 +455,8 @@ namespace video {
 				for (size_t y = 0; y < rescaleRT.getSize().y; y++) {
 					sf::Color c;
 					c.r = 255.0f * std::min(1.0f, std::max(0.0f, read_2D(predFieldR, x, y)));
-					c.g = 255.0f * std::min(1.0f, std::max(0.0f, read_2D(predFieldR, x, y)));
-					c.b = 255.0f * std::min(1.0f, std::max(0.0f, read_2D(predFieldR, x, y)));
+					c.g = 255.0f * std::min(1.0f, std::max(0.0f, read_2D(predFieldG, x, y)));
+					c.b = 255.0f * std::min(1.0f, std::max(0.0f, read_2D(predFieldB, x, y)));
 					img.setPixel(x, y, c);
 				}
 			}

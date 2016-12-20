@@ -203,6 +203,7 @@
     <None Include="src\Hierarchy.ipp" />
     <None Include="src\ImageWhitener.ipp" />
     <None Include="src\LayerDescs.ipp" />
+    <None Include="src\LoadPython.ipp" />
     <None Include="src\Mnist_Anomaly_Detection.ipp" />
     <None Include="src\Plot.ipp" />
     <None Include="src\PlotDebug.ipp" />
@@ -215,6 +216,7 @@
     <None Include="src\SparseFeaturesDelay.ipp" />
     <None Include="src\SparseFeaturesOld.ipp" />
     <None Include="src\SparseFeaturesSTDP.ipp" />
+    <None Include="src\SpectrumPrediction.ipp" />
     <None Include="src\TextConverter.ipp" />
     <None Include="src\TextPrediction.ipp" />
     <None Include="src\Video_Prediction.ipp" />

@@ -170,7 +170,7 @@ namespace feynman {
 					_layers[l]._sf->stepEnd();
 
 					// Prediction error
-					//plots::plotImage(_layers[l]._sf->getHiddenStates()[_back], 8, "FeatureHierarchy:simStep:hiddenState" + std::to_string(l));
+					//plots::plotImage(_layers[l]._sf->getHiddenStates()[_back], DEBUG_IMAGE_WIDTH, "FeatureHierarchy:simStep:hiddenState" + std::to_string(l));
 
 					if (EXPLAIN) std::cout << "EXPLAIN: FeatureHierarchy:simStep: layer " << l << "/" << _layers.size() << ": calculating prediction error between hidden state and previous prediction." << std::endl;
 					fhPredError(
@@ -180,7 +180,7 @@ namespace feynman {
 						_layers[l]._sf->getHiddenSize()
 					);
 
-					//plots::plotImage(_layers[l]._predErrors, 8, "FeatureHierarchy:simStep:predErrors" + std::to_string(l));
+					//plots::plotImage(_layers[l]._predErrors, DEBUG_IMAGE_WIDTH, "FeatureHierarchy:simStep:predErrors" + std::to_string(l));
 
 					// Add state to average
 					if (EXPLAIN) std::cout << "EXPLAIN: FeatureHierarchy:simStep: layer " << l << "/" << _layers.size() << ": temporal pooling ("<< _layerDescs[l]._poolSteps << ") prediction errors." << std::endl;

@@ -53,7 +53,7 @@ namespace plots {
 		const sf::Image &image,
 		const int2 sizeImage,
 		const float scale,
-		const std::string name)
+		const std::string &name)
 	{
 		sf::RenderWindow * window = getWindowCache(name, sizeImage, scale);
 		plotImage(image, sizeImage, { 0.0f, 0.0f }, scale, *window);
@@ -103,7 +103,7 @@ namespace plots {
 	void plotImage(
 		const Array2D<float> &image,
 		const float scale,
-		const std::string name)
+		const std::string &name)
 	{
 		const std::string name2 = name + "(" + std::to_string(image.getSize().x) + "," + std::to_string(image.getSize().y) + ")";
 		sf::RenderWindow * window = getWindowCache(name2, image.getSize(), scale);
@@ -112,9 +112,19 @@ namespace plots {
 	}
 
 	void plotImage(
+		const Array2D<float> &image,
+		const int desiredWidth,
+		const std::string &name)
+	{
+		const int width = std::max(image._size.x, desiredWidth);
+		const float scale = static_cast<float>(width) / image._size.x;
+		plotImage(image, scale, name);
+	}
+
+	void plotImage(
 		const Array3D<float> &image,
 		const float scale,
-		const std::string name)
+		const std::string &name)
 	{
 		const int nSlices = 1;
 
@@ -133,7 +143,7 @@ namespace plots {
 	void plotImage(
 		const Array2D<float2> &image,
 		const float scale,
-		const std::string name)
+		const std::string &name)
 	{
 		const int2 size = image.getSize();
 		Array2D<float> image2 = Array2D<float>(size);
@@ -144,4 +154,5 @@ namespace plots {
 		}
 		plotImage(image2, scale, name);
 	}
+
 }

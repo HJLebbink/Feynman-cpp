@@ -86,7 +86,7 @@ namespace feynman {
 			TextConverter textConverter(0.04f, 200);
 			const auto input = textConverter.convert(exampleX, 100, 40);
 			Array2D<float> sdr = std::get<1>(input);
-			plots::plotImage(sdr, 2, "text");
+			plots::plotImage(sdr, 2.0f, "text");
 
 			const auto pred1 = textConverter.convert(sdr);
 			const std::string predStr1 = std::get<0>(pred1);

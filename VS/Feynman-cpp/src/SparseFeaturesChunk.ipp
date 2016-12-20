@@ -347,8 +347,8 @@ namespace feynman {
 				_chunkSize,
 				int2{ chunksInX , chunksInY }
 			);
-			plots::plotImage(_hiddenActivations[_front], 6, "SFChunk:activate:hiddenActivations");
-			plots::plotImage(_hiddenStates[_front], 6, "SFChunk:activate:hiddenStates");
+			plots::plotImage(_hiddenActivations[_front], DEBUG_IMAGE_WIDTH, "SFChunk:activate:hiddenActivations");
+			plots::plotImage(_hiddenStates[_front], DEBUG_IMAGE_WIDTH, "SFChunk:activate:hiddenStates");
 		}
 		
 		//End a simulation step

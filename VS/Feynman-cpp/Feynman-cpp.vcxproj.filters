@@ -90,6 +90,12 @@
     <None Include="src\TextPrediction.ipp">
       <Filter>Source Files</Filter>
     </None>
+    <None Include="src\LoadPython.ipp">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="src\SpectrumPrediction.ipp">
+      <Filter>Source Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Main.cpp">
