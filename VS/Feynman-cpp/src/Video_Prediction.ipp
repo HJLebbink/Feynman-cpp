@@ -48,7 +48,7 @@ namespace video {
 		window.setFramerateLimit(0);
 
 		// Target file name
-		const std::string fileName = "C:/Users/henk/OneDrive/Documents/GitHub/OgmaNeoDemos/resources/Tesseract.wmv";
+		const std::string fileName = "C:/Data/Tesseract.wmv";
 		//const std::string fileName = "C:/Data/The.History.Of.Sega.Dreamcast.(2004).wmv";
 		
 
@@ -56,7 +56,7 @@ namespace video {
 		//const std::string fileName = "C:/Data/Tesseract.wmv";
 		sf::Font font;
 
-#		ifdef _WINDOWS
+#		if defined(_WINDOWS)
 		font.loadFromFile("C:/Windows/Fonts/Arial.ttf");
 #		else
 #		ifdef __APPLE__
@@ -67,7 +67,7 @@ namespace video {
 #		endif
 
 		// Parameters
-		const int frameSkip = 1; // Frames to skip
+		const int frameSkip = 3; // Frames to skip
 		const float videoScale = 1.0f; // Rescale ratio
 
 		// Video rescaling render target
@@ -96,7 +96,7 @@ namespace video {
 				
 		}
 		{
-			for (int l = 0; l < 2; l++)
+			for (int l = 0; l < 3; l++)
 				arch.addHigherLayer(int2{ 64 - l, 64 - l }, feynman::_old)
 				.setValue("inhibitionRadius", 5)
 				.setValue("activeRatio", 0.02f)
@@ -176,7 +176,7 @@ namespace video {
 		std::normal_distribution<float> noiseDist(0.0f, 1.0f);
 
 		// Training time
-		const int numIter = 300;
+		const int numIter = 60;
 		const int nFrames = 5000;
 
 
@@ -293,7 +293,7 @@ namespace video {
 
 				// show visual prediction
 				if (true) {
-					//plots::plotImage(predFieldR, 3, "PredictionR");
+					plots::plotImage(predFieldR, 3, "PredictionR");
 					//plots::plotImage(predFieldG, 3, "PredictionG");
 					//plots::plotImage(predFieldB, 3, "PredictionB");
 
@@ -391,26 +391,26 @@ namespace video {
 		if (false) {
 			// feature extraction tests
 
-			Array2D<float> hiddenState = Array2D<float>({ 64, 64 });
-			hiddenState.fill(0.0f);
+			//Array2D<float> hiddenState = Array2D<float>({ 64.0f, 64.0f });
+			//hiddenState.fill(0.0f);
 
-			int counter = 0;
+			//int counter = 0;
 
-			for (int x = 0; x < 64; ++x) {
-				for (int y = 0; y < 64; ++y) {
-					hiddenState.set(x, y, 3.0f);
-					Array2D<float> feature = h->getFeature(hiddenState);
-					const float activationSum = feature.sum();
-					//std::cout << "INFO: activation sum (" << x << "," << y << ")=" << activationSum << std::endl;
-					if (activationSum > 400) {
-						feature.set(x, y, -1);
-						plots::plotImage(feature, DEBUG_IMAGE_WIDTH, "feature(" + std::to_string(x) + "," + std::to_string(y)+")");
-					}
-					hiddenState.set(x, y, 0.0f);
-					counter++;
-					if (counter > 10) break;
-				}
-			}
+			//for (int x = 0; x < 64; ++x) {
+			//	for (int y = 0; y < 64; ++y) {
+			//		hiddenState.set(x, y, 3.0f);
+			//		Array2D<float> feature = h->getFeature(hiddenState);
+			//		const float activationSum = feature.sum();
+			//		//std::cout << "INFO: activation sum (" << x << "," << y << ")=" << activationSum << std::endl;
+			//		if (activationSum > 400) {
+			//			feature.set(x, y, -1);
+			//			plots::plotImage(feature, DEBUG_IMAGE_WIDTH, "feature(" + std::to_string(x) + "," + std::to_string(y)+")");
+			//		}
+			//		hiddenState.set(x, y, 0.0f);
+			//		counter++;
+			//		if (counter > 10) break;
+			//	}
+			//}
 		}
 
 

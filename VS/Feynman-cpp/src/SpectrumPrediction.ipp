@@ -27,9 +27,17 @@ namespace feynman {
 	void spectrum_Prediction() {
 		const std::string inputFileName = "C:\\Data\\sounds\\fan5b.wav.npy";
 
+		sf::RenderWindow window;
+		window.create(sf::VideoMode(400, 400), "Video Test", sf::Style::Default);
+
+		// Uncap framerate
+		window.setFramerateLimit(0);
+		window.setVerticalSyncEnabled(true);
+
+
 		const Array2D<float> data = feynman::loadPython(inputFileName);
-		const int nSeconds = data._size.x;
-		const int nFrequencies = data._size.y;
+		const int nFrequencies = data._size.x;
+		const int nSeconds = data._size.y;
 
 		std::cout << "INFO: SpectrumPrediction: nSeconds=" << nSeconds << "; nFrequencies=" << nFrequencies << std::endl;
 
@@ -52,7 +60,7 @@ namespace feynman {
 
 		{
 			for (int l = 0; l < 1; l++)
-				arch.addHigherLayer(int2{ 100, 100 }, feynman::_old)
+				arch.addHigherLayer(int2{ 64, 64 }, feynman::_old)
 				.setValue("inhibitionRadius", 5)
 				.setValue("activeRatio", 0.01f)
 				.setValue("biasAlpha", 0.01f)
@@ -130,8 +138,8 @@ namespace feynman {
 		std::string prevPredStr = "";
 
 
-		Array2D<float> prediction = Array2D<float>(nSeconds, nFrequencies);
-		Array2D<float> input1Sec = Array2D<float>(1, nFrequencies);
+		Array2D<float> prediction = Array2D<float>(nFrequencies, nSeconds);
+		Array2D<float> input1Sec = Array2D<float>(nFrequencies, 1);
 
 		// Train for a bit
 		for (int iter = 0; (iter < numIter); ++iter) {
@@ -140,10 +148,22 @@ namespace feynman {
 			// Run through data
 			for (int second = 0; second < nSeconds; second++) {
 
+				sf::Event windowEvent;
+
+				while (window.pollEvent(windowEvent))
+				{
+					switch (windowEvent.type)
+					{
+					case sf::Event::Closed:
+						break;
+					default:
+						break;
+					}
+				}
 
 				// Run a simulation step of the hierarchy (learning enabled)
 				for (int freq = 0; freq < nFrequencies; ++freq) {
-					input1Sec._data_float[freq] = data.get(second, freq);
+					input1Sec.set(freq, 0, data.get(freq, second));
 				}
 				const std::vector<Array2D<float>> inputVector = std::vector<Array2D<float>>{ input1Sec };
 
@@ -154,10 +174,10 @@ namespace feynman {
 				predField = h->getPredictions()[0];
 
 				for (int freq = 0; freq < nFrequencies; ++freq) {
-					prediction.set(second, freq, predField._data_float[freq]);
+					prediction.set(freq, second, predField.get(0, freq));
 				}
 				// show visual prediction
-				if (false) plots::plotImage(prediction, 600, "Prediction");
+				if (true) plots::plotImage(prediction, 1200, "Prediction");
 			}
 		}
 	}

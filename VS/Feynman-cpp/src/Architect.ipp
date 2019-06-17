@@ -494,7 +494,7 @@ namespace feynman {
 			return h;
 		}
 		
-		std::shared_ptr<class Agent> Architect::generateAgent(
+		std::shared_ptr<class Agent> generateAgent(
 			std::unordered_map<std::string, std::string> &additionalParams) 
 		{
 			std::shared_ptr<Agent> a = std::make_shared<Agent>();

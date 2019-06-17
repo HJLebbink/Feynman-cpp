@@ -116,7 +116,8 @@ namespace plots {
 		const int desiredWidth,
 		const std::string &name)
 	{
-		const int width = std::max(image._size.x, desiredWidth);
+		//const int width = std::max(image._size.x, desiredWidth);
+		const int width = desiredWidth;
 		const float scale = static_cast<float>(width) / image._size.x;
 		plotImage(image, scale, name);
 	}
